@@ -1,1 +1,12 @@
 .superpowers/
+
+bin/
+obj/
+.vs/
+*.user
+*.userosscache
+*.suo
+[Aa]pk/
+[Aa]ab/
+*.androidproj.user
+docs/superpowers/plans/*.output
