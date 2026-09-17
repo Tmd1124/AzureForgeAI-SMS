@@ -63,4 +63,8 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\SmsMessenger.Core\SmsMessenger.Core.csproj" />
+    </ItemGroup>
+
 </Project>
