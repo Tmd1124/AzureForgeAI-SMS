@@ -1,0 +1,13 @@
+@page "/splash"
+@inject SmsMessenger.Core.ViewModels.SplashViewModel ViewModel
+
+<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#25D366;">
+    <h1 style="color:white;">SMS Messenger</h1>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ViewModel.InitializeAsync();
+    }
+}

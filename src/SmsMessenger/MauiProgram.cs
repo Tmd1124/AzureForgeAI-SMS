@@ -1,4 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+using SmsMessenger.Core.Services;
+using SmsMessenger.Core.ViewModels;
+using SmsMessenger.Platforms.Android;
+using SmsMessenger.Services;
 
 namespace SmsMessenger;
 
@@ -15,6 +19,10 @@ public static class MauiProgram
 			});
 
 		builder.Services.AddMauiBlazorWebView();
+
+		builder.Services.AddSingleton<IDefaultAppRoleService, DefaultAppRoleService>();
+		builder.Services.AddSingleton<INavigationService, NavigationService>();
+		builder.Services.AddTransient<SplashViewModel>();
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();
