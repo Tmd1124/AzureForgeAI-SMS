@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Native SMS Messenger — Requirements Document</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f0f4f8;color:#1e293b;display:flex;min-height:100vh}
+a{color:#1d4ed8;text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:'Consolas','Courier New',monospace;font-size:0.82rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;color:#0f172a}
+pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;overflow-x:auto;font-size:0.78rem;line-height:1.6;color:#1e293b;margin:10px 0}
+pre code{background:none;border:none;padding:0;font-size:inherit}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:0.8rem}
+th{background:#e2e8f0;color:#334155;font-weight:700;padding:9px 12px;text-align:left;border:1px solid #cbd5e1}
+td{padding:8px 12px;border:1px solid #e2e8f0;color:#475569;vertical-align:top}
+tr:nth-child(even) td{background:#f8fafc}
+
+/* ── Sidebar ── */
+#sidebar{width:280px;flex-shrink:0;background:#ffffff;border-right:1px solid #e2e8f0;height:100vh;position:sticky;top:0;overflow-y:auto;padding:20px 0}
+#sidebar .logo{padding:16px 20px 12px;border-bottom:1px solid #e2e8f0;margin-bottom:8px}
+#sidebar .logo h2{font-size:1rem;color:#128c3e;font-weight:700}
+#sidebar .logo p{font-size:0.68rem;color:#94a3b8;margin-top:2px}
+#sidebar ul{list-style:none}
+#sidebar ul li a{display:block;padding:6px 20px;font-size:0.75rem;color:#475569;border-left:3px solid transparent;transition:all .15s}
+#sidebar ul li a:hover{background:#f0f4f8;color:#1d4ed8;text-decoration:none}
+#sidebar ul li a.active{border-left-color:#22c55e;background:#f0fdf4;color:#128c3e;font-weight:600}
+#sidebar .nav-group{padding:10px 20px 4px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8}
+
+/* ── Main content ── */
+#main{flex:1;padding:40px 48px;max-width:calc(100% - 280px);overflow-x:hidden}
+@media(max-width:900px){#sidebar{display:none}#main{max-width:100%;padding:24px 16px}}
+
+/* ── Headings ── */
+h1.doc-title{font-size:2rem;color:#0f172a;font-weight:800;margin-bottom:6px}
+.doc-meta{font-size:0.8rem;color:#64748b;margin-bottom:40px;padding-bottom:20px;border-bottom:2px solid #e2e8f0}
+.doc-meta span{margin-right:20px}
+h2.section-title{font-size:1.4rem;color:#0f172a;font-weight:700;margin:48px 0 6px;padding-top:16px;border-top:2px solid #e2e8f0}
+h2.section-title:first-of-type{border-top:none;margin-top:0}
+.section-desc{font-size:0.85rem;color:#64748b;margin-bottom:24px}
+h3{font-size:1.05rem;color:#1e293b;font-weight:700;margin:24px 0 10px}
+h4{font-size:0.9rem;color:#334155;font-weight:700;margin:16px 0 8px}
+h5{font-size:0.82rem;color:#475569;font-weight:700;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.06em}
+p{font-size:0.85rem;color:#475569;line-height:1.7;margin:8px 0}
+ul.doc-list,ol.doc-list{margin:8px 0 8px 20px}
+ul.doc-list li,ol.doc-list li{font-size:0.83rem;color:#475569;line-height:1.7;margin-bottom:3px}
+ul.doc-list li strong,ol.doc-list li strong{color:#1e293b}
+
+/* ── Cards / Boxes ── */
+.info-box{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:16px 18px;margin:12px 0}
+.info-box.green{background:#f0fdf4;border-color:#bbf7d0}
+.info-box.amber{background:#fffbeb;border-color:#fde68a}
+.info-box.purple{background:#faf5ff;border-color:#e9d5ff}
+.info-box.red{background:#fff1f2;border-color:#fecdd3}
+.info-box h4{margin:0 0 6px;font-size:0.82rem}
+.info-box.green h4{color:#166534}
+.info-box.amber h4{color:#92400e}
+.info-box.purple h4{color:#6b21a8}
+.info-box.red h4{color:#9f1239}
+.info-box p,.info-box li{font-size:0.8rem}
+
+/* ── Screen card ── */
+.screen-card{background:#ffffff;border:1.5px solid #e2e8f0;border-radius:12px;padding:22px 24px;margin:16px 0;box-shadow:0 1px 6px rgba(0,0,0,.05)}
+.screen-card .screen-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9}
+.screen-card .screen-icon{font-size:1.8rem;line-height:1}
+.screen-card .screen-name{font-size:1rem;font-weight:700;color:#0f172a}
+.screen-card .screen-purpose{font-size:0.75rem;color:#64748b}
+.screen-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+@media(max-width:700px){.screen-grid{grid-template-columns:1fr}}
+.sg-cell{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px}
+.sg-cell h5{margin:0 0 6px;font-size:0.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.sg-cell ul{margin:0;padding-left:14px}
+.sg-cell ul li{font-size:0.78rem;color:#475569;line-height:1.6}
+
+/* ── API card (reused for Android API surface reference) ── */
+.api-card{background:#ffffff;border:1.5px solid #e2e8f0;border-radius:10px;margin:14px 0;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.api-header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #f1f5f9}
+.method{font-size:0.7rem;font-weight:800;padding:3px 8px;border-radius:5px;letter-spacing:.06em}
+.method.GET{background:#dcfce7;color:#166534}
+.method.POST{background:#dbeafe;color:#1e40af}
+.method.PUT{background:#fef3c7;color:#92400e}
+.method.DELETE{background:#fce7f3;color:#9d174d}
+.method.PATCH{background:#f3e8ff;color:#6b21a8}
+.api-endpoint{font-family:'Consolas',monospace;font-size:0.82rem;color:#1e293b;font-weight:600}
+.api-desc{font-size:0.75rem;color:#64748b;margin-left:auto}
+.api-body{padding:14px 16px}
+
+/* ── Badge chips ── */
+.chip{display:inline-block;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:20px;margin:2px}
+.chip.blue{background:#dbeafe;color:#1e40af}
+.chip.green{background:#dcfce7;color:#166534}
+.chip.purple{background:#f3e8ff;color:#6b21a8}
+.chip.amber{background:#fef3c7;color:#92400e}
+.chip.cyan{background:#cffafe;color:#155e75}
+.chip.red{background:#fce7f3;color:#9d174d}
+.chip.slate{background:#f1f5f9;color:#475569}
+
+/* ── Comparison table highlight ── */
+.rec-row td{background:#f0fdf4 !important;font-weight:600;color:#166534}
+
+.toc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0}
+@media(max-width:600px){.toc-grid{grid-template-columns:1fr}}
+.toc-item{background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:0.8rem}
+.toc-item .toc-num{font-weight:700;color:#1d4ed8;margin-right:6px}
+.toc-item .toc-label{color:#334155}
+
+hr.divider{border:none;border-top:1px solid #e2e8f0;margin:32px 0}
+
+/* ── Phone Mockup Showcase ── */
+.mockup-showcase{background:linear-gradient(135deg,#f0f4ff 0%,#f8faff 100%);border:1.5px solid #dde6f5;border-radius:16px;padding:32px 20px 24px;margin:0 0 32px}
+.mockup-showcase-title{text-align:center;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.12em;margin-bottom:28px}
+.mockup-phones{display:flex;gap:24px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.phone-device{display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone-device .phone-label{font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;background:white;border:1px solid #e2e8f0;border-radius:20px;padding:3px 12px}
+
+/* phone shell */
+.ph{width:178px;background:white;border-radius:32px;border:5px solid #dde3ea;box-shadow:0 12px 40px rgba(80,100,160,0.18),0 2px 8px rgba(0,0,0,0.08);overflow:hidden;position:relative}
+.ph-notch{background:#dde3ea;height:11px;display:flex;justify-content:center;align-items:flex-end;padding-bottom:2px}
+.ph-notch-pill{width:44px;height:5px;background:#c8d0db;border-radius:3px}
+.ph-status{display:flex;justify-content:space-between;padding:3px 10px 0;font-size:5.5px;color:#94a3b8;font-weight:700;letter-spacing:.04em}
+
+/* ── SPLASH screen ── */
+.splash-bg{background:linear-gradient(160deg,#eef1ff 0%,#f5f0ff 100%);padding:14px 16px 18px;min-height:308px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;position:relative;overflow:hidden}
+.splash-diag{position:absolute;top:60px;left:-10px;right:-10px;height:1px;background:linear-gradient(90deg,transparent,#c0c8e8 30%,#c0c8e8 70%,transparent);transform:rotate(15deg);transform-origin:center}
+.splash-diag2{position:absolute;top:80px;left:-10px;right:-10px;height:1px;background:linear-gradient(90deg,transparent,#d0d8f0 30%,#d0d8f0 70%,transparent);transform:rotate(15deg);transform-origin:center}
+.splash-title-wrap{text-align:center;margin-top:6px}
+.splash-app-title{font-size:11px;font-weight:900;color:#4a6cf7;letter-spacing:.14em;display:block}
+.splash-app-sub{font-size:7px;color:#8fa8e8;letter-spacing:.08em}
+.splash-bubbles{position:relative;width:88px;height:76px;margin:8px auto}
+.splash-bubble-1{position:absolute;top:0;left:0;width:56px;height:52px;background:#4a6cf7;border-radius:12px 12px 12px 2px;display:flex;align-items:center;justify-content:center;gap:4px;box-shadow:0 4px 14px rgba(74,108,247,0.4)}
+.splash-bubble-2{position:absolute;bottom:0;right:0;width:50px;height:46px;background:#e040fb;border-radius:12px 12px 2px 12px;display:flex;align-items:center;justify-content:center;gap:3px;box-shadow:0 4px 14px rgba(224,64,251,0.35)}
+.b-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.9)}
+.splash-cta{background:#1e293b;color:white;border-radius:22px;padding:8px 24px;font-size:8px;font-weight:800;letter-spacing:.06em;text-align:center;margin-bottom:4px;box-shadow:0 3px 12px rgba(30,41,59,0.3)}
+
+/* ── CONVERSATIONS (thread list) screen ── */
+.ch-header{display:flex;align-items:center;justify-content:space-between;padding:9px 11px 7px;background:white}
+.ch-hav{width:24px;height:24px;border-radius:50%;background:#4a6cf7;display:flex;align-items:center;justify-content:center}
+.ch-hav::after{content:'\1F4AC';font-size:10px;filter:brightness(10)}
+.ch-htitle{font-size:11px;font-weight:900;color:#1e293b;letter-spacing:.06em}
+.ch-hmenu{display:flex;flex-direction:column;gap:2px;justify-content:center}
+.ch-hmenu span{display:block;width:12px;height:1.5px;background:#64748b;border-radius:1px}
+.ch-search{margin:0 9px 8px;background:#f1f5f9;border-radius:10px;display:flex;align-items:center;gap:5px;padding:5px 8px}
+.ch-search-icon{font-size:9px;color:#94a3b8}
+.ch-search-text{font-size:7.5px;color:#b0bec5}
+.ci{display:flex;align-items:center;gap:7px;padding:7px 10px;border-bottom:1px solid #f8fafc}
+.ci-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;font-size:13px;display:flex;align-items:center;justify-content:center;position:relative}
+.ci-info{flex:1;min-width:0}
+.ci-name{font-size:8px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-prev{font-size:6.5px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:86px;margin-top:1px}
+.ci-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.ci-time{font-size:6px;color:#94a3b8}
+.ci-badge{background:#06b6d4;color:white;font-size:6px;font-weight:800;border-radius:8px;padding:1px 4px;min-width:13px;text-align:center}
+.ch-fab{position:absolute;right:12px;bottom:46px;width:26px;height:26px;border-radius:50%;background:#4a6cf7;color:white;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 4px 10px rgba(74,108,247,.4)}
+.ch-bnav{display:flex;justify-content:space-around;padding:8px 0 5px;border-top:1px solid #f1f5f9;background:white}
+.bn-icon{font-size:14px;opacity:0.35;display:flex;flex-direction:column;align-items:center}
+.bn-icon.act{opacity:1}
+.bn-dot{width:4px;height:4px;border-radius:50%;background:#4a6cf7;margin-top:2px}
+
+/* ── THREAD DETAIL screen ── */
+.cd-header{display:flex;align-items:center;gap:5px;padding:8px 10px 7px;background:white;border-bottom:1px solid #f1f5f9}
+.cd-back{font-size:13px;color:#64748b;line-height:1;margin-right:1px}
+.cd-name-wrap{flex:1}
+.cd-name{font-size:9px;font-weight:800;color:#1e293b;display:block}
+.cd-lastseen{font-size:6px;color:#94a3b8}
+.cd-avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);flex-shrink:0;font-size:12px;display:flex;align-items:center;justify-content:center}
+.cd-msgs{padding:6px 8px;display:flex;flex-direction:column;gap:5px;background:#f0f4f8;min-height:268px}
+.msg-ts{font-size:6px;color:#94a3b8;text-align:center;margin:2px 0}
+.msg-r{align-self:flex-start;background:white;border-radius:2px 10px 10px 10px;padding:5px 8px;max-width:122px;box-shadow:0 1px 3px rgba(0,0,0,0.07)}
+.msg-s{align-self:flex-end;background:#b2ebf2;border-radius:10px 2px 10px 10px;padding:5px 8px;max-width:122px}
+.msg-s.teal{background:#00bcd4}
+.mt{font-size:6.5px;color:#1e293b;line-height:1.45}
+.msg-s .mt{color:#004d57}
+.msg-s.teal .mt{color:white}
+.mts{font-size:5.5px;color:#94a3b8;text-align:right;margin-top:2px}
+.msg-s .mts{color:#26919e}
+.msg-s.teal .mts{color:rgba(255,255,255,0.75)}
+.cd-compose{display:flex;align-items:center;gap:6px;padding:7px 9px;background:white;border-top:1px solid #f1f5f9}
+.cd-compose-field{flex:1;background:#f1f5f9;border-radius:14px;padding:6px 10px;font-size:6.5px;color:#b0bec5}
+.cd-compose-send{width:22px;height:22px;border-radius:50%;background:#4a6cf7;color:white;display:flex;align-items:center;justify-content:center;font-size:10px}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<nav id="sidebar">
+  <div class="logo">
+    <h2>💬 SMS Messenger</h2>
+    <p>Requirements Document v1.0</p>
+  </div>
+  <ul>
+    <li class="nav-group">Overview</li>
+    <li><a href="#executive-summary">Executive Summary</a></li>
+    <li><a href="#sms-capabilities">What Real SMS Can &amp; Can't Do</a></li>
+
+    <li class="nav-group">Features</li>
+    <li><a href="#feature-overview">Application Overview (v1)</a></li>
+    <li><a href="#splash">UI Reference Mockups</a></li>
+
+    <li class="nav-group">Architecture</li>
+    <li><a href="#android-integration">Android SMS Integration</a></li>
+    <li><a href="#maui-architecture">MAUI Application Architecture</a></li>
+    <li><a href="#data-model">Data Model</a></li>
+
+    <li class="nav-group">Notifications &amp; Privacy</li>
+    <li><a href="#notifications">Notifications</a></li>
+    <li><a href="#permissions-privacy">Permissions &amp; Privacy</a></li>
+
+    <li class="nav-group">Planning</li>
+    <li><a href="#cost-summary">Cost Summary</a></li>
+    <li><a href="#roadmap">Phase 2/3 Roadmap</a></li>
+  </ul>
+</nav>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<div id="main">
+
+<h1 class="doc-title">Native SMS Messenger — Requirements Document</h1>
+<div class="doc-meta">
+  <span>📄 Version: 1.0</span>
+  <span>📅 Date: September 2026</span>
+  <span>🏗️ Stack: .NET MAUI (Android) · Native Android Telephony APIs · No Backend</span>
+</div>
+
+<!-- EXECUTIVE SUMMARY -->
+<h2 class="section-title" id="executive-summary">1. Executive Summary</h2>
+<p>This document defines the requirements for a native Android SMS/MMS messenger app. Unlike an over-the-top (OTT) chat app such as WhatsApp — where both people must have the same app installed and messages travel through a company's own servers — this app sends and receives real SMS text messages through the phone's own cellular connection, using Android's native telephony APIs. That means it can reach <strong>any phone number, on any carrier, on any device</strong>, because the message itself is an ordinary text message, not a proprietary chat protocol.</p>
+
+<p>This project has gone through three scope changes before landing here, each one trading features for lower cost and broader reach: it started as a full WhatsApp-style clone on Azure (Cosmos DB, Azure Communication Services calling, Notification Hub — realistically $150–500+/month at low volume); that was rebuilt around a low-cost self-hosted/Supabase stack focused on text-only messaging; and finally it became clear that what was actually wanted was real SMS interoperability, which changes the architecture entirely. Because SMS delivery rides the user's own cellular connection instead of a server we operate, this version needs <strong>no backend, no cloud database, and no monthly infrastructure bill at all</strong> for v1.</p>
+
+<div class="toc-grid">
+  <div class="toc-item"><span class="toc-num">Platform</span><span class="toc-label">Android only (API 24+) — not a priority choice, a platform capability limit; see below</span></div>
+  <div class="toc-item"><span class="toc-num">Client</span><span class="toc-label">.NET MAUI Blazor Hybrid, with Android-native platform code for telephony access</span></div>
+  <div class="toc-item"><span class="toc-num">Messaging</span><span class="toc-label">Real SMS via Android's <code>SmsManager</code> / <code>Telephony</code> content providers</span></div>
+  <div class="toc-item"><span class="toc-num">Backend</span><span class="toc-label">None for v1 — no server, no cloud database, no push service</span></div>
+  <div class="toc-item"><span class="toc-num">Data storage</span><span class="toc-label">Android's own on-device SMS/MMS content provider (OS-managed)</span></div>
+  <div class="toc-item"><span class="toc-num">Infrastructure cost</span><span class="toc-label">$0/month — messaging cost is whatever the user's own carrier plan already covers</span></div>
+</div>
+
+<div class="info-box amber">
+  <h4>⚠️ Why Android only, not "Android first"</h4>
+  <p>Apple does not allow third-party iOS apps to send or receive SMS/MMS through the carrier network the way Android does — there is no equivalent of Android's default-SMS-app role on iOS. This isn't a prioritization decision that a later phase revisits; it's a platform restriction. If cross-platform reach is ever wanted, it would require a completely different mechanism (a cloud SMS gateway with a rented phone number — see the Phase 2/3 Roadmap), which reintroduces a paid backend and stops being "the user's own phone number."</p>
+</div>
+
+<!-- WHAT SMS CAN AND CAN'T DO -->
+<h2 class="section-title" id="sms-capabilities">2. What Real SMS Can &amp; Can't Do</h2>
+<p class="section-desc">This is the most important section in this document. Plain SMS is a carrier protocol, not a chat protocol — it does not support several features that a WhatsApp-style app takes for granted. Nobody building or using this app should be surprised these are missing.</p>
+
+<div class="info-box red">
+  <h4>🚫 Not achievable over SMS, in any phase</h4>
+  <ul class="doc-list">
+    <li><strong>Typing indicators</strong> — there is no such signal in the SMS protocol. Not planned for any future phase; it cannot exist here.</li>
+    <li><strong>Cross-network read receipts</strong> — the carrier network confirms only that a message was <em>delivered</em> to the recipient's device (a delivery report), never that a person opened and read it. This app can mark a thread "read" locally when you open it, but that status is never transmitted to the sender — it is not the same thing as WhatsApp's blue double-tick, and this document never uses that framing.</li>
+    <li><strong>Emoji reactions, edit-after-send, delete-for-everyone</strong> — SMS is a one-way, fire-and-forget message. Once sent, there is no protocol mechanism for the recipient's device to be told "react to that," "replace that text," or "forget that." These are not deferred to a later phase — they are simply not possible over plain SMS, ever, on any carrier.</li>
+    <li><strong>True shared group threads</strong> — a WhatsApp-style group (one shared conversation, visible replies from everyone) generally needs MMS group-messaging support on the carrier side, which this app does not implement in v1. See the "individual group texting" note below for what v1 actually does instead.</li>
+  </ul>
+</div>
+
+<div class="info-box green">
+  <h4>✅ What v1 actually achieves</h4>
+  <ul class="doc-list">
+    <li><strong>Sent → Delivered status</strong> — <code>SmsManager</code> accepts a <code>sentIntent</code> (fires when the message leaves the device) and a <code>deliveryIntent</code> (fires when the carrier confirms delivery). This gives a genuine two-state status per message, the SMS equivalent of a single tick (sent) and a double tick (delivered) — with no third "read" tick, because that signal doesn't exist on this protocol.</li>
+    <li><strong>"Individual group texting"</strong> — sending the same text to multiple recipients at once. Each recipient receives it as an ordinary 1:1 text from you; they do not see each other, do not see each other's replies, and there is no shared thread. This is clearly labeled as such in the app UI so it's never confused with a real group chat. Proper MMS group threads are a Phase 2 item (see the Roadmap).</li>
+    <li><strong>Reach</strong> — any phone number, any carrier, any device, with zero per-message cost beyond the user's existing cellular plan.</li>
+  </ul>
+</div>
+
+<!-- APPLICATION OVERVIEW -->
+<h2 class="section-title" id="feature-overview">3. Application Overview — Feature Set (v1)</h2>
+
+<div class="screen-grid">
+  <div class="sg-cell">
+    <h5>Messaging</h5>
+    <ul>
+      <li>1-on-1 SMS conversations, threaded by contact/number</li>
+      <li>Multi-part SMS for messages over 160 characters</li>
+      <li>Sent → Delivered status per message</li>
+      <li>Local "mark as read" (device-side only, not transmitted)</li>
+      <li>"Individual group texting" (same text to multiple recipients, clearly labeled as not a shared thread)</li>
+    </ul>
+  </div>
+  <div class="sg-cell">
+    <h5>Contacts &amp; Compose</h5>
+    <ul>
+      <li>Compose to a raw phone number or a picked contact</li>
+      <li>Contact name/photo resolution via the Android Contacts provider</li>
+      <li>Dual-SIM send selection (optional nicety, if the device has two SIMs)</li>
+    </ul>
+  </div>
+  <div class="sg-cell">
+    <h5>System Integration</h5>
+    <ul>
+      <li>Default-SMS-app onboarding flow (required for reliable message delivery)</li>
+      <li>Local notifications for incoming texts when the app isn't in the foreground</li>
+      <li>Runtime permission requests with plain-language explanations</li>
+    </ul>
+  </div>
+  <div class="sg-cell">
+    <h5>Not in v1 (see Roadmap)</h5>
+    <ul>
+      <li>MMS / media / image attachments</li>
+      <li>True shared group threads</li>
+      <li>Reactions, edit, delete-for-everyone</li>
+      <li>Typing indicators, cross-network read receipts</li>
+      <li>iOS support</li>
+      <li>Any cloud backend, sync, or backup</li>
+    </ul>
+  </div>
+</div>
+
+<h3>3.1 Platform Support</h3>
+<table>
+  <tbody><tr><th>Platform</th><th>Target Version</th><th>Notes</th></tr>
+  <tr><td>Android</td><td>API 24+ (Android 7.0)</td><td>Only supported platform — required for native SMS/MMS access</td></tr>
+  <tr><td>iOS</td><td>—</td><td>Not feasible for this app's core feature; Apple does not grant third-party apps carrier SMS access</td></tr>
+</tbody></table>
+
+<!-- UI REFERENCE MOCKUPS -->
+<h2 class="section-title" id="splash">3.2 UI Reference Mockups</h2>
+<p class="section-desc">Visual reference for the three core v1 screens. Note the thread list has no "stories" row and the thread detail view shows Sent/Delivered status only — never a read receipt, since that signal doesn't exist over SMS.</p>
+
+<div class="mockup-showcase">
+  <div class="mockup-showcase-title">📱 Application Screen Visual Reference</div>
+  <div class="mockup-phones">
+
+    <!-- PHONE 1: Splash -->
+    <div class="phone-device">
+      <div class="ph">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status"><span>9:41</span><span>▐▐▐ ⬛</span></div>
+        <div class="splash-bg">
+          <div class="splash-diag"></div>
+          <div class="splash-diag2"></div>
+          <div class="splash-title-wrap">
+            <span class="splash-app-title">SMS APP</span>
+            <span class="splash-app-sub">TEXT ANYONE</span>
+          </div>
+          <div class="splash-bubbles">
+            <div class="splash-bubble-1"><div class="b-dot"></div><div class="b-dot"></div><div class="b-dot"></div></div>
+            <div class="splash-bubble-2"><div class="b-dot"></div><div class="b-dot"></div><div class="b-dot"></div></div>
+          </div>
+          <div class="splash-cta">Get Started</div>
+        </div>
+      </div>
+      <div class="phone-label">Splash Screen</div>
+    </div>
+
+    <!-- PHONE 2: Conversations (thread list) -->
+    <div class="phone-device">
+      <div class="ph" style="position:relative">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status"><span>9:41</span><span>▐▐▐ ⬛</span></div>
+        <div class="ch-header">
+          <div class="ch-hav"></div>
+          <span class="ch-htitle">MESSAGES</span>
+          <div class="ch-hmenu"><span></span><span></span><span></span></div>
+        </div>
+        <div class="ch-search"><span class="ch-search-icon">🔍</span><span class="ch-search-text">Search contacts or numbers</span></div>
+        <div class="ci">
+          <div class="ci-av" style="background:#e0f2fe">👩</div>
+          <div class="ci-info"><div class="ci-name">Alice Smith</div><div class="ci-prev">Wow, I forgot to send you that...</div></div>
+          <div class="ci-right"><span class="ci-time">8 min</span><span class="ci-badge">2</span></div>
+        </div>
+        <div class="ci">
+          <div class="ci-av" style="background:#f0fdf4">👨</div>
+          <div class="ci-info"><div class="ci-name">(555) 014-2231</div><div class="ci-prev">Oh, I thought you were talking about...</div></div>
+          <div class="ci-right"><span class="ci-time">22 min</span></div>
+        </div>
+        <div class="ci">
+          <div class="ci-av" style="background:#faf5ff">🧑</div>
+          <div class="ci-info"><div class="ci-name">Oliver Williams</div><div class="ci-prev">Sounds good, see you then</div></div>
+          <div class="ci-right"><span class="ci-time">48 min</span></div>
+        </div>
+        <div class="ci">
+          <div class="ci-av" style="background:#fff7ed">👩</div>
+          <div class="ci-info"><div class="ci-name">Ashley Johnson</div><div class="ci-prev">Let's go to the gym today!</div></div>
+          <div class="ci-right"><span class="ci-time">52 min</span></div>
+        </div>
+        <div class="ch-fab">✎</div>
+        <div class="ch-bnav">
+          <div class="bn-icon act">💬<div class="bn-dot"></div></div>
+          <div class="bn-icon">⚙️</div>
+        </div>
+      </div>
+      <div class="phone-label">Conversations</div>
+    </div>
+
+    <!-- PHONE 3: Thread Detail -->
+    <div class="phone-device">
+      <div class="ph">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status"><span>9:41</span><span>▐▐▐ ⬛</span></div>
+        <div class="cd-header">
+          <span class="cd-back">‹</span>
+          <div class="cd-name-wrap"><span class="cd-name">Alice Smith</span><span class="cd-lastseen">(555) 014-8890</span></div>
+          <div class="cd-avatar">👩</div>
+        </div>
+        <div class="cd-msgs">
+          <div class="msg-ts">18:28</div>
+          <div class="msg-r"><div class="mt">Hey! Are we still on for tomorrow?</div><div class="mts">18:28</div></div>
+          <div class="msg-s teal"><div class="mt">Yes! 10am works for me</div><div class="mts">18:30 ✓ Sent</div></div>
+          <div class="msg-s teal"><div class="mt">See you then</div><div class="mts">18:30 ✓✓ Delivered</div></div>
+          <div class="msg-ts">20:42</div>
+          <div class="msg-r"><div class="mt">Perfect, I'll bring the documents too</div><div class="mts">20:42</div></div>
+        </div>
+        <div class="cd-compose">
+          <div class="cd-compose-field">Text message</div>
+          <div class="cd-compose-send">➤</div>
+        </div>
+      </div>
+      <div class="phone-label">Thread Detail</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="screen-card">
+  <div class="screen-header">
+    <div class="screen-icon">🌅</div>
+    <div><div class="screen-name">Splash Screen</div><div class="screen-purpose">Branding + startup: check default-SMS-app status and permissions</div></div>
+  </div>
+  <div class="screen-grid">
+    <div class="sg-cell">
+      <h5>Startup Logic</h5>
+      <ul>
+        <li>Check whether this app currently holds the Android default-SMS-app role</li>
+        <li>Check whether required runtime permissions are granted</li>
+        <li>If either is missing → route to onboarding (role request + permission requests)</li>
+        <li>If both are satisfied → route straight to Conversations</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>User Actions</h5>
+      <ul><li>None — passive screen, no tappable elements, no back stack entry</li></ul>
+    </div>
+  </div>
+</div>
+
+<div class="screen-card">
+  <div class="screen-header">
+    <div class="screen-icon">💬</div>
+    <div><div class="screen-name">Conversations</div><div class="screen-purpose">List of SMS threads, sourced from Android's own SMS content provider</div></div>
+  </div>
+  <div class="screen-grid">
+    <div class="sg-cell">
+      <h5>Layout</h5>
+      <ul>
+        <li>Search bar filtering by contact name, number, or message content</li>
+        <li>Scrollable thread list, one row per conversation</li>
+        <li>Unread badge sourced from the thread's read/unread flag in the content provider</li>
+        <li>FAB opens Compose</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>User Actions</h5>
+      <ul>
+        <li>Tap thread → Thread Detail</li>
+        <li>Long-press → Delete thread, Mark read/unread</li>
+        <li>Tap FAB → Compose (raw number or contact picker)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="screen-card">
+  <div class="screen-header">
+    <div class="screen-icon">📩</div>
+    <div><div class="screen-name">Thread Detail</div><div class="screen-purpose">Full message history for one number, with Sent/Delivered status</div></div>
+  </div>
+  <div class="screen-grid">
+    <div class="sg-cell">
+      <h5>Layout</h5>
+      <ul>
+        <li>Contact name/number header with photo (if resolvable via Contacts)</li>
+        <li>Chronological message bubbles, sent right / received left</li>
+        <li>Sent status shown as a single tick, Delivered as a double tick — no third state</li>
+        <li>Compose field at bottom; auto-splits into multi-part SMS over 160 characters</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>User Actions</h5>
+      <ul>
+        <li>Type + send — no edit, no delete-for-everyone, no reactions (not possible over SMS)</li>
+        <li>Long-press a message → Copy text, Delete locally (device-side only)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ANDROID SMS INTEGRATION ARCHITECTURE -->
+<h2 class="section-title" id="android-integration">4. Android SMS Integration Architecture</h2>
+<p class="section-desc">This section replaces everything a cloud-backend architecture would normally cover. There is no server here — this is entirely about how the app talks to Android's own telephony subsystem.</p>
+
+<h3>4.1 The Default-SMS-App Contract</h3>
+<p>Android routes incoming SMS differently depending on whether an app is the user's designated default SMS app. A non-default app only receives the read-only <code>SMS_RECEIVED_ACTION</code> broadcast (informational, can't reliably own message state). The OS-designated default SMS app additionally receives the protected <code>SMS_DELIVER_ACTION</code> broadcast, and is expected to be the one writing incoming messages into the shared SMS content provider. To manage conversations reliably — and to be allowed to request the sensitive <code>READ_SMS</code>/<code>RECEIVE_SMS</code> permissions from Google Play at all — this app must become the user's default SMS app.</p>
+
+<h3>4.2 Components Required to Be Eligible</h3>
+<table>
+  <tbody><tr><th>Component</th><th>Android Requirement</th><th>Purpose</th></tr>
+  <tr><td><code>BroadcastReceiver</code></td><td>Handles <code>SMS_DELIVER_ACTION</code> (and stubs <code>WAP_PUSH_DELIVER_ACTION</code> for future MMS)</td><td>Receives incoming SMS content directly from the OS</td></tr>
+  <tr><td>Compose <code>Activity</code></td><td>Handles <code>ACTION_SENDTO</code> (<code>sms:</code>/<code>smsto:</code>) and <code>ACTION_SEND</code> (text/plain)</td><td>Lets other apps hand off "text this number" intents to this app</td></tr>
+  <tr><td><code>HeadlessSmsSendService</code></td><td>Handles <code>ACTION_RESPOND_VIA_MESSAGE</code></td><td>Enables quick-reply from notifications/other apps without opening the UI</td></tr>
+</table>
+
+<h3>4.3 Requesting the Default Role</h3>
+<pre><code>// Android 10+ (API 29+) — primary path
+var roleManager = (RoleManager)GetSystemService(RoleService);
+var intent = roleManager.CreateRequestRoleIntent(RoleManager.RoleSms);
+StartActivityForResult(intent, RequestDefaultSmsAppCode);
+
+// Pre-API 29 devices fall back to:
+// Telephony.Sms.Intents.ActionChangeDefault</code></pre>
+
+<h3>4.4 Sending Messages</h3>
+<pre><code>// Short message
+smsManager.SendTextMessage(destinationAddress, null, messageBody, sentIntent, deliveryIntent);
+
+// Long message — split across parts, single logical message in the UI
+var parts = smsManager.DivideMessage(messageBody);
+smsManager.SendMultipartTextMessage(destinationAddress, null, parts,
+    sentIntents, deliveryIntents);
+
+// sentIntent fires  → message left the device       (Sent)
+// deliveryIntent fires → carrier confirmed delivery  (Delivered)
+// no further signal exists for "read"</code></pre>
+
+<h3>4.5 Reading Data — the OS Owns Storage, Not This App</h3>
+<ul class="doc-list">
+  <li><code>Telephony.Sms.CONTENT_URI</code> — individual SMS rows (address, body, date, read flag, type)</li>
+  <li><code>Telephony.Threads.CONTENT_URI</code> / the MMS-SMS conversations provider — groups messages into threads by participant set</li>
+  <li>No app-owned message database is created — the app is a viewer/composer over data Android already persists and manages</li>
+</ul>
+
+<h3>4.6 Contacts Resolution</h3>
+<p>Phone numbers are resolved to display names and photos by querying <code>ContactsContract</code> (<code>ContactsContract.PhoneLookup</code>), used to render the Conversations list and Thread Detail header. Numbers with no matching contact are shown as formatted raw numbers.</p>
+
+<h3>4.7 Required Permissions</h3>
+<table>
+  <tbody><tr><th>Permission</th><th>Why it's needed</th></tr>
+  <tr><td><code>READ_SMS</code></td><td>Read existing message history from the content provider</td></tr>
+  <tr><td><code>SEND_SMS</code></td><td>Send outgoing messages via <code>SmsManager</code></td></tr>
+  <tr><td><code>RECEIVE_SMS</code></td><td>Receive the <code>SMS_DELIVER_ACTION</code> broadcast as the default SMS app</td></tr>
+  <tr><td><code>RECEIVE_MMS</code></td><td>Required to remain a valid default-SMS-app candidate, even though MMS composing isn't built in v1</td></tr>
+  <tr><td><code>READ_CONTACTS</code></td><td>Resolve numbers to names/photos</td></tr>
+  <tr><td><code>READ_PHONE_STATE</code></td><td>Read device phone number / dual-SIM subscription info</td></tr>
+  <tr><td><code>POST_NOTIFICATIONS</code></td><td>Android 13+ runtime permission for local incoming-message notifications</td></tr>
+</table>
+<p>Every permission is requested at runtime with a plain-language explanation shown immediately before the system prompt, per Android's permission best practices — and because <code>READ_SMS</code>/<code>RECEIVE_SMS</code> sit in Google Play's restricted-permissions category, being a genuinely functioning default SMS app is one of the few declared use cases Google accepts for them.</p>
+
+<h3>4.8 Dual-SIM Handling (optional nicety)</h3>
+<p><code>SubscriptionManager</code> and <code>SmsManager.GetSmsManagerForSubscriptionId</code> allow the user to choose which SIM sends a given message on dual-SIM devices. Not required for v1 to function, but low-effort to add given the send path already goes through <code>SmsManager</code>.</p>
+
+<!-- MAUI APPLICATION ARCHITECTURE -->
+<h2 class="section-title" id="maui-architecture">5. MAUI Application Architecture</h2>
+<p class="section-desc">The app still follows MVVM using .NET MAUI Blazor Hybrid. Everything about auth, real-time hubs, calling, and file upload from earlier drafts of this project is gone — it doesn't apply to a backend-less native SMS app.</p>
+
+<h3>5.1 MVVM Structure</h3>
+<table>
+  <tbody><tr><th>Layer</th><th>Technology</th><th>Responsibility</th></tr>
+  <tr><td>View</td><td>Blazor Razor Components (.razor)</td><td>UI rendering, data binding, event handling</td></tr>
+  <tr><td>ViewModel</td><td>C# classes inheriting <code>ObservableObject</code></td><td>State management, commands</td></tr>
+  <tr><td>Service</td><td>C# interfaces + Android-platform implementations</td><td>Telephony APIs, content providers, contacts, local notifications</td></tr>
+  <tr><td>Model</td><td>Plain C# record / class</td><td>Lightweight DTOs mapped from content-provider rows</td></tr>
+</table>
+
+<h3>5.2 Pages, ViewModels &amp; Services</h3>
+<table>
+  <tbody><tr><th>Page</th><th>ViewModel</th><th>Key Services Used</th></tr>
+  <tr><td>SplashPage.razor</td><td>SplashViewModel</td><td>IDefaultAppRoleService, INavigationService</td></tr>
+  <tr><td>OnboardingPage.razor</td><td>OnboardingViewModel</td><td>IDefaultAppRoleService — role request + permission walkthrough</td></tr>
+  <tr><td>ConversationsPage.razor</td><td>ConversationsViewModel</td><td>IThreadService, IContactService</td></tr>
+  <tr><td>ThreadDetailPage.razor</td><td>ThreadDetailViewModel</td><td>ISmsService, IContactService</td></tr>
+  <tr><td>ComposePage.razor</td><td>ComposeViewModel</td><td>ISmsService, IContactService</td></tr>
+  <tr><td>ContactPickerPage.razor</td><td>ContactPickerViewModel</td><td>IContactService</td></tr>
+  <tr><td>SettingsPage.razor</td><td>SettingsViewModel</td><td>IDefaultAppRoleService, INotificationService</td></tr>
+</table>
+
+<h3>5.3 Service Interfaces</h3>
+<table>
+  <tbody><tr><th>Interface</th><th>Description</th></tr>
+  <tr><td><code>ISmsService</code></td><td>Send/read messages; wraps <code>SmsManager</code> + the SMS content provider</td></tr>
+  <tr><td><code>IThreadService</code></td><td>Lists/groups conversations from the Threads provider</td></tr>
+  <tr><td><code>IContactService</code></td><td>Resolves numbers to names/photos via <code>ContactsContract</code></td></tr>
+  <tr><td><code>INotificationService</code></td><td>Raises local Android notifications for incoming texts — no cloud push involved</td></tr>
+  <tr><td><code>IDefaultAppRoleService</code></td><td>Checks/requests the Android default-SMS-app role</td></tr>
+  <tr><td><code>INavigationService</code></td><td>Typed navigation abstraction over Shell</td></tr>
+</table>
+
+<h3>5.4 Folder Structure</h3>
+<pre><code>SmsMessenger.MAUI/
+├── MauiProgram.cs
+├── App.xaml / App.xaml.cs
+├── AppShell.razor
+│
+├── Pages/
+│   ├── SplashPage.razor
+│   ├── OnboardingPage.razor
+│   ├── Conversations/ConversationsPage.razor
+│   ├── Conversations/ThreadDetailPage.razor
+│   ├── Compose/ComposePage.razor
+│   ├── Compose/ContactPickerPage.razor
+│   └── Settings/SettingsPage.razor
+│
+├── ViewModels/
+│   ├── SplashViewModel.cs
+│   ├── OnboardingViewModel.cs
+│   ├── ConversationsViewModel.cs
+│   ├── ThreadDetailViewModel.cs
+│   ├── ComposeViewModel.cs
+│   └── SettingsViewModel.cs
+│
+├── Services/
+│   ├── Sms/ISmsService.cs
+│   ├── Sms/IThreadService.cs
+│   ├── Contacts/IContactService.cs
+│   ├── Notifications/INotificationService.cs
+│   └── Roles/IDefaultAppRoleService.cs
+│
+├── Models/
+│   ├── SmsMessage.cs
+│   ├── SmsThread.cs
+│   └── ContactInfo.cs
+│
+└── Platforms/
+    └── Android/
+        ├── MainActivity.cs
+        ├── SmsDeliverReceiver.cs        # BroadcastReceiver: SMS_DELIVER_ACTION
+        ├── ComposeSmsActivity.cs        # ACTION_SENDTO / ACTION_SEND handler
+        ├── HeadlessSmsSendService.cs    # ACTION_RESPOND_VIA_MESSAGE handler
+        ├── SmsService.cs                # ISmsService implementation
+        ├── ContactService.cs            # IContactService implementation
+        ├── DefaultAppRoleService.cs     # IDefaultAppRoleService implementation
+        └── NotificationService.cs       # INotificationService implementation
+
+# Platforms/iOS/ intentionally omitted — not applicable to this app's
+# core feature; Apple does not permit carrier-level SMS access.</code></pre>
+
+<!-- DATA MODEL -->
+<h2 class="section-title" id="data-model">6. Data Model</h2>
+<p>There is no app-owned database, local or remote, for v1. Android's own SMS/MMS content provider (backed by the OS's own SQLite storage) is the single source of truth for every message and thread — the app reads and writes through it rather than duplicating it.</p>
+<div class="info-box">
+  <h4>ℹ️ The only local storage this app has</h4>
+  <p>A handful of small app preferences via MAUI <code>Preferences</code> — whether onboarding is complete, notification toggle state, and a preferred-SIM choice on dual-SIM devices. Not a database; just a few key-value settings.</p>
+</div>
+
+<!-- NOTIFICATIONS -->
+<h2 class="section-title" id="notifications">7. Notifications</h2>
+<p>When <code>SmsDeliverReceiver</code> fires (a new message arrived) and the app is not in the foreground, the app raises a local notification directly via Android's <code>NotificationManager</code>. There is no cloud round-trip of any kind — Android already delivered the message straight to the device before the app ever gets involved, so there is nothing for Firebase or any other push service to do here.</p>
+
+<!-- PERMISSIONS & PRIVACY -->
+<h2 class="section-title" id="permissions-privacy">8. Permissions &amp; Privacy</h2>
+<p>See section 4.7 for the full permission list and justification for each. Because there is no cloud backend in v1, there is no server-side encryption-in-transit or encryption-at-rest concern to design for — all message content stays on-device, inside Android's own storage, under the same protection the OS already provides to its default messaging app.</p>
+<ul class="doc-list">
+  <li>No message content ever leaves the device except as an actual SMS sent over the carrier network (which is inherent to how SMS itself works, not something this app adds)</li>
+  <li>No account, login, or identity system exists in v1 — the "identity" is simply the device's own SIM/phone number</li>
+  <li>Every sensitive permission request includes an in-app rationale shown before the OS prompt</li>
+</ul>
+
+<!-- COST SUMMARY -->
+<h2 class="section-title" id="cost-summary">9. Cost Summary</h2>
+<div class="info-box green">
+  <h4>💰 v1 Infrastructure Cost: $0/month</h4>
+  <p>No servers, no cloud database, no push notification service, no third-party messaging API. The only "cost" of sending a message is whatever the user's own cellular plan already charges for SMS — typically unlimited on modern plans. Google Play Developer registration ($25 one-time) is the only fixed cost associated with shipping this app at all.</p>
+</div>
+
+<!-- PHASE 2/3 ROADMAP -->
+<h2 class="section-title" id="roadmap">10. Phase 2/3 Roadmap</h2>
+<table>
+  <tbody><tr><th>Item</th><th>What it adds</th><th>Cost/complexity impact</th></tr>
+  <tr><td>MMS support</td><td>Proper shared group threads, image/media attachments</td><td>Low — extends the existing telephony integration, still $0 infra</td></tr>
+  <tr><td>Optional cloud backup/sync</td><td>Cross-device history sync</td><td>Reintroduces a small backend (e.g. Postgres via Supabase's free tier) — entirely optional, app fully works without it</td></tr>
+  <tr><td>Native dialer hand-off</td><td>Tap-to-call via <code>Intent.ACTION_DIAL</code>/<code>ACTION_CALL</code></td><td>Trivial — hands off to the OS's own phone app, no calling infrastructure built or owned by this app</td></tr>
+  <tr><td>Cross-platform (iOS) reach</td><td>Would require a cloud SMS gateway (e.g. Twilio) with a rented number</td><td>Reintroduces a paid backend and per-message cost; stops being "the user's own phone number" — a genuinely different product, not a simple port</td></tr>
+</tbody></table>
+
+<p style="text-align:center;font-size:0.75rem;color:#94a3b8;padding-bottom:40px;">
+  Native SMS Messenger Requirements Document &nbsp;·&nbsp; v1.0 · Native Android SMS · No Backend &nbsp;·&nbsp; For internal use only
+</p>
+
+</div><!-- /main -->
+
+</body></html>

@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<!-- saved from url=(0089)file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WhatsApp Clone — Requirements Document</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f0f4f8;color:#1e293b;display:flex;min-height:100vh}
+a{color:#1d4ed8;text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:'Consolas','Courier New',monospace;font-size:0.82rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;color:#0f172a}
+pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;overflow-x:auto;font-size:0.78rem;line-height:1.6;color:#1e293b;margin:10px 0}
+pre code{background:none;border:none;padding:0;font-size:inherit}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:0.8rem}
+th{background:#e2e8f0;color:#334155;font-weight:700;padding:9px 12px;text-align:left;border:1px solid #cbd5e1}
+td{padding:8px 12px;border:1px solid #e2e8f0;color:#475569;vertical-align:top}
+tr:nth-child(even) td{background:#f8fafc}
+
+/* &#x2500;&#x2500; Sidebar &#x2500;&#x2500; */
+#sidebar{width:280px;flex-shrink:0;background:#ffffff;border-right:1px solid #e2e8f0;height:100vh;position:sticky;top:0;overflow-y:auto;padding:20px 0}
+#sidebar .logo{padding:16px 20px 12px;border-bottom:1px solid #e2e8f0;margin-bottom:8px}
+#sidebar .logo h2{font-size:1rem;color:#128c3e;font-weight:700}
+#sidebar .logo p{font-size:0.68rem;color:#94a3b8;margin-top:2px}
+#sidebar ul{list-style:none}
+#sidebar ul li a{display:block;padding:6px 20px;font-size:0.75rem;color:#475569;border-left:3px solid transparent;transition:all .15s}
+#sidebar ul li a:hover{background:#f0f4f8;color:#1d4ed8;text-decoration:none}
+#sidebar ul li a.active{border-left-color:#22c55e;background:#f0fdf4;color:#128c3e;font-weight:600}
+#sidebar .nav-group{padding:10px 20px 4px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8}
+
+/* &#x2500;&#x2500; Main content &#x2500;&#x2500; */
+#main{flex:1;padding:40px 48px;max-width:calc(100% - 280px);overflow-x:hidden}
+@media(max-width:900px){#sidebar{display:none}#main{max-width:100%;padding:24px 16px}}
+
+/* &#x2500;&#x2500; Headings &#x2500;&#x2500; */
+h1.doc-title{font-size:2rem;color:#0f172a;font-weight:800;margin-bottom:6px}
+.doc-meta{font-size:0.8rem;color:#64748b;margin-bottom:40px;padding-bottom:20px;border-bottom:2px solid #e2e8f0}
+.doc-meta span{margin-right:20px}
+h2.section-title{font-size:1.4rem;color:#0f172a;font-weight:700;margin:48px 0 6px;padding-top:16px;border-top:2px solid #e2e8f0}
+h2.section-title:first-of-type{border-top:none;margin-top:0}
+.section-desc{font-size:0.85rem;color:#64748b;margin-bottom:24px}
+h3{font-size:1.05rem;color:#1e293b;font-weight:700;margin:24px 0 10px}
+h4{font-size:0.9rem;color:#334155;font-weight:700;margin:16px 0 8px}
+h5{font-size:0.82rem;color:#475569;font-weight:700;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.06em}
+p{font-size:0.85rem;color:#475569;line-height:1.7;margin:8px 0}
+ul.doc-list,ol.doc-list{margin:8px 0 8px 20px}
+ul.doc-list li,ol.doc-list li{font-size:0.83rem;color:#475569;line-height:1.7;margin-bottom:3px}
+ul.doc-list li strong,ol.doc-list li strong{color:#1e293b}
+
+/* &#x2500;&#x2500; Cards / Boxes &#x2500;&#x2500; */
+.info-box{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:16px 18px;margin:12px 0}
+.info-box.green{background:#f0fdf4;border-color:#bbf7d0}
+.info-box.amber{background:#fffbeb;border-color:#fde68a}
+.info-box.purple{background:#faf5ff;border-color:#e9d5ff}
+.info-box.red{background:#fff1f2;border-color:#fecdd3}
+.info-box h4{margin:0 0 6px;font-size:0.82rem}
+.info-box.green h4{color:#166534}
+.info-box.amber h4{color:#92400e}
+.info-box.purple h4{color:#6b21a8}
+.info-box.red h4{color:#9f1239}
+.info-box p,.info-box li{font-size:0.8rem}
+
+/* &#x2500;&#x2500; Screen card &#x2500;&#x2500; */
+.screen-card{background:#ffffff;border:1.5px solid #e2e8f0;border-radius:12px;padding:22px 24px;margin:16px 0;box-shadow:0 1px 6px rgba(0,0,0,.05)}
+.screen-card .screen-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9}
+.screen-card .screen-icon{font-size:1.8rem;line-height:1}
+.screen-card .screen-name{font-size:1rem;font-weight:700;color:#0f172a}
+.screen-card .screen-purpose{font-size:0.75rem;color:#64748b}
+.screen-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+@media(max-width:700px){.screen-grid{grid-template-columns:1fr}}
+.sg-cell{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px}
+.sg-cell h5{margin:0 0 6px;font-size:0.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.sg-cell ul{margin:0;padding-left:14px}
+.sg-cell ul li{font-size:0.78rem;color:#475569;line-height:1.6}
+
+/* &#x2500;&#x2500; API card &#x2500;&#x2500; */
+.api-card{background:#ffffff;border:1.5px solid #e2e8f0;border-radius:10px;margin:14px 0;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.api-header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #f1f5f9}
+.method{font-size:0.7rem;font-weight:800;padding:3px 8px;border-radius:5px;letter-spacing:.06em}
+.method.GET{background:#dcfce7;color:#166534}
+.method.POST{background:#dbeafe;color:#1e40af}
+.method.PUT{background:#fef3c7;color:#92400e}
+.method.DELETE{background:#fce7f3;color:#9d174d}
+.method.PATCH{background:#f3e8ff;color:#6b21a8}
+.api-endpoint{font-family:'Consolas',monospace;font-size:0.82rem;color:#1e293b;font-weight:600}
+.api-desc{font-size:0.75rem;color:#64748b;margin-left:auto}
+.api-body{padding:14px 16px}
+
+/* &#x2500;&#x2500; Badge chips &#x2500;&#x2500; */
+.chip{display:inline-block;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:20px;margin:2px}
+.chip.blue{background:#dbeafe;color:#1e40af}
+.chip.green{background:#dcfce7;color:#166534}
+.chip.purple{background:#f3e8ff;color:#6b21a8}
+.chip.amber{background:#fef3c7;color:#92400e}
+.chip.cyan{background:#cffafe;color:#155e75}
+.chip.red{background:#fce7f3;color:#9d174d}
+.chip.slate{background:#f1f5f9;color:#475569}
+
+/* &#x2500;&#x2500; Comparison table highlight &#x2500;&#x2500; */
+.rec-row td{background:#f0fdf4 !important;font-weight:600;color:#166534}
+
+/* &#x2500;&#x2500; User story card &#x2500;&#x2500; */
+.story-card{background:#ffffff;border:1.5px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:10px 0;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.story-id{font-size:0.7rem;font-weight:700;color:#64748b;letter-spacing:.06em;margin-bottom:4px}
+.story-title{font-size:0.88rem;font-weight:700;color:#0f172a;margin-bottom:8px}
+.story-body{font-size:0.8rem;color:#475569;font-style:italic;margin-bottom:10px;border-left:3px solid #e2e8f0;padding-left:10px}
+.story-criteria{font-size:0.78rem;color:#475569}
+.story-criteria li{margin-bottom:3px}
+.story-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9}
+
+.toc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0}
+@media(max-width:600px){.toc-grid{grid-template-columns:1fr}}
+.toc-item{background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:0.8rem}
+.toc-item .toc-num{font-weight:700;color:#1d4ed8;margin-right:6px}
+.toc-item .toc-label{color:#334155}
+
+hr.divider{border:none;border-top:1px solid #e2e8f0;margin:32px 0}
+
+/* &#x2500;&#x2500; WhatsApp-style Calls screen &#x2500;&#x2500; */
+.wa-calls-header{background:#008069;padding:10px 11px 8px;display:flex;align-items:center;justify-content:space-between}
+.wa-calls-title{font-size:12px;font-weight:900;color:white;letter-spacing:.04em}
+.wa-calls-icons{display:flex;gap:8px;align-items:center}
+.wa-calls-icons span{font-size:12px;color:white;opacity:.9}
+.wa-tabs{display:flex;background:#008069;padding:0 10px}
+.wa-tab{flex:1;text-align:center;font-size:7.5px;font-weight:800;padding:7px 0 5px;color:rgba(255,255,255,0.65);letter-spacing:.06em;text-transform:uppercase;border-bottom:2px solid transparent}
+.wa-tab.act{color:white;border-bottom-color:white}
+.wa-fav-label{font-size:6.5px;font-weight:700;color:#94a3b8;padding:7px 10px 3px;text-transform:uppercase;letter-spacing:.08em;background:#f8fafc}
+.citem{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f1f5f9;background:white}
+.citem-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.citem-info{flex:1;min-width:0}
+.citem-name{font-size:8.5px;font-weight:700;color:#1e293b}
+.citem-detail{display:flex;align-items:center;gap:4px;margin-top:1px}
+.citem-arrow{font-size:8px;font-weight:700}
+.citem-arrow.out{color:#22c55e}
+.citem-arrow.in{color:#22c55e}
+.citem-arrow.missed{color:#ef4444}
+.citem-type{font-size:7px;color:#64748b}
+.citem-time{font-size:6.5px;color:#94a3b8}
+.citem-right{display:flex;align-items:center;gap:5px;flex-shrink:0}
+.citem-cb{font-size:14px;color:#008069}
+.wa-bnav{display:flex;border-top:1px solid #e2e8f0;background:white;padding:5px 0 3px}
+.wa-bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px}
+.wa-bnav-item .icon{font-size:13px;opacity:.4}
+.wa-bnav-item.act .icon{opacity:1}
+.wa-bnav-item .lbl{font-size:5.5px;color:#94a3b8;font-weight:700;text-transform:uppercase}
+.wa-bnav-item.act .lbl{color:#008069}
+.wa-bnav-item.act .icon{filter:none}
+
+/* &#x2500;&#x2500; WhatsApp-style Profile/Settings screen &#x2500;&#x2500; */
+.wa-prof-header{background:#008069;padding:11px 11px 14px}
+.wa-prof-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.wa-prof-header-title{font-size:12px;font-weight:900;color:white;letter-spacing:.04em}
+.wa-prof-header-icons{font-size:12px;color:rgba(255,255,255,.85)}
+.wa-prof-avatar-row{display:flex;align-items:center;gap:10px}
+.wa-big-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:20px;border:2px solid rgba(255,255,255,.5)}
+.wa-prof-name{font-size:10px;font-weight:800;color:white}
+.wa-prof-status{font-size:6.5px;color:rgba(255,255,255,.75);margin-top:1px}
+.wa-section{background:white;margin-top:0;border-bottom:1px solid #f1f5f9}
+.wa-section-label{font-size:6.5px;font-weight:700;color:#008069;padding:7px 10px 3px;text-transform:uppercase;letter-spacing:.08em;background:#f8fafc;border-bottom:1px solid #f1f5f9}
+.wa-srow{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #f8fafc}
+.wa-srow-icon{font-size:14px;width:20px;text-align:center;flex-shrink:0}
+.wa-srow-body{flex:1;min-width:0}
+.wa-srow-label{font-size:8px;font-weight:600;color:#1e293b}
+.wa-srow-sub{font-size:6.5px;color:#94a3b8;margin-top:1px}
+.wa-srow-chev{font-size:9px;color:#cbd5e1;flex-shrink:0}
+.wa-toggle{width:22px;height:12px;background:#008069;border-radius:6px;position:relative;flex-shrink:0}
+.wa-toggle::after{content:'';position:absolute;right:1px;top:1px;width:10px;height:10px;background:white;border-radius:50%}
+.wa-toggle.off{background:#e2e8f0}
+.wa-toggle.off::after{right:auto;left:1px}
+.wa-logout-row{display:flex;align-items:center;gap:8px;padding:9px 10px}
+.wa-logout-row span{font-size:8.5px;font-weight:700;color:#ef4444}
+.wa-logout-icon{font-size:13px}
+
+/* &#x2500;&#x2500; Phone Mockup Showcase &#x2500;&#x2500; */
+.mockup-showcase{background:linear-gradient(135deg,#f0f4ff 0%,#f8faff 100%);border:1.5px solid #dde6f5;border-radius:16px;padding:32px 20px 24px;margin:0 0 32px}
+.mockup-showcase-title{text-align:center;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.12em;margin-bottom:28px}
+.mockup-phones{display:flex;gap:24px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.phone-device{display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone-device .phone-label{font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;background:white;border:1px solid #e2e8f0;border-radius:20px;padding:3px 12px}
+
+/* phone shell */
+.ph{width:178px;background:white;border-radius:32px;border:5px solid #dde3ea;box-shadow:0 12px 40px rgba(80,100,160,0.18),0 2px 8px rgba(0,0,0,0.08);overflow:hidden;position:relative}
+.ph-notch{background:#dde3ea;height:11px;display:flex;justify-content:center;align-items:flex-end;padding-bottom:2px}
+.ph-notch-pill{width:44px;height:5px;background:#c8d0db;border-radius:3px}
+.ph-status{display:flex;justify-content:space-between;padding:3px 10px 0;font-size:5.5px;color:#94a3b8;font-weight:700;letter-spacing:.04em}
+
+/* &#x2500;&#x2500; SPLASH screen &#x2500;&#x2500; */
+.splash-bg{background:linear-gradient(160deg,#eef1ff 0%,#f5f0ff 100%);padding:14px 16px 18px;min-height:308px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;position:relative;overflow:hidden}
+.splash-diag{position:absolute;top:60px;left:-10px;right:-10px;height:1px;background:linear-gradient(90deg,transparent,#c0c8e8 30%,#c0c8e8 70%,transparent);transform:rotate(15deg);transform-origin:center}
+.splash-diag2{position:absolute;top:80px;left:-10px;right:-10px;height:1px;background:linear-gradient(90deg,transparent,#d0d8f0 30%,#d0d8f0 70%,transparent);transform:rotate(15deg);transform-origin:center}
+.splash-title-wrap{text-align:center;margin-top:6px}
+.splash-app-title{font-size:11px;font-weight:900;color:#4a6cf7;letter-spacing:.14em;display:block}
+.splash-app-sub{font-size:7px;color:#8fa8e8;letter-spacing:.08em}
+.splash-bubbles{position:relative;width:88px;height:76px;margin:8px auto}
+.splash-bubble-1{position:absolute;top:0;left:0;width:56px;height:52px;background:#4a6cf7;border-radius:12px 12px 12px 2px;display:flex;align-items:center;justify-content:center;gap:4px;box-shadow:0 4px 14px rgba(74,108,247,0.4)}
+.splash-bubble-2{position:absolute;bottom:0;right:0;width:50px;height:46px;background:#e040fb;border-radius:12px 12px 2px 12px;display:flex;align-items:center;justify-content:center;gap:3px;box-shadow:0 4px 14px rgba(224,64,251,0.35)}
+.b-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.9)}
+.splash-cta{background:#1e293b;color:white;border-radius:22px;padding:8px 24px;font-size:8px;font-weight:800;letter-spacing:.06em;text-align:center;margin-bottom:4px;box-shadow:0 3px 12px rgba(30,41,59,0.3)}
+
+/* &#x2500;&#x2500; CHATS screen &#x2500;&#x2500; */
+.ch-header{display:flex;align-items:center;justify-content:space-between;padding:9px 11px 7px;background:white}
+.ch-hav{width:24px;height:24px;border-radius:50%;background:#4a6cf7;display:flex;align-items:center;justify-content:center}
+.ch-hav::after{content:'&#x1F464;';font-size:10px;filter:brightness(10)}
+.ch-htitle{font-size:11px;font-weight:900;color:#1e293b;letter-spacing:.06em}
+.ch-hmenu{display:flex;flex-direction:column;gap:2px;justify-content:center}
+.ch-hmenu span{display:block;width:12px;height:1.5px;background:#64748b;border-radius:1px}
+.ch-search{margin:0 9px 0;background:#f1f5f9;border-radius:10px;display:flex;align-items:center;gap:5px;padding:5px 8px}
+.ch-search-icon{font-size:9px;color:#94a3b8}
+.ch-search-text{font-size:7.5px;color:#b0bec5}
+.ch-stories{display:flex;gap:7px;padding:8px 10px 6px;border-bottom:1px solid #f1f5f9}
+.story-c{width:30px;height:30px;border-radius:50%;flex-shrink:0;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.12)}
+.ci{display:flex;align-items:center;gap:7px;padding:7px 10px;border-bottom:1px solid #f8fafc}
+.ci-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;font-size:13px;display:flex;align-items:center;justify-content:center;position:relative}
+.ci-av .g-dot{position:absolute;bottom:0;right:0;width:7px;height:7px;border-radius:50%;background:#22c55e;border:1.5px solid white}
+.ci-info{flex:1;min-width:0}
+.ci-name{font-size:8px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-prev{font-size:6.5px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:86px;margin-top:1px}
+.ci-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.ci-time{font-size:6px;color:#94a3b8}
+.ci-badge{background:#06b6d4;color:white;font-size:6px;font-weight:800;border-radius:8px;padding:1px 4px;min-width:13px;text-align:center}
+.ch-bnav{display:flex;justify-content:space-around;padding:8px 0 5px;border-top:1px solid #f1f5f9;background:white}
+.bn-icon{font-size:14px;opacity:0.35;display:flex;flex-direction:column;align-items:center}
+.bn-icon.act{opacity:1}
+.bn-dot{width:4px;height:4px;border-radius:50%;background:#4a6cf7;margin-top:2px}
+
+/* &#x2500;&#x2500; CHAT DETAIL screen &#x2500;&#x2500; */
+.cd-header{display:flex;align-items:center;gap:5px;padding:8px 10px 7px;background:white;border-bottom:1px solid #f1f5f9}
+.cd-back{font-size:13px;color:#64748b;line-height:1;margin-right:1px}
+.cd-name-wrap{flex:1}
+.cd-name{font-size:9px;font-weight:800;color:#1e293b;display:block}
+.cd-lastseen{font-size:6px;color:#94a3b8}
+.cd-avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);flex-shrink:0;font-size:12px;display:flex;align-items:center;justify-content:center}
+.cd-msgs{padding:6px 8px;display:flex;flex-direction:column;gap:5px;background:#f0f4f8;min-height:268px}
+.msg-ts{font-size:6px;color:#94a3b8;text-align:center;margin:2px 0}
+.msg-r{align-self:flex-start;background:white;border-radius:2px 10px 10px 10px;padding:5px 8px;max-width:122px;box-shadow:0 1px 3px rgba(0,0,0,0.07)}
+.msg-s{align-self:flex-end;background:#b2ebf2;border-radius:10px 2px 10px 10px;padding:5px 8px;max-width:122px}
+.msg-s.teal{background:#00bcd4}
+.mt{font-size:6.5px;color:#1e293b;line-height:1.45}
+.msg-s .mt{color:#004d57}
+.msg-s.teal .mt{color:white}
+.mts{font-size:5.5px;color:#94a3b8;text-align:right;margin-top:2px}
+.msg-s .mts{color:#26919e}
+.msg-s.teal .mts{color:rgba(255,255,255,0.75)}
+.voice-bubble{align-self:flex-start;background:white;border-radius:2px 10px 10px 10px;padding:5px 8px;max-width:130px;display:flex;align-items:center;gap:5px;box-shadow:0 1px 3px rgba(0,0,0,0.07)}
+.v-play{width:18px;height:18px;border-radius:50%;background:#4a6cf7;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.v-play::after{content:'';border-left:7px solid white;border-top:4px solid transparent;border-bottom:4px solid transparent;margin-left:2px}
+.v-wave{display:flex;align-items:center;gap:1.5px;flex:1;height:16px}
+.v-bar{border-radius:1px;background:#94a3b8;width:2px}
+</style>
+</head>
+<body>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; SIDEBAR &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<nav id="sidebar">
+  <div class="logo">
+    <h2>📱 WhatsApp Clone</h2>
+    <p>Requirements Document v1.0</p>
+  </div>
+  <ul>
+    <li class="nav-group">Overview</li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#executive-summary">Executive Summary</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#app-overview">Application Overview</a></li>
+
+    <li class="nav-group">UI / UX Design</li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#splash">Splash Screen</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#home">Home / Chats Screen</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#chat-detail">Chat Details Screen</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#calls">Calls Screen</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#profile">Profile Screen</a></li>
+
+    <li class="nav-group">Application Architecture</li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#maui-arch">MAUI Architecture</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#folder-structure">Folder Structure</a></li>
+
+    <li class="nav-group">Backend</li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#backend-arch">Backend Architecture</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#auth-flow">Authentication Flow</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#realtime-flow">Real-Time Flow</a></li>
+
+    <li class="nav-group">Azure Services</li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#cosmos-db">Azure Cosmos DB</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#blob-storage">Azure Blob Storage</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#azure-other">Other Azure Services</a></li>
+
+    <li class="nav-group">API Design</li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#api-auth">Auth APIs</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#api-user">User APIs</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#api-chat">Chat APIs</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#api-file">File APIs</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#api-call">Call APIs</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#api-notification">Notification APIs</a></li>
+
+    <li class="nav-group">Communication</li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#realtime-tech">Real-Time Technology</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#calling-tech">Calling Technology</a></li>
+
+    <li class="nav-group">Quality &amp; Security</li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#security">Security Requirements</a></li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#notifications">Push Notifications</a></li>
+
+    <li class="nav-group">Azure DevOps</li>
+    <li><a href="file:///C:/Users/Tmd11/OneDrive/Documents/EWO%20360%C2%B0/Projects/SSMS/requirements.html#user-stories" style="color:#94a3b8;font-style:italic;pointer-events:none">User Stories � Coming Soon</a></li>
+  </ul>
+</nav>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; MAIN &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<div id="main">
+
+<h1 class="doc-title">Mobile Chat Application — Requirements Document</h1>
+<div class="doc-meta">
+  <span>📄 Version: 1.0</span>
+  <span>📅 Date: June 2026</span>
+  <span>🏗️ Stack: .NET MAUI Blazor Hybrid · .NET Web API · Azure Cosmos DB</span>
+</div>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;
+     EXECUTIVE SUMMARY
+&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<h2 class="section-title" id="executive-summary">1. Executive Summary</h2>
+<p>This document defines the complete functional, technical, and architectural requirements for a cross-platform mobile chat application — a WhatsApp-style clone built on the Microsoft Azure ecosystem. It serves as the single source of truth for developers, testers, architects, and project managers throughout the entire development lifecycle.</p>
+
+<div class="toc-grid">
+  <div class="toc-item"><span class="toc-num">Frontend</span><span class="toc-label">.NET MAUI Blazor Hybrid (iOS, Android, Windows, macOS)</span></div>
+  <div class="toc-item"><span class="toc-num">Backend</span><span class="toc-label">ASP.NET Core Web API + SignalR Hub</span></div>
+  <div class="toc-item"><span class="toc-num">Database</span><span class="toc-label">Azure Cosmos DB (NoSQL, globally distributed)</span></div>
+  <div class="toc-item"><span class="toc-num">Media</span><span class="toc-label">Azure Blob Storage + Azure CDN</span></div>
+  <div class="toc-item"><span class="toc-num">Calling</span><span class="toc-label">Azure Communication Services (Voice + Video)</span></div>
+  <div class="toc-item"><span class="toc-num">Push</span><span class="toc-label">Azure Notification Hub (FCM + APNS)</span></div>
+</div>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;
+     APPLICATION OVERVIEW
+&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<h2 class="section-title" id="app-overview">2. Application Overview</h2>
+
+<h3>2.1 Core Feature Set</h3>
+<div class="screen-grid">
+  <div class="sg-cell">
+    <h5>Messaging</h5>
+    <ul><li>1-on-1 text conversations</li><li>Group chats</li><li>Emoji reactions</li><li>Message edit &amp; delete</li><li>File &amp; image sharing</li><li>Sent / Delivered / Read receipts</li><li>Typing indicators</li></ul>
+  </div>
+  <div class="sg-cell">
+    <h5>Calling</h5>
+    <ul><li>Voice calls</li><li>Video calls</li><li>Call history</li><li>Missed call notifications</li><li>Call duration tracking</li></ul>
+  </div>
+  <div class="sg-cell">
+    <h5>User Management</h5>
+    <ul><li>Registration &amp; login</li><li>JWT authentication</li><li>Profile picture</li><li>Status message</li><li>Online / Offline presence</li></ul>
+  </div>
+  <div class="sg-cell">
+    <h5>Notifications</h5>
+    <ul><li>Push notifications (FCM / APNS)</li><li>In-app message alerts</li><li>Call alerts</li><li>Background delivery</li></ul>
+  </div>
+</div>
+
+<h3>2.2 Platform Support</h3>
+<table>
+  <tbody><tr><th>Platform</th><th>Target Version</th><th>Notes</th></tr>
+  <tr><td>Android</td><td>API 24+ (Android 7.0)</td><td>Primary mobile target</td></tr>
+  <tr><td>iOS</td><td>iOS 14+</td><td>Primary mobile target</td></tr>
+  <tr><td>Windows</td><td>Windows 10 (19041+)</td><td>Desktop support</td></tr>
+  <tr><td>macOS</td><td>macOS 12+</td><td>Via Mac Catalyst</td></tr>
+</tbody></table>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;
+     UI/UX &#x2014; SPLASH SCREEN
+&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<h2 class="section-title" id="splash">3. UI/UX Design Requirements</h2>
+<p class="section-desc">Every screen is described with its purpose, layout, components, user actions, navigation flow, and validation rules. The mockups below reflect the visual design reference provided for the application.</p>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; PHONE MOCKUP SHOWCASE &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<div class="mockup-showcase">
+  <div class="mockup-showcase-title">📱 Application Screen Visual Reference</div>
+  <div class="mockup-phones">
+
+    <!-- &#x2500;&#x2500;&#x2500; PHONE 1: Splash &#x2500;&#x2500;&#x2500; -->
+    <div class="phone-device">
+      <div class="ph">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status"><span>9:41</span><span>▐▐▐ ⬛</span></div>
+        <div class="splash-bg">
+          <div class="splash-diag"></div>
+          <div class="splash-diag2"></div>
+          <div class="splash-title-wrap">
+            <span class="splash-app-title">CHAT APP</span>
+            <span class="splash-app-sub">CONNECT &amp; CHAT</span>
+          </div>
+          <div class="splash-bubbles">
+            <div class="splash-bubble-1">
+              <div class="b-dot"></div><div class="b-dot"></div><div class="b-dot"></div>
+            </div>
+            <div class="splash-bubble-2">
+              <div class="b-dot"></div><div class="b-dot"></div><div class="b-dot"></div>
+            </div>
+          </div>
+          <div class="splash-cta">Get Started</div>
+        </div>
+      </div>
+      <div class="phone-label">Splash Screen</div>
+    </div>
+
+    <!-- &#x2500;&#x2500;&#x2500; PHONE 2: Chats &#x2500;&#x2500;&#x2500; -->
+    <div class="phone-device">
+      <div class="ph">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status"><span>9:41</span><span>▐▐▐ ⬛</span></div>
+        <!-- Header -->
+        <div class="ch-header">
+          <div class="ch-hav"></div>
+          <span class="ch-htitle">CHATS</span>
+          <div class="ch-hmenu"><span></span><span></span><span></span></div>
+        </div>
+        <!-- Search -->
+        <div class="ch-search">
+          <span class="ch-search-icon">🔍</span>
+          <span class="ch-search-text">Search</span>
+        </div>
+        <!-- Stories row -->
+        <div class="ch-stories">
+          <div class="story-c" style="background:linear-gradient(135deg,#06b6d4,#4a6cf7)"></div>
+          <div class="story-c" style="background:linear-gradient(135deg,#a855f7,#e040fb)"></div>
+          <div class="story-c" style="background:linear-gradient(135deg,#4a6cf7,#06b6d4)"></div>
+          <div class="story-c" style="background:linear-gradient(135deg,#06b6d4,#22c55e)"></div>
+          <div class="story-c" style="background:linear-gradient(135deg,#f59e0b,#ef4444)"></div>
+        </div>
+        <!-- Conversation list -->
+        <div class="ci">
+          <div class="ci-av" style="background:#e0f2fe">👩<div class="g-dot"></div></div>
+          <div class="ci-info">
+            <div class="ci-name">Alice Smith</div>
+            <div class="ci-prev">Wow, I forgot to send you that wonderful clean chat...</div>
+          </div>
+          <div class="ci-right"><span class="ci-time">8 min</span><span class="ci-badge">2</span></div>
+        </div>
+        <div class="ci">
+          <div class="ci-av" style="background:#f0fdf4">👨</div>
+          <div class="ci-info">
+            <div class="ci-name">Liam Woods</div>
+            <div class="ci-prev">Oh, I thought you were talking completely different...</div>
+          </div>
+          <div class="ci-right"><span class="ci-time">22 min</span></div>
+        </div>
+        <div class="ci">
+          <div class="ci-av" style="background:#faf5ff">🧑</div>
+          <div class="ci-info">
+            <div class="ci-name">Oliver Williams</div>
+            <div class="ci-prev">Are you done with chat app interface development?</div>
+          </div>
+          <div class="ci-right"><span class="ci-time">48 min</span></div>
+        </div>
+        <div class="ci">
+          <div class="ci-av" style="background:#fff7ed">👩</div>
+          <div class="ci-info">
+            <div class="ci-name">Ashley Johnson</div>
+            <div class="ci-prev">Let's go to gym today!</div>
+          </div>
+          <div class="ci-right"><span class="ci-time">52 min</span></div>
+        </div>
+        <div class="ci">
+          <div class="ci-av" style="background:#fdf2f8">👩</div>
+          <div class="ci-info">
+            <div class="ci-name">Emma Clark</div>
+            <div class="ci-prev">Never gonna give you up ever...</div>
+          </div>
+          <div class="ci-right"><span class="ci-time">59 min</span></div>
+        </div>
+        <!-- Bottom nav -->
+        <div class="ch-bnav">
+          <div class="bn-icon">👤</div>
+          <div class="bn-icon act">💬<div class="bn-dot"></div></div>
+          <div class="bn-icon">⚙️</div>
+        </div>
+      </div>
+      <div class="phone-label">Chats Screen</div>
+    </div>
+
+    <!-- &#x2500;&#x2500;&#x2500; PHONE 3: Chat Detail &#x2500;&#x2500;&#x2500; -->
+    <div class="phone-device">
+      <div class="ph">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status"><span>9:41</span><span>▐▐▐ ⬛</span></div>
+        <!-- Header -->
+        <div class="cd-header">
+          <span class="cd-back">‹</span>
+          <div class="cd-name-wrap">
+            <span class="cd-name">Alice Smith</span>
+            <span class="cd-lastseen">last seen recently</span>
+          </div>
+          <div class="cd-avatar">👩</div>
+        </div>
+        <!-- Messages -->
+        <div class="cd-msgs">
+          <div class="msg-ts">18:28</div>
+          <div class="msg-r">
+            <div class="mt">Lorem ipsum dolor sit amet, con sectetur adipiscing elit, sed do eiusmod tempor.</div>
+            <div class="mts">18:28</div>
+          </div>
+          <div class="msg-s teal">
+            <div class="mt">Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore.</div>
+            <div class="mts">18:30 ✓✓</div>
+          </div>
+          <!-- Voice message -->
+          <div class="msg-ts">20:42</div>
+          <div class="voice-bubble">
+            <div class="v-play"></div>
+            <div class="v-wave">
+              <div class="v-bar" style="height:4px"></div>
+              <div class="v-bar" style="height:9px"></div>
+              <div class="v-bar" style="height:13px"></div>
+              <div class="v-bar" style="height:7px"></div>
+              <div class="v-bar" style="height:11px"></div>
+              <div class="v-bar" style="height:5px"></div>
+              <div class="v-bar" style="height:10px"></div>
+              <div class="v-bar" style="height:14px"></div>
+              <div class="v-bar" style="height:8px"></div>
+              <div class="v-bar" style="height:6px"></div>
+              <div class="v-bar" style="height:12px"></div>
+              <div class="v-bar" style="height:4px"></div>
+            </div>
+          </div>
+          <div class="msg-ts">18:28</div>
+          <div class="msg-r">
+            <div class="mt">Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt.</div>
+            <div class="mts">18:28</div>
+          </div>
+          <div class="msg-s teal">
+            <div class="mt">Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit.</div>
+            <div class="mts">21:58 ✓✓</div>
+          </div>
+          <div class="msg-ts">18:28</div>
+          <div class="msg-r">
+            <div class="mt">Quis autem vel eum iure reprehenderit qui in ea voluptate velit.</div>
+            <div class="mts">18:28</div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">Chat Detail Screen</div>
+    </div>
+
+  </div><!-- /mockup-phones -->
+</div><!-- /mockup-showcase -->
+
+<div class="screen-card" id="splash">
+  <div class="screen-header">
+    <div class="screen-icon">🌅</div>
+    <div><div class="screen-name">3.1 Splash Screen</div><div class="screen-purpose">First impression — branding &amp; app initialization</div></div>
+  </div>
+  <!-- Mini mockup inline -->
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+  <div style="flex-shrink:0">
+    <div class="ph" style="width:140px;transform:scale(1);transform-origin:top left">
+      <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+      <div class="ph-status"><span>9:41</span><span>▐▐▐</span></div>
+      <div class="splash-bg" style="min-height:240px;padding:12px 12px 14px">
+        <div class="splash-diag"></div><div class="splash-diag2"></div>
+        <div class="splash-title-wrap">
+          <span class="splash-app-title">CHAT APP</span>
+          <span class="splash-app-sub">CONNECT &amp; CHAT</span>
+        </div>
+        <div class="splash-bubbles" style="width:74px;height:64px">
+          <div class="splash-bubble-1" style="width:46px;height:42px"><div class="b-dot"></div><div class="b-dot"></div><div class="b-dot"></div></div>
+          <div class="splash-bubble-2" style="width:42px;height:38px"><div class="b-dot"></div><div class="b-dot"></div><div class="b-dot"></div></div>
+        </div>
+        <div class="splash-cta" style="padding:7px 18px;font-size:7px">Get Started</div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:0.65rem;color:#94a3b8;margin-top:7px;font-weight:600">Splash Screen</div>
+  </div>
+  <div style="flex:1;min-width:220px">
+  <h4>Purpose</h4>
+  <p>Display the application logo and branding while the app performs startup initialization (loading configuration, checking auth token, preloading services). Automatically navigates away after 2–3 seconds.</p>
+  <div class="screen-grid">
+    <div class="sg-cell">
+      <h5>Layout</h5>
+      <ul>
+        <li>Full-screen solid background (brand green <code>#25D366</code>)</li>
+        <li>Centered app logo (SVG / PNG, 120×120 dp)</li>
+        <li>App name in white bold text below logo</li>
+        <li>Tagline text (optional, smaller weight)</li>
+        <li>Version number at bottom center</li>
+        <li>Activity indicator while initializing</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>Components / Controls</h5>
+      <ul>
+        <li><code>ContentPage</code> — full screen, no shell chrome</li>
+        <li><code>Image</code> — app logo</li>
+        <li><code>Label</code> — app name, tagline, version</li>
+        <li><code>ActivityIndicator</code> — loading state</li>
+        <li>CSS animation — fade-in on logo</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>User Actions</h5>
+      <ul>
+        <li>None — passive screen, no tappable elements</li>
+        <li>Cannot navigate back (no back stack entry)</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>Navigation Flow</h5>
+      <ul>
+        <li>If valid JWT token found → navigate to <strong>Home (Chats)</strong></li>
+        <li>If no token / token expired → navigate to <strong>Login Screen</strong></li>
+        <li>Minimum display: 2 s; maximum: 3 s regardless of init speed</li>
+      </ul>
+    </div>
+  </div>
+  <div class="sg-cell" style="margin-top:10px">
+    <h5>Startup Logic (ViewModel)</h5>
+    <ul>
+      <li>Check <code>SecureStorage</code> for stored JWT access token</li>
+      <li>Validate token expiry locally (decode JWT claims)</li>
+      <li>If token close to expiry (&lt;5 min) — silently call refresh endpoint</li>
+      <li>Initialize SignalR connection if token valid</li>
+      <li>Register device for push notifications</li>
+    </ul>
+  </div>
+  </div><!-- /flex content -->
+  </div><!-- /flex wrapper -->
+</div>
+
+<!-- HOME SCREEN -->
+<div class="screen-card" id="home">
+  <div class="screen-header">
+    <div class="screen-icon">💬</div>
+    <div><div class="screen-name">3.2 Home Screen — Chats</div><div class="screen-purpose">Default landing screen; lists all conversations</div></div>
+  </div>
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+  <div style="flex-shrink:0">
+    <div class="ph" style="width:148px">
+      <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+      <div class="ph-status"><span>9:41</span><span>▐▐▐</span></div>
+      <div class="ch-header">
+        <div class="ch-hav"></div>
+        <span class="ch-htitle">CHATS</span>
+        <div class="ch-hmenu"><span></span><span></span><span></span></div>
+      </div>
+      <div class="ch-search"><span class="ch-search-icon">🔍</span><span class="ch-search-text">Search</span></div>
+      <div class="ch-stories">
+        <div class="story-c" style="background:linear-gradient(135deg,#06b6d4,#4a6cf7)"></div>
+        <div class="story-c" style="background:linear-gradient(135deg,#a855f7,#e040fb)"></div>
+        <div class="story-c" style="background:linear-gradient(135deg,#4a6cf7,#06b6d4)"></div>
+        <div class="story-c" style="background:linear-gradient(135deg,#06b6d4,#22c55e)"></div>
+      </div>
+      <div class="ci">
+        <div class="ci-av" style="background:#e0f2fe">👩<div class="g-dot"></div></div>
+        <div class="ci-info"><div class="ci-name">Alice Smith</div><div class="ci-prev">Wow, I forgot to send you...</div></div>
+        <div class="ci-right"><span class="ci-time">8 min</span><span class="ci-badge">2</span></div>
+      </div>
+      <div class="ci">
+        <div class="ci-av" style="background:#f0fdf4">👨</div>
+        <div class="ci-info"><div class="ci-name">Liam Woods</div><div class="ci-prev">Oh, I thought you were...</div></div>
+        <div class="ci-right"><span class="ci-time">22 min</span></div>
+      </div>
+      <div class="ci">
+        <div class="ci-av" style="background:#faf5ff">🧑</div>
+        <div class="ci-info"><div class="ci-name">Oliver Williams</div><div class="ci-prev">Are you done with the...</div></div>
+        <div class="ci-right"><span class="ci-time">48 min</span></div>
+      </div>
+      <div class="ci">
+        <div class="ci-av" style="background:#fff7ed">👩</div>
+        <div class="ci-info"><div class="ci-name">Ashley Johnson</div><div class="ci-prev">Let's go to gym today!</div></div>
+        <div class="ci-right"><span class="ci-time">52 min</span></div>
+      </div>
+      <div class="ci">
+        <div class="ci-av" style="background:#fdf2f8">👩</div>
+        <div class="ci-info"><div class="ci-name">Emma Clark</div><div class="ci-prev">Never gonna give you up...</div></div>
+        <div class="ci-right"><span class="ci-time">59 min</span></div>
+      </div>
+      <div class="ch-bnav">
+        <div class="bn-icon">👤</div>
+        <div class="bn-icon act">💬<div class="bn-dot"></div></div>
+        <div class="bn-icon">⚙️</div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:0.65rem;color:#94a3b8;margin-top:7px;font-weight:600">Chats Screen</div>
+  </div>
+  <div style="flex:1;min-width:220px">
+  <h4>Purpose</h4>
+  <p>The central hub of the application. Displays a chronologically sorted list of all conversations the authenticated user is part of, with last-message previews and unread counts.</p>
+
+  <h4>Layout Description</h4>
+  <ul class="doc-list">
+    <li><strong>Top Navigation Bar (fixed)</strong> — App logo left, search icon right, optional overflow menu (New Chat)</li>
+    <li><strong>Search Bar</strong> — Collapsed by default; expands inline when search icon tapped</li>
+    <li><strong>Conversation List</strong> — Scrollable <code>ListView</code> / <code>CollectionView</code>, each row is a ConversationCell</li>
+    <li><strong>FAB (Floating Action Button)</strong> — bottom-right, opens New Chat / New Group dialog</li>
+    <li><strong>Footer Tab Bar (fixed)</strong> — Chats · Calls · Profile tabs</li>
+  </ul>
+
+  <div class="screen-grid">
+    <div class="sg-cell">
+      <h5>Conversation Cell Layout</h5>
+      <ul>
+        <li>Avatar (circular image, 48 dp) — left</li>
+        <li>Contact name — bold, 14sp</li>
+        <li>Last message preview — grey, 12sp, max 1 line, truncated</li>
+        <li>Timestamp — top right, 11sp</li>
+        <li>Unread badge — green pill, top-right over avatar</li>
+        <li>Message status icon (✓✓ read receipt) for own messages</li>
+        <li>Online indicator — green dot on avatar</li>
+        <li>Muted icon — if conversation is muted</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>Components / Controls</h5>
+      <ul>
+        <li><code>CollectionView</code> — conversation list with virtualization</li>
+        <li><code>SearchBar</code> — live filter</li>
+        <li><code>RefreshView</code> — pull-to-refresh</li>
+        <li><code>SwipeView</code> — swipe left: Archive / Delete; swipe right: Mark Read</li>
+        <li><code>Shell.TabBar</code> — bottom navigation</li>
+        <li><code>ImageButton</code> — FAB for new conversation</li>
+        <li><code>ActivityIndicator</code> — initial load state</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>User Actions</h5>
+      <ul>
+        <li>Tap conversation → open Chat Details</li>
+        <li>Long-press → context menu (Archive, Mute, Delete, Pin)</li>
+        <li>Swipe left → Delete / Archive</li>
+        <li>Swipe right → Mark as Read</li>
+        <li>Tap search → expand search bar</li>
+        <li>Type in search → filter conversations &amp; contacts</li>
+        <li>Pull down → refresh conversation list</li>
+        <li>Tap FAB → New Chat screen</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>Navigation Flow</h5>
+      <ul>
+        <li>Tap conversation → <strong>Chat Details Screen</strong></li>
+        <li>Tap Calls tab → <strong>Calls Screen</strong></li>
+        <li>Tap Profile tab → <strong>Profile Screen</strong></li>
+        <li>Tap FAB → <strong>New Chat / Contact Picker</strong></li>
+        <li>Search result tap → <strong>Chat Details Screen</strong> (or create new)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>Search Behaviour</h4>
+  <ul class="doc-list">
+    <li>Local filter applied immediately on keypress (no debounce needed for local data)</li>
+    <li>Remote contact search triggered after 300 ms debounce when no local match</li>
+    <li>Search covers: contact name, phone number, last message content</li>
+    <li>Results grouped: <strong>Conversations</strong> | <strong>Contacts</strong></li>
+  </ul>
+
+  <h4>Validation Rules</h4>
+  <ul class="doc-list">
+    <li>Empty state shown when no conversations exist: illustration + "No conversations yet. Start chatting!"</li>
+    <li>No-results state shown when search returns nothing</li>
+    <li>Network error banner shown at top if API call fails (non-blocking)</li>
+  </ul>
+  </div><!-- /flex content -->
+  </div><!-- /flex wrapper -->
+</div>
+
+<!-- CHAT DETAILS -->
+<div class="screen-card" id="chat-detail">
+  <div class="screen-header">
+    <div class="screen-icon">📩</div>
+    <div><div class="screen-name">3.3 Chat Details Screen</div><div class="screen-purpose">Full conversation view with real-time messaging</div></div>
+  </div>
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+  <div style="flex-shrink:0">
+    <div class="ph" style="width:148px">
+      <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+      <div class="ph-status"><span>9:41</span><span>▐▐▐</span></div>
+      <div class="cd-header">
+        <span class="cd-back">‹</span>
+        <div class="cd-name-wrap"><span class="cd-name">Alice Smith</span><span class="cd-lastseen">last seen recently</span></div>
+        <div class="cd-avatar">👩</div>
+      </div>
+      <div class="cd-msgs">
+        <div class="msg-ts">18:28</div>
+        <div class="msg-r"><div class="mt">Lorem ipsum dolor sit amet, con sectetur adipiscing elit tempor.</div><div class="mts">18:28</div></div>
+        <div class="msg-s teal"><div class="mt">Duis aute irure dolor in reprehenderit in voluptate velit esse.</div><div class="mts">18:30 ✓✓</div></div>
+        <div class="msg-ts">20:42</div>
+        <div class="voice-bubble">
+          <div class="v-play"></div>
+          <div class="v-wave">
+            <div class="v-bar" style="height:4px"></div><div class="v-bar" style="height:9px"></div>
+            <div class="v-bar" style="height:13px"></div><div class="v-bar" style="height:7px"></div>
+            <div class="v-bar" style="height:11px"></div><div class="v-bar" style="height:5px"></div>
+            <div class="v-bar" style="height:10px"></div><div class="v-bar" style="height:14px"></div>
+            <div class="v-bar" style="height:8px"></div><div class="v-bar" style="height:6px"></div>
+            <div class="v-bar" style="height:12px"></div><div class="v-bar" style="height:4px"></div>
+          </div>
+        </div>
+        <div class="msg-ts">18:28</div>
+        <div class="msg-r"><div class="mt">Excepteur sint occaecat cupidatat non proident, sunt in culpa.</div><div class="mts">18:28</div></div>
+        <div class="msg-s teal"><div class="mt">Nemo enim ipsam voluptatem quia voluptas sit aspernatur.</div><div class="mts">21:58 ✓✓</div></div>
+        <div class="msg-ts">18:28</div>
+        <div class="msg-r"><div class="mt">Quis autem vel eum iure reprehenderit qui in ea voluptate.</div><div class="mts">18:28</div></div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:0.65rem;color:#94a3b8;margin-top:7px;font-weight:600">Chat Detail Screen</div>
+  </div>
+  <div style="flex:1;min-width:220px">
+  <h4>Purpose</h4>
+  <p>Displays the complete message history between participants and provides all messaging capabilities including text, media, files, emoji reactions, and real-time status indicators.</p>
+
+  <h4>Layout Description</h4>
+  <ul class="doc-list">
+    <li><strong>Top App Bar (fixed)</strong> — Back arrow · Contact avatar · Contact name + online status · Video call icon · Voice call icon · Overflow menu</li>
+    <li><strong>Message List</strong> — Scrollable <code>CollectionView</code>, newest at bottom, grouped by date</li>
+    <li><strong>Typing Indicator Row</strong> — appears above input bar when remote user is typing</li>
+    <li><strong>Input Bar (fixed bottom)</strong> — Emoji button · Text field (expandable, max 5 lines) · Attachment button · Send / Mic button (toggle)</li>
+  </ul>
+
+  <div class="screen-grid">
+    <div class="sg-cell">
+      <h5>Message Bubble Layout</h5>
+      <ul>
+        <li>Own messages — right-aligned, green bubble</li>
+        <li>Others' messages — left-aligned, white bubble</li>
+        <li>Timestamp inside bubble, bottom-right, 10sp</li>
+        <li>Status icons: ⏱ Sending · ✓ Sent · ✓✓ Delivered · ✓✓ (blue) Read</li>
+        <li>Avatar shown left for group chats only</li>
+        <li>Sender name shown in group chats (above bubble)</li>
+        <li>Edited label for edited messages</li>
+        <li>Reply-to quote block if message is a reply</li>
+        <li>Emoji reaction pills below bubble</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>Message Types</h5>
+      <ul>
+        <li>Text — plain text, auto-link URLs</li>
+        <li>Image — thumbnail preview, tap to expand</li>
+        <li>Video — thumbnail + play button</li>
+        <li>Document — file icon + name + size</li>
+        <li>Audio — waveform + play/pause + duration</li>
+        <li>Voice message — recorded in-app</li>
+        <li>System messages — "User joined", "Call ended" etc.</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>User Actions</h5>
+      <ul>
+        <li>Type text + tap Send → send message</li>
+        <li>Hold mic → record voice message</li>
+        <li>Tap 📎 → file/image/camera picker</li>
+        <li>Long-press bubble → context menu (Reply, Copy, Forward, React, Edit, Delete)</li>
+        <li>Double-tap bubble → quick ❤️ reaction</li>
+        <li>Tap reaction pill → see who reacted</li>
+        <li>Tap image → full-screen viewer</li>
+        <li>Swipe right on message → reply</li>
+        <li>Tap contact name → Contact Info screen</li>
+        <li>Tap call icons → initiate call</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>Real-Time Features</h5>
+      <ul>
+        <li>Messages appear instantly via SignalR</li>
+        <li>Typing indicator: "John is typing…" appears within 1 s of remote keypress</li>
+        <li>Typing indicator disappears after 3 s of inactivity</li>
+        <li>Read receipts update when recipient opens conversation</li>
+        <li>Online/offline status updates in app bar</li>
+        <li>Message delivery status ticks update in real time</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>Attachment Flow</h4>
+  <ul class="doc-list">
+    <li>Tap 📎 → bottom sheet with options: Gallery, Camera, Document, Location</li>
+    <li>Selected file → upload to Azure Blob Storage via <code>POST /api/files/upload</code></li>
+    <li>Upload progress bar shown in message bubble placeholder</li>
+    <li>On upload success → Blob URL stored; message sent with URL reference</li>
+    <li>Max file size: Images 16 MB, Documents 100 MB, Video 64 MB</li>
+  </ul>
+
+  <h4>Validation Rules</h4>
+  <ul class="doc-list">
+    <li>Send button disabled when text field empty and no attachment selected</li>
+    <li>File type whitelist enforced: images (jpg, png, gif, webp), documents (pdf, docx, xlsx, pptx, txt, zip), audio (mp3, ogg, aac), video (mp4, mov)</li>
+    <li>File size validation client-side before upload attempt</li>
+    <li>Network offline banner shown; queued messages sent on reconnect</li>
+    <li>Message edit allowed only within 15 minutes of sending</li>
+    <li>Message delete: "Delete for me" always; "Delete for everyone" within 60 minutes</li>
+  </ul>
+  </div><!-- /flex content -->
+  </div><!-- /flex wrapper -->
+</div>
+
+<!-- CALLS SCREEN -->
+<div class="screen-card" id="calls">
+  <div class="screen-header">
+    <div class="screen-icon">📞</div>
+    <div><div class="screen-name">3.4 Calls Screen</div><div class="screen-purpose">Call history and initiation hub</div></div>
+  </div>
+
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+
+  <!-- &#x2500;&#x2500; Calls List Mockup &#x2500;&#x2500; -->
+  <div style="flex-shrink:0;display:flex;gap:14px;flex-wrap:wrap">
+
+    <!-- Phone A: Call History -->
+    <div>
+      <div class="ph" style="width:152px">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status" style="background:#008069;color:rgba(255,255,255,.7)"><span>9:41</span><span>▐▐▐</span></div>
+        <div class="wa-calls-header">
+          <span class="wa-calls-title">Calls</span>
+          <div class="wa-calls-icons"><span>🔍</span><span>✏️</span></div>
+        </div>
+        <div class="wa-tabs">
+          <div class="wa-tab act">All</div>
+          <div class="wa-tab">Missed</div>
+        </div>
+        <div class="wa-fav-label">Recent</div>
+        <!-- call items -->
+        <div class="citem">
+          <div class="citem-av" style="background:#e0f2fe">👩</div>
+          <div class="citem-info">
+            <div class="citem-name">Alice Smith</div>
+            <div class="citem-detail">
+              <span class="citem-arrow out">↗</span>
+              <span class="citem-type">📹 Video · Today</span>
+            </div>
+          </div>
+          <div class="citem-right"><span class="citem-cb">📞</span></div>
+        </div>
+        <div class="citem">
+          <div class="citem-av" style="background:#fce7f3">👨</div>
+          <div class="citem-info">
+            <div class="citem-name">Liam Woods</div>
+            <div class="citem-detail">
+              <span class="citem-arrow missed">✕</span>
+              <span class="citem-type" style="color:#ef4444">📞 Voice · Today</span>
+            </div>
+          </div>
+          <div class="citem-right"><span class="citem-cb">📞</span></div>
+        </div>
+        <div class="citem">
+          <div class="citem-av" style="background:#f0fdf4">🧑</div>
+          <div class="citem-info">
+            <div class="citem-name">Oliver Williams</div>
+            <div class="citem-detail">
+              <span class="citem-arrow in">↙</span>
+              <span class="citem-type">📞 Voice · Yesterday</span>
+            </div>
+          </div>
+          <div class="citem-right"><span class="citem-cb">📹</span></div>
+        </div>
+        <div class="citem">
+          <div class="citem-av" style="background:#faf5ff">👩</div>
+          <div class="citem-info">
+            <div class="citem-name">Ashley Johnson</div>
+            <div class="citem-detail">
+              <span class="citem-arrow out">↗</span>
+              <span class="citem-type">📞 Voice · Yesterday</span>
+            </div>
+          </div>
+          <div class="citem-right"><span class="citem-cb">📞</span></div>
+        </div>
+        <div class="citem">
+          <div class="citem-av" style="background:#fff7ed">👩</div>
+          <div class="citem-info">
+            <div class="citem-name">Emma Clark</div>
+            <div class="citem-detail">
+              <span class="citem-arrow missed">✕</span>
+              <span class="citem-type" style="color:#ef4444">📹 Video · Mon</span>
+            </div>
+          </div>
+          <div class="citem-right"><span class="citem-cb">📹</span></div>
+        </div>
+        <div class="citem">
+          <div class="citem-av" style="background:#e0f2fe">🧑</div>
+          <div class="citem-info">
+            <div class="citem-name">Rahul Shah</div>
+            <div class="citem-detail">
+              <span class="citem-arrow in">↙</span>
+              <span class="citem-type">📞 Voice · Sun</span>
+            </div>
+          </div>
+          <div class="citem-right"><span class="citem-cb">📞</span></div>
+        </div>
+        <div class="wa-bnav">
+          <div class="wa-bnav-item"><span class="icon">💬</span><span class="lbl">Chats</span></div>
+          <div class="wa-bnav-item act"><span class="icon">📞</span><span class="lbl">Calls</span></div>
+          <div class="wa-bnav-item"><span class="icon">🔄</span><span class="lbl">Status</span></div>
+          <div class="wa-bnav-item"><span class="icon">⚙️</span><span class="lbl">Settings</span></div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:0.65rem;color:#94a3b8;margin-top:7px;font-weight:600">Call History</div>
+    </div>
+
+    <!-- Phone B: Active Voice Call -->
+    <div>
+      <div class="ph" style="width:152px">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status" style="background:#1e293b;color:rgba(255,255,255,.6)"><span>9:41</span><span>▐▐▐</span></div>
+        <!-- Active voice call screen -->
+        <div style="background:linear-gradient(160deg,#1a2a4a 0%,#0d1f3c 100%);padding:20px 14px 16px;min-height:310px;display:flex;flex-direction:column;align-items:center;justify-content:space-between">
+          <div style="text-align:center">
+            <div style="font-size:8px;color:rgba(255,255,255,.55);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">Voice Call</div>
+            <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px;box-shadow:0 0 0 6px rgba(102,126,234,.2)">👩</div>
+            <div style="font-size:11px;font-weight:800;color:white;margin-bottom:3px">Alice Smith</div>
+            <div style="font-size:8px;color:#22c55e;font-weight:700">02:47</div>
+          </div>
+          <!-- Call controls -->
+          <div style="width:100%">
+            <div style="display:flex;justify-content:space-around;margin-bottom:14px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                <div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:14px">🔇</div>
+                <span style="font-size:6px;color:rgba(255,255,255,.6)">Mute</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                <div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:14px">🔊</div>
+                <span style="font-size:6px;color:rgba(255,255,255,.6)">Speaker</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                <div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:14px">📹</div>
+                <span style="font-size:6px;color:rgba(255,255,255,.6)">Video</span>
+              </div>
+            </div>
+            <!-- End call button -->
+            <div style="display:flex;justify-content:center">
+              <div style="width:40px;height:40px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 14px rgba(239,68,68,.5)">📵</div>
+            </div>
+            <div style="text-align:center;font-size:6px;color:rgba(255,255,255,.4);margin-top:4px">End Call</div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:0.65rem;color:#94a3b8;margin-top:7px;font-weight:600">Active Voice Call</div>
+    </div>
+
+    <!-- Phone C: Active Video Call -->
+    <div>
+      <div class="ph" style="width:152px">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status" style="background:#000;color:rgba(255,255,255,.6)"><span>9:41</span><span>▐▐▐</span></div>
+        <!-- Video call screen -->
+        <div style="background:linear-gradient(180deg,#2d4a2d 0%,#1a2e1a 100%);padding:0;min-height:310px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between">
+          <!-- Remote video area -->
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px 10px 10px">
+            <div style="text-align:center">
+              <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 6px">👩</div>
+              <div style="font-size:9px;font-weight:800;color:white">Alice Smith</div>
+              <div style="font-size:7px;color:#22c55e;font-weight:600;margin-top:2px">04:13</div>
+            </div>
+          </div>
+          <!-- Self preview PiP -->
+          <div style="position:absolute;top:12px;right:10px;width:38px;height:50px;background:linear-gradient(135deg,#374151,#1f2937);border-radius:6px;border:1.5px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:16px">🧑</div>
+          <!-- Controls -->
+          <div style="padding:10px 8px 14px;background:rgba(0,0,0,.45)">
+            <div style="display:flex;justify-content:space-around;align-items:center">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:12px">🔇</div>
+                <span style="font-size:5.5px;color:rgba(255,255,255,.6)">Mute</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:12px">📷</div>
+                <span style="font-size:5.5px;color:rgba(255,255,255,.6)">Flip</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="width:36px;height:36px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 3px 10px rgba(239,68,68,.5)">📵</div>
+                <span style="font-size:5.5px;color:rgba(255,255,255,.6)">End</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:12px">🔊</div>
+                <span style="font-size:5.5px;color:rgba(255,255,255,.6)">Speaker</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:12px">💬</div>
+                <span style="font-size:5.5px;color:rgba(255,255,255,.6)">Chat</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:0.65rem;color:#94a3b8;margin-top:7px;font-weight:600">Active Video Call</div>
+    </div>
+
+  </div><!-- /phones -->
+
+  <!-- &#x2500;&#x2500; Description &#x2500;&#x2500; -->
+  <div style="flex:1;min-width:220px">
+    <h4>Purpose</h4>
+    <p>Displays the user's complete call history — incoming, outgoing, and missed calls — and provides quick access to initiate new voice or video calls.</p>
+    <div class="screen-grid">
+      <div class="sg-cell">
+        <h5>Layout</h5>
+        <ul>
+          <li>Green WhatsApp-style header: "Calls" + search &amp; new-call icons</li>
+          <li>Tabs: <strong>All</strong> · <strong>Missed</strong></li>
+          <li>Call history list grouped by date</li>
+          <li>Each row: Avatar · Name · Direction arrow · Call type · Timestamp · Callback icon</li>
+          <li>Missed calls show contact name and arrow in red</li>
+          <li>Bottom nav: Chats · Calls (active) · Status · Settings</li>
+        </ul>
+      </div>
+      <div class="sg-cell">
+        <h5>Call History Row</h5>
+        <ul>
+          <li>↗ Green = Outgoing call</li>
+          <li>↙ Green = Incoming call</li>
+          <li>✕ Red = Missed call</li>
+          <li>📞 = Voice call &nbsp;|&nbsp; 📹 = Video call</li>
+          <li>Duration shown (mm:ss) or "Missed"</li>
+          <li>Callback icon on right (tap to re-dial)</li>
+        </ul>
+      </div>
+      <div class="sg-cell">
+        <h5>Active Voice Call UI</h5>
+        <ul>
+          <li>Dark gradient full-screen background</li>
+          <li>Large contact avatar + name + live timer (green)</li>
+          <li>Controls row: Mute · Speaker · Switch to Video</li>
+          <li>Red End Call button (centre, bottom)</li>
+        </ul>
+      </div>
+      <div class="sg-cell">
+        <h5>Active Video Call UI</h5>
+        <ul>
+          <li>Full-screen remote video feed</li>
+          <li>Self-preview PiP — top-right corner, draggable</li>
+          <li>Overlay controls: Mute · Flip camera · End (red) · Speaker · Chat</li>
+          <li>Call timer shown in contact name area</li>
+          <li>Minimize to floating bubble (Android)</li>
+        </ul>
+      </div>
+      <div class="sg-cell">
+        <h5>User Actions</h5>
+        <ul>
+          <li>Tap row → Contact Info with call options</li>
+          <li>Tap callback icon → immediately re-dial same type</li>
+          <li>Tap ✏️ FAB → Contact picker for new call</li>
+          <li>"Missed" tab → filter to missed calls only</li>
+          <li>Long-press row → Delete from history</li>
+          <li>Pull down → refresh call list</li>
+        </ul>
+      </div>
+      <div class="sg-cell">
+        <h5>Incoming Call Alert</h5>
+        <ul>
+          <li>Full-screen incoming call overlay (iOS CallKit / Android ConnectionService)</li>
+          <li>Accept (green) / Decline (red) buttons</li>
+          <li>Ring sound plays even in silent mode</li>
+          <li>Auto-end &amp; "Missed Call" notification after 30 s</li>
+        </ul>
+      </div>
+    </div>
+  </div><!-- /desc -->
+
+  </div><!-- /flex wrapper -->
+</div>
+
+<!-- PROFILE SCREEN -->
+<div class="screen-card" id="profile">
+  <div class="screen-header">
+    <div class="screen-icon">👤</div>
+    <div><div class="screen-name">3.5 Profile &amp; Settings Screen</div><div class="screen-purpose">User account, preferences, and privacy controls</div></div>
+  </div>
+
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+
+  <!-- &#x2500;&#x2500; Profile Mockups &#x2500;&#x2500; -->
+  <div style="flex-shrink:0;display:flex;gap:14px;flex-wrap:wrap">
+
+    <!-- Phone A: Settings Main -->
+    <div>
+      <div class="ph" style="width:152px">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status" style="background:#008069;color:rgba(255,255,255,.7)"><span>9:41</span><span>▐▐▐</span></div>
+        <div class="wa-prof-header">
+          <div class="wa-prof-header-top">
+            <span class="wa-prof-header-title">Settings</span>
+            <span class="wa-prof-header-icons">⋯</span>
+          </div>
+          <div class="wa-prof-avatar-row">
+            <div class="wa-big-av">👤</div>
+            <div>
+              <div class="wa-prof-name">Jenil Patel</div>
+              <div class="wa-prof-status">Hey there! I am using Chat App.</div>
+            </div>
+          </div>
+        </div>
+        <!-- Settings rows -->
+        <div class="wa-section">
+          <div class="wa-srow">
+            <span class="wa-srow-icon">🔑</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Account</div><div class="wa-srow-sub">Privacy, security, change number</div></div>
+            <span class="wa-srow-chev">›</span>
+          </div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">🔔</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Notifications</div><div class="wa-srow-sub">Message, group &amp; call tones</div></div>
+            <span class="wa-srow-chev">›</span>
+          </div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">💬</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Chats</div><div class="wa-srow-sub">Theme, wallpaper, chat history</div></div>
+            <span class="wa-srow-chev">›</span>
+          </div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">🔐</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Privacy</div><div class="wa-srow-sub">Last seen, profile photo, status</div></div>
+            <span class="wa-srow-chev">›</span>
+          </div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">💾</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Storage and Data</div><div class="wa-srow-sub">Network usage, auto-download</div></div>
+            <span class="wa-srow-chev">›</span>
+          </div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">❓</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Help</div><div class="wa-srow-sub">FAQ, contact us, privacy policy</div></div>
+            <span class="wa-srow-chev">›</span>
+          </div>
+          <div class="wa-logout-row">
+            <span class="wa-logout-icon">🚪</span>
+            <span>Log Out</span>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:0.65rem;color:#94a3b8;margin-top:7px;font-weight:600">Settings Main</div>
+    </div>
+
+    <!-- Phone B: Privacy Settings -->
+    <div>
+      <div class="ph" style="width:152px">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status" style="background:#008069;color:rgba(255,255,255,.7)"><span>9:41</span><span>▐▐▐</span></div>
+        <div class="wa-calls-header" style="padding:9px 11px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="color:white;font-size:14px">‹</span>
+            <span class="wa-calls-title">Privacy</span>
+          </div>
+        </div>
+        <div class="wa-section">
+          <div class="wa-section-label">Who can see my personal info</div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">👁️</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Last Seen &amp; Online</div><div class="wa-srow-sub">Everyone</div></div>
+            <span class="wa-srow-chev">›</span>
+          </div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">🖼️</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Profile Photo</div><div class="wa-srow-sub">My Contacts</div></div>
+            <span class="wa-srow-chev">›</span>
+          </div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">📝</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">About</div><div class="wa-srow-sub">My Contacts</div></div>
+            <span class="wa-srow-chev">›</span>
+          </div>
+          <div class="wa-section-label" style="margin-top:2px">Messaging</div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">✅</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Read Receipts</div><div class="wa-srow-sub">If turned off, you won't see read receipts</div></div>
+            <div class="wa-toggle"></div>
+          </div>
+          <div class="wa-section-label" style="margin-top:2px">Calls</div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">🔒</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Silence Unknown Callers</div><div class="wa-srow-sub">Calls from unknown numbers</div></div>
+            <div class="wa-toggle off"></div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:0.65rem;color:#94a3b8;margin-top:7px;font-weight:600">Privacy Settings</div>
+    </div>
+
+    <!-- Phone C: Notifications Settings -->
+    <div>
+      <div class="ph" style="width:152px">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status" style="background:#008069;color:rgba(255,255,255,.7)"><span>9:41</span><span>▐▐▐</span></div>
+        <div class="wa-calls-header" style="padding:9px 11px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="color:white;font-size:14px">‹</span>
+            <span class="wa-calls-title">Notifications</span>
+          </div>
+        </div>
+        <div class="wa-section">
+          <div class="wa-section-label">Messages</div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">🔔</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Message Notifications</div></div>
+            <div class="wa-toggle"></div>
+          </div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">🎵</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Notification Tone</div><div class="wa-srow-sub">Default</div></div>
+            <span class="wa-srow-chev">›</span>
+          </div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">📳</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Vibrate</div><div class="wa-srow-sub">Short</div></div>
+            <span class="wa-srow-chev">›</span>
+          </div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">👁️</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Show Preview</div><div class="wa-srow-sub">Message content visible</div></div>
+            <div class="wa-toggle"></div>
+          </div>
+          <div class="wa-section-label" style="margin-top:2px">Calls</div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">📞</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Call Notifications</div></div>
+            <div class="wa-toggle"></div>
+          </div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">🔕</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Ringtone</div><div class="wa-srow-sub">Default</div></div>
+            <span class="wa-srow-chev">›</span>
+          </div>
+          <div class="wa-section-label" style="margin-top:2px">Groups</div>
+          <div class="wa-srow">
+            <span class="wa-srow-icon">👥</span>
+            <div class="wa-srow-body"><div class="wa-srow-label">Group Notifications</div></div>
+            <div class="wa-toggle"></div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:0.65rem;color:#94a3b8;margin-top:7px;font-weight:600">Notifications Settings</div>
+    </div>
+
+  </div><!-- /phones -->
+
+  <!-- &#x2500;&#x2500; Description &#x2500;&#x2500; -->
+  <div style="flex:1;min-width:220px">
+    <h4>Purpose</h4>
+    <p>Central hub for account management, privacy controls, notification preferences, and app settings — following the WhatsApp Settings pattern with a branded green header and grouped setting rows.</p>
+    <div class="screen-grid">
+      <div class="sg-cell">
+        <h5>Settings Main Layout</h5>
+        <ul>
+          <li>Green header: "Settings" title + overflow menu</li>
+          <li>Profile row: large avatar + display name + status message</li>
+          <li>Setting rows with icon · label · sub-label · chevron</li>
+          <li>Sections: Account · Notifications · Chats · Privacy · Storage · Help · Logout</li>
+        </ul>
+      </div>
+      <div class="sg-cell">
+        <h5>Privacy Settings</h5>
+        <ul>
+          <li>Last Seen &amp; Online: Everyone / My Contacts / Nobody</li>
+          <li>Profile Photo: Everyone / My Contacts / Nobody</li>
+          <li>About: Everyone / My Contacts / Nobody</li>
+          <li>Read Receipts toggle (disables both sending and receiving)</li>
+          <li>Silence Unknown Callers toggle</li>
+        </ul>
+      </div>
+      <div class="sg-cell">
+        <h5>Notifications Settings</h5>
+        <ul>
+          <li>Message notifications toggle + tone + vibrate + preview</li>
+          <li>Call notifications toggle + ringtone selector</li>
+          <li>Group notifications toggle</li>
+          <li>All preferences stored in <code>userSettings</code> Cosmos DB container</li>
+        </ul>
+      </div>
+      <div class="sg-cell">
+        <h5>User Actions</h5>
+        <ul>
+          <li>Tap avatar row → Edit Profile screen (name + status + photo)</li>
+          <li>Tap avatar photo → Camera / Gallery / Remove options</li>
+          <li>Edit display name: 2–50 characters</li>
+          <li>Edit status: max 139 characters with live counter</li>
+          <li>Toggle switches apply immediately (no save button)</li>
+          <li>Tap Log Out → confirmation dialog → clear tokens + navigate to Login</li>
+        </ul>
+      </div>
+      <div class="sg-cell">
+        <h5>Validation Rules</h5>
+        <ul>
+          <li>Display name: 2–50 characters, required</li>
+          <li>Status: max 139 characters</li>
+          <li>Profile image: max 5 MB, JPEG / PNG only</li>
+          <li>Password change: min 8 chars, 1 uppercase, 1 number, 1 special char</li>
+          <li>Phone number: E.164 format, read-only (change via account flow)</li>
+        </ul>
+      </div>
+      <div class="sg-cell">
+        <h5>Navigation Flow</h5>
+        <ul>
+          <li>Settings → Account → sub-screens (change number, delete account)</li>
+          <li>Settings → Privacy → toggle page</li>
+          <li>Settings → Notifications → toggle page</li>
+          <li>Settings → Chats → wallpaper, theme, backup</li>
+          <li>Log Out → confirm → Login screen (back-stack cleared)</li>
+        </ul>
+      </div>
+    </div>
+  </div><!-- /desc -->
+
+  </div><!-- /flex wrapper -->
+</div>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;
+     MAUI ARCHITECTURE
+&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<h2 class="section-title" id="maui-arch">4. MAUI Application Architecture</h2>
+<p class="section-desc">The app follows strict MVVM pattern using .NET MAUI Blazor Hybrid. Blazor Razor components handle the UI; C# ViewModels handle state and commands; Services handle all external communication.</p>
+
+<h3>4.1 MVVM Structure</h3>
+<table>
+  <tbody><tr><th>Layer</th><th>Technology</th><th>Responsibility</th></tr>
+  <tr><td>View</td><td>Blazor Razor Components (.razor)</td><td>UI rendering, data binding via @bind, event handling</td></tr>
+  <tr><td>ViewModel</td><td>C# classes inheriting <code>ObservableObject</code> (CommunityToolkit.Mvvm)</td><td>State management, commands, validation logic</td></tr>
+  <tr><td>Service</td><td>C# interfaces + implementations</td><td>API calls, SignalR hub, local storage, device APIs</td></tr>
+  <tr><td>Model</td><td>Plain C# record / class</td><td>DTOs, domain entities, API response models</td></tr>
+</tbody></table>
+
+<h3>4.2 Pages, ViewModels &amp; Services</h3>
+<table>
+  <tbody><tr><th>Page / Component</th><th>ViewModel</th><th>Key Services Used</th><th>Why Required</th></tr>
+  <tr><td>SplashPage.razor</td><td>SplashViewModel</td><td>IAuthService, INavigationService</td><td>Token check, initialization gating</td></tr>
+  <tr><td>LoginPage.razor</td><td>LoginViewModel</td><td>IAuthService, INavigationService</td><td>User authentication entry point</td></tr>
+  <tr><td>RegisterPage.razor</td><td>RegisterViewModel</td><td>IAuthService, IUserService</td><td>New user onboarding</td></tr>
+  <tr><td>ChatsPage.razor</td><td>ChatsViewModel</td><td>IConversationService, ISignalRService</td><td>Conversation list, real-time updates</td></tr>
+  <tr><td>ChatDetailPage.razor</td><td>ChatDetailViewModel</td><td>IMessageService, ISignalRService, IFileService</td><td>Full messaging UI, real-time chat</td></tr>
+  <tr><td>CallsPage.razor</td><td>CallsViewModel</td><td>ICallService, ICallHistoryService</td><td>Call history display</td></tr>
+  <tr><td>ActiveCallPage.razor</td><td>ActiveCallViewModel</td><td>IAcsService (Azure Communication Services)</td><td>In-call UI and controls</td></tr>
+  <tr><td>ProfilePage.razor</td><td>ProfileViewModel</td><td>IUserService, IAuthService, IFileService</td><td>Account management</td></tr>
+  <tr><td>ContactPickerPage.razor</td><td>ContactPickerViewModel</td><td>IUserService, IContactService</td><td>Select recipients for new chat/call</td></tr>
+  <tr><td>MediaViewerPage.razor</td><td>MediaViewerViewModel</td><td>IFileService</td><td>Full-screen media viewer</td></tr>
+</tbody></table>
+
+<h3>4.3 Service Interfaces</h3>
+<table>
+  <tbody><tr><th>Interface</th><th>Methods (key)</th><th>Description</th></tr>
+  <tr><td><code>IAuthService</code></td><td>LoginAsync, LogoutAsync, RefreshTokenAsync, GetCurrentUserAsync</td><td>JWT auth, token storage in SecureStorage</td></tr>
+  <tr><td><code>IConversationService</code></td><td>GetConversationsAsync, CreateConversationAsync, ArchiveAsync</td><td>Conversation CRUD via REST API</td></tr>
+  <tr><td><code>IMessageService</code></td><td>GetMessagesAsync, SendMessageAsync, EditMessageAsync, DeleteMessageAsync, ReactAsync</td><td>Message operations via REST API</td></tr>
+  <tr><td><code>ISignalRService</code></td><td>ConnectAsync, DisconnectAsync, SendTypingAsync, On&lt;T&gt;, Off&lt;T&gt;</td><td>Manages SignalR hub connection lifecycle</td></tr>
+  <tr><td><code>IFileService</code></td><td>UploadFileAsync, DownloadFileAsync, GetSasUriAsync, DeleteFileAsync</td><td>Azure Blob Storage interactions</td></tr>
+  <tr><td><code>ICallService</code></td><td>StartCallAsync, EndCallAsync, AcceptCallAsync, RejectCallAsync</td><td>Azure Communication Services SDK wrapper</td></tr>
+  <tr><td><code>INotificationService</code></td><td>RegisterDeviceAsync, UnregisterDeviceAsync, HandlePushAsync</td><td>Push notification registration and handling</td></tr>
+  <tr><td><code>IUserService</code></td><td>GetProfileAsync, UpdateProfileAsync, SearchUsersAsync, UpdateAvatarAsync</td><td>User profile management</td></tr>
+  <tr><td><code>INavigationService</code></td><td>NavigateToAsync, GoBackAsync, NavigateToRootAsync</td><td>Typed navigation abstraction over Shell</td></tr>
+  <tr><td><code>ILocalStorageService</code></td><td>GetAsync, SetAsync, RemoveAsync</td><td>Offline data cache (SQLite / Preferences)</td></tr>
+</tbody></table>
+
+<h3>4.4 Dependency Injection Registration (MauiProgram.cs)</h3>
+<pre><code>builder.Services.AddSingleton&lt;IAuthService, AuthService&gt;();
+builder.Services.AddSingleton&lt;ISignalRService, SignalRService&gt;();
+builder.Services.AddSingleton&lt;INotificationService, NotificationService&gt;();
+builder.Services.AddTransient&lt;IConversationService, ConversationService&gt;();
+builder.Services.AddTransient&lt;IMessageService, MessageService&gt;();
+builder.Services.AddTransient&lt;IFileService, FileService&gt;();
+builder.Services.AddTransient&lt;ICallService, CallService&gt;();
+builder.Services.AddTransient&lt;IUserService, UserService&gt;();
+builder.Services.AddScoped&lt;ChatsViewModel&gt;();
+builder.Services.AddScoped&lt;ChatDetailViewModel&gt;();
+// HttpClient with base address + JWT handler
+builder.Services.AddHttpClient("API", c =&gt; c.BaseAddress = new Uri(apiBaseUrl))
+    .AddHttpMessageHandler&lt;JwtAuthHandler&gt;();</code></pre>
+
+<h3 id="folder-structure">4.5 Folder Structure</h3>
+<pre><code>WhatsAppClone.MAUI/
+├── MauiProgram.cs
+├── App.xaml / App.xaml.cs
+├── AppShell.razor
+│
+├── Pages/                         # Blazor Razor pages (routed)
+│   ├── SplashPage.razor
+│   ├── Auth/
+│   │   ├── LoginPage.razor
+│   │   └── RegisterPage.razor
+│   ├── Chats/
+│   │   ├── ChatsPage.razor
+│   │   └── ChatDetailPage.razor
+│   ├── Calls/
+│   │   ├── CallsPage.razor
+│   │   └── ActiveCallPage.razor
+│   ├── Profile/
+│   │   └── ProfilePage.razor
+│   └── Shared/
+│       ├── MediaViewerPage.razor
+│       └── ContactPickerPage.razor
+│
+├── Components/                    # Reusable Blazor components
+│   ├── ConversationCell.razor
+│   ├── MessageBubble.razor
+│   ├── TypingIndicator.razor
+│   ├── AttachmentPicker.razor
+│   ├── EmojiPicker.razor
+│   ├── CallHistoryCell.razor
+│   ├── AvatarImage.razor
+│   └── StatusBadge.razor
+│
+├── ViewModels/
+│   ├── Base/ObservableViewModel.cs
+│   ├── SplashViewModel.cs
+│   ├── Auth/LoginViewModel.cs
+│   ├── Auth/RegisterViewModel.cs
+│   ├── Chats/ChatsViewModel.cs
+│   ├── Chats/ChatDetailViewModel.cs
+│   ├── Calls/CallsViewModel.cs
+│   ├── Calls/ActiveCallViewModel.cs
+│   └── Profile/ProfileViewModel.cs
+│
+├── Services/
+│   ├── Auth/AuthService.cs
+│   ├── Chat/ConversationService.cs
+│   ├── Chat/MessageService.cs
+│   ├── RealTime/SignalRService.cs
+│   ├── Files/FileService.cs
+│   ├── Calls/CallService.cs
+│   ├── Notifications/NotificationService.cs
+│   ├── Users/UserService.cs
+│   ├── Navigation/NavigationService.cs
+│   └── Storage/LocalStorageService.cs
+│
+├── Models/
+│   ├── DTOs/                      # API request/response models
+│   ├── Domain/                    # Local domain models
+│   └── Enums/
+│
+├── Handlers/
+│   └── JwtAuthHandler.cs          # DelegatingHandler for JWT injection
+│
+├── Platforms/
+│   ├── Android/
+│   │   ├── MainActivity.cs
+│   │   └── FirebaseMessagingService.cs
+│   ├── iOS/
+│   │   └── AppDelegate.cs
+│   └── Windows/
+│
+└── wwwroot/
+    ├── css/app.css
+    └── js/interop.js               # JS interop for browser APIs</code></pre>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;
+     BACKEND ARCHITECTURE
+&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<h2 class="section-title" id="backend-arch">5. Backend Architecture</h2>
+
+<h3>5.1 Component Overview</h3>
+<table>
+  <tbody><tr><th>Component</th><th>Technology</th><th>Role</th></tr>
+  <tr><td>API Gateway / Ingress</td><td>Azure API Management</td><td>Rate limiting, auth policy, routing to microservices or monolith</td></tr>
+  <tr><td>Web API</td><td>ASP.NET Core 8 Minimal API + Controllers</td><td>REST endpoints for all CRUD operations</td></tr>
+  <tr><td>SignalR Hub</td><td>ASP.NET Core SignalR</td><td>Real-time WebSocket hub for messages, typing, presence</td></tr>
+  <tr><td>Background Services</td><td>ASP.NET Core IHostedService</td><td>Cosmos DB Change Feed processor, notification dispatcher</td></tr>
+  <tr><td>Database</td><td>Azure Cosmos DB (NoSQL API)</td><td>Primary data store — users, messages, conversations</td></tr>
+  <tr><td>File Storage</td><td>Azure Blob Storage</td><td>Media, documents, profile images</td></tr>
+  <tr><td>Push Notifications</td><td>Azure Notification Hub</td><td>FCM (Android) + APNS (iOS) push delivery</td></tr>
+  <tr><td>Voice/Video Calls</td><td>Azure Communication Services</td><td>PSTN-grade voice &amp; video calling</td></tr>
+  <tr><td>Cache</td><td>Azure Cache for Redis</td><td>Online presence, SignalR backplane, session data</td></tr>
+  <tr><td>Secrets</td><td>Azure Key Vault</td><td>Connection strings, API keys, JWT secrets</td></tr>
+</tbody></table>
+
+<h3 id="auth-flow">5.2 Authentication Flow</h3>
+<pre><code>Client                          API                          Cosmos DB
+  |                              |                              |
+  |-- POST /api/auth/login -----&gt;|                              |
+  |   { phone, password }        |-- Query users container ----&gt;|
+  |                              |&lt;-- User document ------------|
+  |                              |-- Verify bcrypt hash         |
+  |                              |-- Generate JWT (15 min)      |
+  |                              |-- Generate Refresh (30 days) |
+  |                              |-- Store refresh token -------&gt;|
+  |&lt;-- 200 { accessToken,        |                              |
+  |          refreshToken }      |                              |
+  |                              |                              |
+  |-- Subsequent API calls       |                              |
+  |   Authorization: Bearer {JWT}|                              |
+  |                              |-- Validate JWT middleware    |
+  |                              |-- Extract userId claim       |</code></pre>
+
+<h3 id="realtime-flow">5.3 Real-Time Messaging Flow</h3>
+<pre><code>Sender App          REST API          Cosmos DB          SignalR Hub       Receiver App
+    |                  |                  |                   |                  |
+    |-- POST /messages-&gt;|                  |                   |                  |
+    |                  |-- Write message -&gt;|                   |                  |
+    |                  |                  |-- Change Feed ----&gt;|                  |
+    |&lt;-- 201 Created   |                  |   (processor)      |                  |
+    |                  |                  |                   |-- Push to ------&gt;|
+    |                  |                  |                   |   receiver group  |
+    |                  |                  |                   |                  |-- UI update
+    |                  |                  |                   |                  |
+    |  (SignalR also delivers to sender for delivery confirmation)               |
+    |&lt;----------------------------------------------------------|                  |</code></pre>
+
+<h3>5.4 File Upload Flow</h3>
+<pre><code>Client                    API                    Azure Blob Storage
+  |                        |                            |
+  |-- POST /files/upload   |                            |
+  |   multipart/form-data  |                            |
+  |                        |-- Validate type &amp; size     |
+  |                        |-- Generate unique GUID name|
+  |                        |-- Upload stream -----------&gt;|
+  |                        |&lt;-- Blob URL ----------------|
+  |                        |-- Store metadata in Cosmos  |
+  |&lt;-- 200 { fileUrl,      |                            |
+  |          fileId }       |                            |
+  |                        |                            |
+  | Client embeds fileUrl  |                            |
+  | in SendMessage request |                            |</code></pre>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;
+     AZURE COSMOS DB
+&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<h2 class="section-title" id="cosmos-db">6. Azure Cosmos DB Design</h2>
+<p class="section-desc">Database: <code>ChatAppDB</code> — using Azure Cosmos DB NoSQL API with automatic indexing and global distribution.</p>
+
+<h3>6.1 Containers Summary</h3>
+<table>
+  <tbody><tr><th>Container</th><th>Partition Key</th><th>Purpose</th><th>RU/s</th></tr>
+  <tr><td>users</td><td>/userId</td><td>User profiles, auth credentials, settings</td><td>400</td></tr>
+  <tr><td>conversations</td><td>/conversationId</td><td>Chat metadata: participants, last message, settings</td><td>800</td></tr>
+  <tr><td>messages</td><td>/conversationId</td><td>All messages — partitioned per conversation for locality</td><td>2000</td></tr>
+  <tr><td>calls</td><td>/callerId</td><td>Call records — history, duration, status</td><td>400</td></tr>
+  <tr><td>notifications</td><td>/userId</td><td>Notification queue and delivery tracking</td><td>400</td></tr>
+  <tr><td>userSettings</td><td>/userId</td><td>Per-user preferences, privacy settings, device tokens</td><td>400</td></tr>
+  <tr><td>refreshTokens</td><td>/userId</td><td>JWT refresh tokens with TTL expiry</td><td>200</td></tr>
+</tbody></table>
+
+<h3>6.2 Sample Documents</h3>
+
+<h4>users container</h4>
+<pre><code>{
+  "id": "usr_01J2K9X7M3",
+  "userId": "usr_01J2K9X7M3",
+  "type": "user",
+  "displayName": "Jenil Patel",
+  "phoneNumber": "+919876543210",
+  "email": "jenil@example.com",
+  "passwordHash": "$2b$12$...",
+  "profileImageUrl": "<a href="https://urldefense.com/v3/__https://chatapp.blob.core.windows.net/avatars/usr_01J2K9X7M3.jpg__;!!HHwbz4bEtjo!IYM60ZBZNfViLdf1O-DhJTq1AuBmbVQ8s0s31bC7gfbBxmwFRFknt5h_bFsMlhscoilNKUe_MIngdx27bnP6N1iOh-buFfPL1Q$">https://chatapp.blob.core.windows.net/avatars/usr_01J2K9X7M3.jpg</a>",
+  "statusMessage": "Available",
+  "isOnline": true,
+  "lastSeenAt": "2026-06-03T10:45:00Z",
+  "createdAt": "2026-01-15T08:00:00Z",
+  "updatedAt": "2026-06-03T10:45:00Z",
+  "_ts": 1749000000
+}</code></pre>
+
+<h4>conversations container</h4>
+<pre><code>{
+  "id": "conv_03K8P2N9X1",
+  "conversationId": "conv_03K8P2N9X1",
+  "type": "conversation",
+  "conversationType": "direct",   // "direct" | "group"
+  "participants": [
+    { "userId": "usr_01J2K9X7M3", "role": "member", "joinedAt": "2026-01-20T09:00:00Z" },
+    { "userId": "usr_07L4Q3R2Y5", "role": "member", "joinedAt": "2026-01-20T09:00:00Z" }
+  ],
+  "lastMessage": {
+    "messageId": "msg_99Z7W1V3U8",
+    "text": "See you tomorrow!",
+    "sentAt": "2026-06-03T10:30:00Z",
+    "senderId": "usr_07L4Q3R2Y5",
+    "type": "text"
+  },
+  "unreadCounts": {
+    "usr_01J2K9X7M3": 2,
+    "usr_07L4Q3R2Y5": 0
+  },
+  "isMuted": false,
+  "isPinned": false,
+  "createdAt": "2026-01-20T09:00:00Z",
+  "updatedAt": "2026-06-03T10:30:00Z"
+}</code></pre>
+
+<h4>messages container</h4>
+<pre><code>{
+  "id": "msg_99Z7W1V3U8",
+  "messageId": "msg_99Z7W1V3U8",
+  "conversationId": "conv_03K8P2N9X1",
+  "senderId": "usr_07L4Q3R2Y5",
+  "type": "text",                // "text"|"image"|"video"|"audio"|"document"|"voice"|"system"
+  "text": "See you tomorrow!",
+  "attachments": [],
+  "replyToMessageId": null,
+  "reactions": [
+    { "userId": "usr_01J2K9X7M3", "emoji": "❤️", "reactedAt": "2026-06-03T10:31:00Z" }
+  ],
+  "status": {
+    "usr_01J2K9X7M3": "read"    // "sent"|"delivered"|"read" per recipient
+  },
+  "isEdited": false,
+  "editedAt": null,
+  "isDeleted": false,
+  "deletedAt": null,
+  "sentAt": "2026-06-03T10:30:00Z",
+  "_ts": 1748953800
+}</code></pre>
+
+<h4>Image message example</h4>
+<pre><code>{
+  "id": "msg_88Y6V0U2T7",
+  "conversationId": "conv_03K8P2N9X1",
+  "senderId": "usr_01J2K9X7M3",
+  "type": "image",
+  "text": "Check this out!",
+  "attachments": [
+    {
+      "fileId": "file_A1B2C3D4",
+      "fileName": "photo.jpg",
+      "mimeType": "image/jpeg",
+      "sizeBytes": 1048576,
+      "blobUrl": "<a href="https://urldefense.com/v3/__https://chatapp.blob.core.windows.net/media/conv_03K8P2N9X1/file_A1B2C3D4.jpg__;!!HHwbz4bEtjo!IYM60ZBZNfViLdf1O-DhJTq1AuBmbVQ8s0s31bC7gfbBxmwFRFknt5h_bFsMlhscoilNKUe_MIngdx27bnP6N1iOh-ZpC2pYdg$">https://chatapp.blob.core.windows.net/media/conv_03K8P2N9X1/file_A1B2C3D4.jpg</a>",
+      "thumbnailUrl": "<a href="https://urldefense.com/v3/__https://chatapp.blob.core.windows.net/thumbs/file_A1B2C3D4_thumb.jpg__;!!HHwbz4bEtjo!IYM60ZBZNfViLdf1O-DhJTq1AuBmbVQ8s0s31bC7gfbBxmwFRFknt5h_bFsMlhscoilNKUe_MIngdx27bnP6N1iOh-aAGBAcnA$">https://chatapp.blob.core.windows.net/thumbs/file_A1B2C3D4_thumb.jpg</a>",
+      "width": 1920,
+      "height": 1080
+    }
+  ],
+  "sentAt": "2026-06-03T10:25:00Z"
+}</code></pre>
+
+<h4>calls container</h4>
+<pre><code>{
+  "id": "call_55T3S1R7Q4",
+  "callId": "call_55T3S1R7Q4",
+  "callerId": "usr_01J2K9X7M3",
+  "calleeId": "usr_07L4Q3R2Y5",
+  "conversationId": "conv_03K8P2N9X1",
+  "callType": "video",          // "voice" | "video"
+  "status": "ended",            // "ringing"|"active"|"ended"|"missed"|"rejected"
+  "acsCallId": "4:+acs-call-id",
+  "startedAt": "2026-06-03T09:00:00Z",
+  "answeredAt": "2026-06-03T09:00:12Z",
+  "endedAt": "2026-06-03T09:07:45Z",
+  "durationSeconds": 453,
+  "endedBy": "usr_01J2K9X7M3",
+  "createdAt": "2026-06-03T09:00:00Z"
+}</code></pre>
+
+<h4>userSettings container</h4>
+<pre><code>{
+  "id": "settings_usr_01J2K9X7M3",
+  "userId": "usr_01J2K9X7M3",
+  "notifications": {
+    "messages": true,
+    "calls": true,
+    "sound": true,
+    "vibration": true,
+    "previewText": true
+  },
+  "privacy": {
+    "lastSeenVisibility": "contacts",   // "everyone"|"contacts"|"nobody"
+    "profilePhotoVisibility": "everyone",
+    "readReceipts": true
+  },
+  "deviceTokens": [
+    {
+      "platform": "android",
+      "token": "fcm-device-token-abc123",
+      "registeredAt": "2026-06-01T08:00:00Z"
+    }
+  ],
+  "theme": "light",
+  "language": "en",
+  "updatedAt": "2026-06-01T08:00:00Z"
+}</code></pre>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;
+     BLOB STORAGE
+&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<h2 class="section-title" id="blob-storage">7. Azure Blob Storage Design</h2>
+
+<h3>7.1 Storage Containers</h3>
+<table>
+  <tbody><tr><th>Blob Container</th><th>Access Level</th><th>Content</th><th>Lifecycle Rule</th></tr>
+  <tr><td>avatars</td><td>Public read</td><td>User profile pictures (JPEG/PNG, max 5 MB)</td><td>Overwrite on update; keep indefinitely</td></tr>
+  <tr><td>media</td><td>Private (SAS)</td><td>Chat images, videos per conversation</td><td>Move to Cool after 90 days; delete after 1 year</td></tr>
+  <tr><td>documents</td><td>Private (SAS)</td><td>PDF, DOCX, XLSX, ZIP files shared in chat</td><td>Move to Cool after 30 days; delete after 180 days</td></tr>
+  <tr><td>audio</td><td>Private (SAS)</td><td>Voice messages, audio files</td><td>Delete after 90 days</td></tr>
+  <tr><td>thumbnails</td><td>Public read via CDN</td><td>Auto-generated image thumbnails (max 320×240)</td><td>Same as media container parent</td></tr>
+  <tr><td>exports</td><td>Private (SAS, 1h TTL)</td><td>Chat export ZIP files (requested by user)</td><td>Delete after 24 hours</td></tr>
+</tbody></table>
+
+<h3>7.2 Folder Structure</h3>
+<pre><code>avatars/
+└── {userId}.jpg                          # e.g. avatars/usr_01J2K9X7M3.jpg
+
+media/
+└── {conversationId}/
+    └── {fileId}.{ext}                    # e.g. media/conv_03K8P2N9X1/file_A1B2C3D4.jpg
+
+thumbnails/
+└── {fileId}_thumb.jpg                    # e.g. thumbnails/file_A1B2C3D4_thumb.jpg
+
+documents/
+└── {conversationId}/
+    └── {fileId}_{originalName}           # e.g. documents/conv_03.../file_XY_report.pdf
+
+audio/
+└── {conversationId}/
+    └── {fileId}.ogg                      # voice messages in OGG/Opus format
+
+exports/
+└── {userId}/
+    └── {exportId}.zip</code></pre>
+
+<h3>7.3 SAS Token Strategy</h3>
+<ul class="doc-list">
+  <li>All read requests for private blobs are served via short-lived SAS URIs (default 1-hour TTL)</li>
+  <li>Client calls <code>GET /api/files/{fileId}/url</code> to receive a fresh SAS URI; result cached client-side for 55 minutes</li>
+  <li>Upload SAS tokens (write-only, 15-min TTL) issued by API after file metadata validation</li>
+  <li>Public blobs (avatars, thumbnails) served via Azure CDN for global performance</li>
+</ul>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;
+     OTHER AZURE SERVICES
+&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<h2 class="section-title" id="azure-other">8. Other Azure Services</h2>
+
+<table>
+  <tbody><tr><th>Service</th><th>Purpose</th><th>Key Configuration</th></tr>
+  <tr><td>Azure Communication Services (ACS)</td><td>Voice &amp; video calling via WebRTC-based SDK</td><td>MAUI SDK for client; REST API for call tokens from backend</td></tr>
+  <tr><td>Azure Notification Hub</td><td>Fan-out push notifications to FCM (Android) and APNS (iOS)</td><td>Connected to Firebase project + Apple Developer certificate</td></tr>
+  <tr><td>Azure Cache for Redis</td><td>SignalR backplane (multi-server), online presence state, rate limiting</td><td>StackExchange.Redis; TTL 5 min for presence keys</td></tr>
+  <tr><td>Azure Key Vault</td><td>Secure storage of all secrets and connection strings</td><td>Managed Identity access from App Service; no secrets in appsettings</td></tr>
+  <tr><td>Azure API Management</td><td>API gateway, throttling, developer portal, analytics</td><td>Subscription-key + JWT validation policy</td></tr>
+  <tr><td>Azure App Service</td><td>Host .NET Web API + SignalR Hub</td><td>P2v3 plan; WebSocket enabled; Always On</td></tr>
+  <tr><td>Azure Application Insights</td><td>Telemetry, logging, performance monitoring</td><td>SDK injected in API; custom events for message/call metrics</td></tr>
+  <tr><td>Azure CDN</td><td>Serve avatars and thumbnails with global low latency</td><td>Microsoft CDN tier on Blob Storage endpoint</td></tr>
+</tbody></table>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;
+     API DESIGN
+&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<h2 class="section-title" id="api-auth">9. API Design — Authentication</h2>
+<p class="section-desc">Base URL: <code><a href="https://urldefense.com/v3/__https://api.chatapp.com/api/v1__;!!HHwbz4bEtjo!IYM60ZBZNfViLdf1O-DhJTq1AuBmbVQ8s0s31bC7gfbBxmwFRFknt5h_bFsMlhscoilNKUe_MIngdx27bnP6N1iOh-bITrRRzQ$">https://api.chatapp.com/api/v1</a></code>. All protected endpoints require <code>Authorization: Bearer {accessToken}</code>.</p>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/auth/register</span><span class="api-desc">Register new user account</span></div>
+  <div class="api-body">
+    <h5>Request Body</h5>
+    <pre><code>{ "displayName": "Jenil Patel", "phoneNumber": "+919876543210",
+  "email": "jenil@example.com", "password": "Secure@123" }</code></pre>
+    <h5>Response 201</h5>
+    <pre><code>{ "userId": "usr_01J2K9X7M3", "displayName": "Jenil Patel",
+  "accessToken": "eyJ...", "refreshToken": "rt_abc123..." }</code></pre>
+    <h5>Errors</h5><p><code>409</code> Phone/Email already registered &nbsp;|&nbsp; <code>400</code> Validation failed</p>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/auth/login</span><span class="api-desc">Authenticate user, return JWT tokens</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "phoneNumber": "+919876543210", "password": "Secure@123" }
+
+// Response 200
+{ "accessToken": "eyJ...",  "expiresIn": 900,
+  "refreshToken": "rt_abc123...", "userId": "usr_01J2K9X7M3" }</code></pre>
+    <p><code>401</code> Invalid credentials &nbsp;|&nbsp; <code>423</code> Account locked after 5 failed attempts</p>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/auth/refresh</span><span class="api-desc">Exchange refresh token for new access token</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "refreshToken": "rt_abc123..." }
+// Response 200
+{ "accessToken": "eyJ...", "expiresIn": 900, "refreshToken": "rt_new456..." }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/auth/logout</span><span class="api-desc">Revoke refresh token (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request (no body; token from Authorization header)
+// Response 204 No Content — refresh token deleted from Cosmos DB</code></pre>
+  </div>
+</div>
+
+<h2 class="section-title" id="api-user">9.2 User APIs</h2>
+
+<div class="api-card">
+  <div class="api-header"><span class="method GET">GET</span><span class="api-endpoint">/users/me</span><span class="api-desc">Get current user profile (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 200
+{ "userId": "usr_01J2K9X7M3", "displayName": "Jenil Patel",
+  "phoneNumber": "+919876543210", "email": "jenil@example.com",
+  "profileImageUrl": "<a href="https://urldefense.com/v3/__https://cdn.chatapp.com/avatars/usr_01J2K9X7M3.jpg__;!!HHwbz4bEtjo!IYM60ZBZNfViLdf1O-DhJTq1AuBmbVQ8s0s31bC7gfbBxmwFRFknt5h_bFsMlhscoilNKUe_MIngdx27bnP6N1iOh-YjWOtFwQ$">https://cdn.chatapp.com/avatars/usr_01J2K9X7M3.jpg</a>",
+  "statusMessage": "Available", "isOnline": true, "lastSeenAt": "2026-06-03T10:45:00Z" }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method PUT">PUT</span><span class="api-endpoint">/users/me</span><span class="api-desc">Update profile details (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "displayName": "Jenil P.", "statusMessage": "Busy" }
+// Response 200 — updated user object</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/users/me/avatar</span><span class="api-desc">Upload / update profile picture (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request: multipart/form-data, field "file" (JPEG/PNG, max 5 MB)
+// Response 200
+{ "profileImageUrl": "<a href="https://urldefense.com/v3/__https://cdn.chatapp.com/avatars/usr_01J2K9X7M3.jpg__;!!HHwbz4bEtjo!IYM60ZBZNfViLdf1O-DhJTq1AuBmbVQ8s0s31bC7gfbBxmwFRFknt5h_bFsMlhscoilNKUe_MIngdx27bnP6N1iOh-YjWOtFwQ$">https://cdn.chatapp.com/avatars/usr_01J2K9X7M3.jpg</a>" }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method GET">GET</span><span class="api-endpoint">/users/search?q={query}&amp;limit=20</span><span class="api-desc">Search users by name or phone (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 200
+{ "results": [
+    { "userId": "usr_07L4Q3R2Y5", "displayName": "Rahul Shah",
+      "profileImageUrl": "...", "isOnline": false }
+  ], "total": 1 }</code></pre>
+  </div>
+</div>
+
+<h2 class="section-title" id="api-chat">9.3 Chat APIs</h2>
+
+<div class="api-card">
+  <div class="api-header"><span class="method GET">GET</span><span class="api-endpoint">/conversations?limit=20&amp;cursor={cursor}</span><span class="api-desc">Get paginated conversation list (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 200
+{ "conversations": [
+    { "conversationId": "conv_03K8P2N9X1", "conversationType": "direct",
+      "participants": [...], "lastMessage": {...}, "unreadCount": 2 }
+  ], "nextCursor": "c2..." }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/conversations</span><span class="api-desc">Create new conversation (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "type": "direct", "participantIds": ["usr_07L4Q3R2Y5"] }
+// For group:
+{ "type": "group", "name": "Project Team", "participantIds": ["usr_07L...", "usr_08M..."] }
+// Response 201
+{ "conversationId": "conv_03K8P2N9X1", ... }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method GET">GET</span><span class="api-endpoint">/conversations/{conversationId}/messages?limit=30&amp;before={messageId}</span><span class="api-desc">Paginated message history (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 200
+{ "messages": [
+    { "messageId": "msg_99Z7W1V3U8", "senderId": "usr_07L4Q3R2Y5",
+      "type": "text", "text": "See you tomorrow!",
+      "sentAt": "2026-06-03T10:30:00Z", "status": { "usr_01J...": "read" },
+      "reactions": [], "isEdited": false }
+  ], "hasMore": true, "nextCursor": "msg_88Y..." }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/conversations/{conversationId}/messages</span><span class="api-desc">Send a message (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request (text)
+{ "type": "text", "text": "Hello!", "replyToMessageId": null }
+
+// Request (with attachment)
+{ "type": "image", "text": "Look at this",
+  "attachments": [{ "fileId": "file_A1B2C3D4", "fileName": "photo.jpg",
+                    "mimeType": "image/jpeg", "sizeBytes": 1048576 }] }
+// Response 201 — full message object</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method PATCH">PATCH</span><span class="api-endpoint">/messages/{messageId}</span><span class="api-desc">Edit message text (Protected, within 15 min)</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "text": "Corrected message text" }
+// Response 200 — updated message with isEdited: true</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method DELETE">DELETE</span><span class="api-endpoint">/messages/{messageId}?scope={me|everyone}</span><span class="api-desc">Delete message (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// scope=me: soft-delete for requesting user only
+// scope=everyone: within 60 min window — marks isDeleted=true for all
+// Response 204 No Content</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/messages/{messageId}/reactions</span><span class="api-desc">Add emoji reaction (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "emoji": "❤️" }
+// Response 200 — updated reactions array
+// Sending same emoji again removes the reaction (toggle)</code></pre>
+  </div>
+</div>
+
+<h2 class="section-title" id="api-file">9.4 File APIs</h2>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/files/upload</span><span class="api-desc">Upload file to Blob Storage (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request: multipart/form-data
+// Fields: file (binary), conversationId (string), fileType (image|document|audio|video)
+// Response 200
+{ "fileId": "file_A1B2C3D4", "fileName": "photo.jpg", "mimeType": "image/jpeg",
+  "sizeBytes": 1048576, "blobUrl": "<a href="https://urldefense.com/v3/__https://chatapp.blob.core.windows.net/__;!!HHwbz4bEtjo!IYM60ZBZNfViLdf1O-DhJTq1AuBmbVQ8s0s31bC7gfbBxmwFRFknt5h_bFsMlhscoilNKUe_MIngdx27bnP6N1iOh-b5x-9F-A$">https://chatapp.blob.core.windows.net/</a>...",
+  "thumbnailUrl": "<a href="https://urldefense.com/v3/__https://cdn.chatapp.com/thumbs/file_A1B2C3D4_thumb.jpg__;!!HHwbz4bEtjo!IYM60ZBZNfViLdf1O-DhJTq1AuBmbVQ8s0s31bC7gfbBxmwFRFknt5h_bFsMlhscoilNKUe_MIngdx27bnP6N1iOh-bFWiJIzQ$">https://cdn.chatapp.com/thumbs/file_A1B2C3D4_thumb.jpg</a>" }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method GET">GET</span><span class="api-endpoint">/files/{fileId}/url</span><span class="api-desc">Get short-lived SAS download URL (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 200
+{ "sasUrl": "<a href="https://urldefense.com/v3/__https://chatapp.blob.core.windows.net/media/.../file.jpg?sv=...&amp;se=...&amp;sig=__;!!HHwbz4bEtjo!IYM60ZBZNfViLdf1O-DhJTq1AuBmbVQ8s0s31bC7gfbBxmwFRFknt5h_bFsMlhscoilNKUe_MIngdx27bnP6N1iOh-Z19nQDOQ$">https://chatapp.blob.core.windows.net/media/.../file.jpg?sv=...&amp;se=...&amp;sig=</a>...",
+  "expiresAt": "2026-06-03T11:45:00Z" }</code></pre>
+  </div>
+</div>
+
+<h2 class="section-title" id="api-call">9.5 Call APIs</h2>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/calls/token</span><span class="api-desc">Get ACS user access token for calling (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 200
+{ "acsToken": "eyJ...", "expiresAt": "2026-06-03T18:00:00Z",
+  "acsUserId": "8:acs:guid-abc123" }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/calls</span><span class="api-desc">Initiate a call record (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "calleeId": "usr_07L4Q3R2Y5", "callType": "video", "conversationId": "conv_03K8P2N9X1" }
+// Response 201
+{ "callId": "call_55T3S1R7Q4", "acsCallId": "4:+...", "status": "ringing" }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method PATCH">PATCH</span><span class="api-endpoint">/calls/{callId}</span><span class="api-desc">Update call status (answered, ended, missed) (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "status": "ended", "endedAt": "2026-06-03T09:07:45Z" }
+// Response 200 — updated call record with durationSeconds calculated</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method GET">GET</span><span class="api-endpoint">/calls/history?limit=20&amp;cursor={cursor}&amp;filter={all|missed}</span><span class="api-desc">Get paginated call history (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 200
+{ "calls": [
+    { "callId": "call_55T3S1R7Q4", "callType": "video", "status": "ended",
+      "participant": { "userId": "usr_07L4Q3R2Y5", "displayName": "Rahul Shah" },
+      "direction": "outgoing", "durationSeconds": 453,
+      "startedAt": "2026-06-03T09:00:00Z" }
+  ], "nextCursor": "..." }</code></pre>
+  </div>
+</div>
+
+<h2 class="section-title" id="api-notification">9.6 Notification APIs</h2>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/notifications/register</span><span class="api-desc">Register device push token (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "platform": "android", "deviceToken": "fcm-token-abc123" }
+// Response 204 — token stored in userSettings container</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method DELETE">DELETE</span><span class="api-endpoint">/notifications/register/{platform}</span><span class="api-desc">Unregister device (on logout) (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 204 — token removed from userSettings</code></pre>
+  </div>
+</div>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;
+     REAL-TIME COMMUNICATION
+&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<h2 class="section-title" id="realtime-tech">10. Real-Time Communication Design</h2>
+
+<h3>10.1 Technology Comparison — Messaging</h3>
+<table>
+  <tbody><tr><th>Technology</th><th>Protocol</th><th>Pros</th><th>Cons</th><th>Azure Integration</th></tr>
+  <tr class="rec-row"><td>SignalR (✅ Recommended)</td><td>WebSocket / SSE / Long Poll</td><td>Native .NET, auto-fallback, Hub abstraction, scales with Redis backplane, MAUI SDK available</td><td>Not ideal for P2P media</td><td>First-class support, Azure SignalR Service for serverless scaling</td></tr>
+  <tr><td>Raw WebSocket</td><td>WebSocket</td><td>Lightweight</td><td>No built-in hub/group management, manual retry logic</td><td>Supported on App Service</td></tr>
+  <tr><td>gRPC streaming</td><td>HTTP/2</td><td>Efficient binary protocol</td><td>Limited browser support, complex MAUI setup</td><td>Requires HTTP/2 config</td></tr>
+</tbody></table>
+
+<h3 id="calling-tech">10.2 Technology Comparison — Voice &amp; Video Calling</h3>
+<table>
+  <tbody><tr><th>Technology</th><th>Pros</th><th>Cons</th><th>Cost</th></tr>
+  <tr class="rec-row"><td>Azure Communication Services (✅ Recommended)</td><td>Native Azure, MAUI SDK, no 3rd-party vendor, integrates with ACS Identity, E2EE, PSTN add-on available</td><td>Newer SDK, smaller community vs Twilio</td><td>Per-minute + per-participant</td></tr>
+  <tr><td>Twilio Video/Voice</td><td>Mature, large community, good MAUI samples</td><td>US-vendor lock-in, extra cost, separate auth system</td><td>Per-minute metered</td></tr>
+  <tr><td>WebRTC (raw)</td><td>Free, P2P (no relay cost)</td><td>Requires STUN/TURN server, NAT traversal complexity, no Azure-native SDK</td><td>TURN server cost</td></tr>
+  <tr><td>Agora</td><td>Simple SDK, low latency</td><td>Non-Azure, data sovereignty concerns, another vendor</td><td>Per-minute</td></tr>
+</tbody></table>
+
+<h3>10.3 SignalR Hub Design</h3>
+<pre><code>// ChatHub.cs — Hub method signatures
+public class ChatHub : Hub
+{
+    // Client → Server
+    Task SendTypingIndicator(string conversationId);
+    Task StopTypingIndicator(string conversationId);
+    Task MarkMessagesRead(string conversationId, string[] messageIds);
+    Task JoinConversation(string conversationId);
+    Task LeaveConversation(string conversationId);
+
+    // Server → Client (via Clients.Group / Clients.User)
+    // "ReceiveMessage"      — new message pushed to group
+    // "MessageStatusUpdate" — delivery/read receipt update
+    // "TypingStarted"       — show typing indicator
+    // "TypingStopped"       — hide typing indicator
+    // "UserPresenceChanged" — online/offline toggle
+    // "IncomingCall"        — call invite push
+    // "CallStatusChanged"   — ringing/answered/ended
+    // "MessageReaction"     — reaction added/removed
+    // "MessageEdited"       — edited message pushed
+    // "MessageDeleted"      — deletion notification
+}</code></pre>
+
+<h3>10.4 Presence Design (Redis)</h3>
+<ul class="doc-list">
+  <li>On SignalR connect: <code>SETEX presence:{userId} 300 "online"</code> (5-min TTL)</li>
+  <li>Heartbeat every 60 s resets TTL: ensures stale connections don't show as online</li>
+  <li>On disconnect: <code>DEL presence:{userId}</code> + broadcast <code>UserPresenceChanged</code> event</li>
+  <li>API endpoint <code>GET /users/{userId}/presence</code> reads Redis key (falls back to Cosmos <code>lastSeenAt</code> if key absent)</li>
+</ul>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;
+     SECURITY
+&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<h2 class="section-title" id="security">11. Security Requirements</h2>
+
+<h3>11.1 Authentication &amp; Authorization</h3>
+<table>
+  <tbody><tr><th>Requirement</th><th>Implementation</th></tr>
+  <tr><td>JWT Access Token</td><td>HS256 signed, 15-minute expiry, claims: userId, email, roles</td></tr>
+  <tr><td>Refresh Token</td><td>Opaque random string (256-bit), 30-day expiry, stored hashed in Cosmos DB refreshTokens container</td></tr>
+  <tr><td>Token Rotation</td><td>Each refresh call issues a new refresh token and invalidates the old one (rotation + reuse detection)</td></tr>
+  <tr><td>Password Storage</td><td>bcrypt with cost factor 12 (never store plaintext)</td></tr>
+  <tr><td>Account Lockout</td><td>Lock for 15 minutes after 5 consecutive failed logins (tracked in Redis)</td></tr>
+  <tr><td>Authorization</td><td>Every message/conversation API validates that requesting userId is a participant in the conversation</td></tr>
+</tbody></table>
+
+<h3>11.2 Data Encryption</h3>
+<ul class="doc-list">
+  <li><strong>In Transit:</strong> TLS 1.2+ enforced on all endpoints; HSTS headers; certificate pinning in MAUI app</li>
+  <li><strong>At Rest:</strong> Azure Cosmos DB and Azure Blob Storage use AES-256 encryption at rest by default</li>
+  <li><strong>Secrets:</strong> All connection strings and API keys stored in Azure Key Vault; accessed via Managed Identity</li>
+  <li><strong>Device Storage:</strong> JWT tokens stored in platform <code>SecureStorage</code> (iOS Keychain / Android Keystore)</li>
+</ul>
+
+<h3>11.3 Secure File Uploads</h3>
+<ul class="doc-list">
+  <li>Server-side MIME type validation (magic bytes inspection, not just extension)</li>
+  <li>Antivirus scan via Azure Defender for Storage (event-driven scan on blob write)</li>
+  <li>Max file size enforced at API middleware before reading stream</li>
+  <li>Files stored with GUID names (no original filename in path) to prevent path traversal</li>
+  <li>Read access requires authenticated SAS token; direct public access disabled on media containers</li>
+</ul>
+
+<h3>11.4 API Security</h3>
+<ul class="doc-list">
+  <li>Rate limiting: 100 requests/min per user via Azure API Management policy</li>
+  <li>CORS restricted to known MAUI app origins</li>
+  <li>Input validation with FluentValidation on all request bodies</li>
+  <li>SQL injection not applicable (NoSQL); Cosmos DB query parameterization used throughout</li>
+  <li>All error responses return generic messages (no stack traces in production)</li>
+</ul>
+
+<!-- &#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;
+     NOTIFICATIONS
+&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550; -->
+<h2 class="section-title" id="notifications">12. Push Notification Design</h2>
+
+<h3>12.1 Notification Types</h3>
+<table>
+  <tbody><tr><th>Trigger Event</th><th>Title</th><th>Body</th><th>Data Payload</th></tr>
+  <tr><td>New message received</td><td>Sender name</td><td>Message preview (or "📎 Photo" / "📄 Document")</td><td>conversationId, messageId, type</td></tr>
+  <tr><td>Incoming voice call</td><td>"Incoming Call"</td><td>"{Caller} is calling you…"</td><td>callId, callerId, callType: voice</td></tr>
+  <tr><td>Incoming video call</td><td>"Incoming Video Call"</td><td>"{Caller} wants to video call"</td><td>callId, callerId, callType: video</td></tr>
+  <tr><td>Missed call</td><td>"Missed Call"</td><td>"You missed a call from {name}"</td><td>callId, callerId</td></tr>
+  <tr><td>Group mention</td><td>Group name</td><td>"{Sender} mentioned you: {preview}"</td><td>conversationId, messageId</td></tr>
+</tbody></table>
+
+<h3>12.2 Notification Flow</h3>
+<pre><code>New Message in Cosmos DB
+        │
+        ▼
+Change Feed Processor (Background Service)
+        │
+        ├─── Recipient online (Redis presence check)?
+        │         Yes → SignalR push (no push notification needed)
+        │         No  ▼
+        └─── Query userSettings for recipient deviceTokens
+                  │
+                  ▼
+             Azure Notification Hub
+                  │
+         ┌────────┴────────┐
+         ▼                 ▼
+      FCM (Android)    APNS (iOS)
+         │                 │
+         ▼                 ▼
+    Device push       Device push
+    notification      notification</code></pre>
+
+<h3>12.3 Notification Privacy</h3>
+<ul class="doc-list">
+  <li>If user has disabled "preview text" in settings → body shows only "New message" not actual content</li>
+  <li>Push payloads never include message content on iOS (content-available: 1 triggers silent push; app fetches content itself)</li>
+  <li>Notification Hub sends data-only payloads; display handled by MAUI <code>FirebaseMessagingService</code> / <code>UNUserNotificationCenter</code></li>
+</ul>
+
+<!-- User Stories section intentionally omitted &#x2014; will be added in detail separately -->
+
+<p style="text-align:center;font-size:0.75rem;color:#94a3b8;padding-bottom:40px;">
+  WhatsApp Clone Requirements Document v1.0 &nbsp;·&nbsp; Generated June 2026 &nbsp;·&nbsp; For internal use only
+</p>
+
+</div><!-- /main -->
+
+
+</body></html>

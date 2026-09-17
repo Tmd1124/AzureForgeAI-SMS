@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Text Messaging App — Requirements Document v2.0</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f0f4f8;color:#1e293b;display:flex;min-height:100vh}
+a{color:#1d4ed8;text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:'Consolas','Courier New',monospace;font-size:0.82rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;color:#0f172a}
+pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;overflow-x:auto;font-size:0.78rem;line-height:1.6;color:#1e293b;margin:10px 0}
+pre code{background:none;border:none;padding:0;font-size:inherit}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:0.8rem}
+th{background:#e2e8f0;color:#334155;font-weight:700;padding:9px 12px;text-align:left;border:1px solid #cbd5e1}
+td{padding:8px 12px;border:1px solid #e2e8f0;color:#475569;vertical-align:top}
+tr:nth-child(even) td{background:#f8fafc}
+
+/* ── Sidebar ── */
+#sidebar{width:280px;flex-shrink:0;background:#ffffff;border-right:1px solid #e2e8f0;height:100vh;position:sticky;top:0;overflow-y:auto;padding:20px 0}
+#sidebar .logo{padding:16px 20px 12px;border-bottom:1px solid #e2e8f0;margin-bottom:8px}
+#sidebar .logo h2{font-size:1rem;color:#128c3e;font-weight:700}
+#sidebar .logo p{font-size:0.68rem;color:#94a3b8;margin-top:2px}
+#sidebar ul{list-style:none}
+#sidebar ul li a{display:block;padding:6px 20px;font-size:0.75rem;color:#475569;border-left:3px solid transparent;transition:all .15s}
+#sidebar ul li a:hover{background:#f0f4f8;color:#1d4ed8;text-decoration:none}
+#sidebar ul li a.active{border-left-color:#22c55e;background:#f0fdf4;color:#128c3e;font-weight:600}
+#sidebar .nav-group{padding:10px 20px 4px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8}
+
+/* ── Main content ── */
+#main{flex:1;padding:40px 48px;max-width:calc(100% - 280px);overflow-x:hidden}
+@media(max-width:900px){#sidebar{display:none}#main{max-width:100%;padding:24px 16px}}
+
+/* ── Headings ── */
+h1.doc-title{font-size:2rem;color:#0f172a;font-weight:800;margin-bottom:6px}
+.doc-meta{font-size:0.8rem;color:#64748b;margin-bottom:40px;padding-bottom:20px;border-bottom:2px solid #e2e8f0}
+.doc-meta span{margin-right:20px}
+h2.section-title{font-size:1.4rem;color:#0f172a;font-weight:700;margin:48px 0 6px;padding-top:16px;border-top:2px solid #e2e8f0}
+h2.section-title:first-of-type{border-top:none;margin-top:0}
+.section-desc{font-size:0.85rem;color:#64748b;margin-bottom:24px}
+h3{font-size:1.05rem;color:#1e293b;font-weight:700;margin:24px 0 10px}
+h4{font-size:0.9rem;color:#334155;font-weight:700;margin:16px 0 8px}
+h5{font-size:0.82rem;color:#475569;font-weight:700;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.06em}
+p{font-size:0.85rem;color:#475569;line-height:1.7;margin:8px 0}
+ul.doc-list,ol.doc-list{margin:8px 0 8px 20px}
+ul.doc-list li,ol.doc-list li{font-size:0.83rem;color:#475569;line-height:1.7;margin-bottom:3px}
+ul.doc-list li strong,ol.doc-list li strong{color:#1e293b}
+
+/* ── Cards / Boxes ── */
+.info-box{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:16px 18px;margin:12px 0}
+.info-box.green{background:#f0fdf4;border-color:#bbf7d0}
+.info-box.amber{background:#fffbeb;border-color:#fde68a}
+.info-box.purple{background:#faf5ff;border-color:#e9d5ff}
+.info-box.red{background:#fff1f2;border-color:#fecdd3}
+.info-box h4{margin:0 0 6px;font-size:0.82rem}
+.info-box.green h4{color:#166534}
+.info-box.amber h4{color:#92400e}
+.info-box.purple h4{color:#6b21a8}
+.info-box.red h4{color:#9f1239}
+.info-box p,.info-box li{font-size:0.8rem}
+
+/* ── Screen card ── */
+.screen-card{background:#ffffff;border:1.5px solid #e2e8f0;border-radius:12px;padding:22px 24px;margin:16px 0;box-shadow:0 1px 6px rgba(0,0,0,.05)}
+.screen-card .screen-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9}
+.screen-card .screen-icon{font-size:1.8rem;line-height:1}
+.screen-card .screen-name{font-size:1rem;font-weight:700;color:#0f172a}
+.screen-card .screen-purpose{font-size:0.75rem;color:#64748b}
+.screen-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+@media(max-width:700px){.screen-grid{grid-template-columns:1fr}}
+.sg-cell{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px}
+.sg-cell h5{margin:0 0 6px;font-size:0.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.sg-cell ul{margin:0;padding-left:14px}
+.sg-cell ul li{font-size:0.78rem;color:#475569;line-height:1.6}
+
+/* ── API card ── */
+.api-card{background:#ffffff;border:1.5px solid #e2e8f0;border-radius:10px;margin:14px 0;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.api-header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #f1f5f9}
+.method{font-size:0.7rem;font-weight:800;padding:3px 8px;border-radius:5px;letter-spacing:.06em}
+.method.GET{background:#dcfce7;color:#166534}
+.method.POST{background:#dbeafe;color:#1e40af}
+.method.PUT{background:#fef3c7;color:#92400e}
+.method.DELETE{background:#fce7f3;color:#9d174d}
+.method.PATCH{background:#f3e8ff;color:#6b21a8}
+.api-endpoint{font-family:'Consolas',monospace;font-size:0.82rem;color:#1e293b;font-weight:600}
+.api-desc{font-size:0.75rem;color:#64748b;margin-left:auto}
+.api-body{padding:14px 16px}
+
+/* ── Badge chips ── */
+.chip{display:inline-block;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:20px;margin:2px}
+.chip.blue{background:#dbeafe;color:#1e40af}
+.chip.green{background:#dcfce7;color:#166534}
+.chip.purple{background:#f3e8ff;color:#6b21a8}
+.chip.amber{background:#fef3c7;color:#92400e}
+.chip.cyan{background:#cffafe;color:#155e75}
+.chip.red{background:#fce7f3;color:#9d174d}
+.chip.slate{background:#f1f5f9;color:#475569}
+
+/* ── Comparison table highlight ── */
+.rec-row td{background:#f0fdf4 !important;font-weight:600;color:#166534}
+
+/* ── User story card ── */
+.story-card{background:#ffffff;border:1.5px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin:10px 0;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.story-id{font-size:0.7rem;font-weight:700;color:#64748b;letter-spacing:.06em;margin-bottom:4px}
+.story-title{font-size:0.88rem;font-weight:700;color:#0f172a;margin-bottom:8px}
+.story-body{font-size:0.8rem;color:#475569;font-style:italic;margin-bottom:10px;border-left:3px solid #e2e8f0;padding-left:10px}
+.story-criteria{font-size:0.78rem;color:#475569}
+.story-criteria li{margin-bottom:3px}
+.story-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9}
+
+.toc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0}
+@media(max-width:600px){.toc-grid{grid-template-columns:1fr}}
+.toc-item{background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:0.8rem}
+.toc-item .toc-num{font-weight:700;color:#1d4ed8;margin-right:6px}
+.toc-item .toc-label{color:#334155}
+
+hr.divider{border:none;border-top:1px solid #e2e8f0;margin:32px 0}
+
+/* ── WhatsApp-style Profile/Settings screen (unused now, kept for CSS parity) ── */
+.wa-toggle{width:22px;height:12px;background:#008069;border-radius:6px;position:relative;flex-shrink:0}
+.wa-toggle::after{content:'';position:absolute;right:1px;top:1px;width:10px;height:10px;background:white;border-radius:50%}
+
+/* ── Phone Mockup Showcase ── */
+.mockup-showcase{background:linear-gradient(135deg,#f0f4ff 0%,#f8faff 100%);border:1.5px solid #dde6f5;border-radius:16px;padding:32px 20px 24px;margin:0 0 32px}
+.mockup-showcase-title{text-align:center;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.12em;margin-bottom:28px}
+.mockup-phones{display:flex;gap:24px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.phone-device{display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone-device .phone-label{font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;background:white;border:1px solid #e2e8f0;border-radius:20px;padding:3px 12px}
+
+/* phone shell */
+.ph{width:178px;background:white;border-radius:32px;border:5px solid #dde3ea;box-shadow:0 12px 40px rgba(80,100,160,0.18),0 2px 8px rgba(0,0,0,0.08);overflow:hidden;position:relative}
+.ph-notch{background:#dde3ea;height:11px;display:flex;justify-content:center;align-items:flex-end;padding-bottom:2px}
+.ph-notch-pill{width:44px;height:5px;background:#c8d0db;border-radius:3px}
+.ph-status{display:flex;justify-content:space-between;padding:3px 10px 0;font-size:5.5px;color:#94a3b8;font-weight:700;letter-spacing:.04em}
+
+/* ── SPLASH screen ── */
+.splash-bg{background:linear-gradient(160deg,#eef1ff 0%,#f5f0ff 100%);padding:14px 16px 18px;min-height:308px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;position:relative;overflow:hidden}
+.splash-diag{position:absolute;top:60px;left:-10px;right:-10px;height:1px;background:linear-gradient(90deg,transparent,#c0c8e8 30%,#c0c8e8 70%,transparent);transform:rotate(15deg);transform-origin:center}
+.splash-diag2{position:absolute;top:80px;left:-10px;right:-10px;height:1px;background:linear-gradient(90deg,transparent,#d0d8f0 30%,#d0d8f0 70%,transparent);transform:rotate(15deg);transform-origin:center}
+.splash-title-wrap{text-align:center;margin-top:6px}
+.splash-app-title{font-size:11px;font-weight:900;color:#4a6cf7;letter-spacing:.14em;display:block}
+.splash-app-sub{font-size:7px;color:#8fa8e8;letter-spacing:.08em}
+.splash-bubbles{position:relative;width:88px;height:76px;margin:8px auto}
+.splash-bubble-1{position:absolute;top:0;left:0;width:56px;height:52px;background:#4a6cf7;border-radius:12px 12px 12px 2px;display:flex;align-items:center;justify-content:center;gap:4px;box-shadow:0 4px 14px rgba(74,108,247,0.4)}
+.splash-bubble-2{position:absolute;bottom:0;right:0;width:50px;height:46px;background:#e040fb;border-radius:12px 12px 2px 12px;display:flex;align-items:center;justify-content:center;gap:3px;box-shadow:0 4px 14px rgba(224,64,251,0.35)}
+.b-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.9)}
+.splash-cta{background:#1e293b;color:white;border-radius:22px;padding:8px 24px;font-size:8px;font-weight:800;letter-spacing:.06em;text-align:center;margin-bottom:4px;box-shadow:0 3px 12px rgba(30,41,59,0.3)}
+
+/* ── CHATS screen ── */
+.ch-header{display:flex;align-items:center;justify-content:space-between;padding:9px 11px 7px;background:white}
+.ch-hav{width:24px;height:24px;border-radius:50%;background:#4a6cf7;display:flex;align-items:center;justify-content:center}
+.ch-hav::after{content:'\1F464';font-size:10px;filter:brightness(10)}
+.ch-htitle{font-size:11px;font-weight:900;color:#1e293b;letter-spacing:.06em}
+.ch-hmenu{display:flex;flex-direction:column;gap:2px;justify-content:center}
+.ch-hmenu span{display:block;width:12px;height:1.5px;background:#64748b;border-radius:1px}
+.ch-search{margin:0 9px 0;background:#f1f5f9;border-radius:10px;display:flex;align-items:center;gap:5px;padding:5px 8px}
+.ch-search-icon{font-size:9px;color:#94a3b8}
+.ch-search-text{font-size:7.5px;color:#b0bec5}
+.ci{display:flex;align-items:center;gap:7px;padding:7px 10px;border-bottom:1px solid #f8fafc}
+.ci-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;font-size:13px;display:flex;align-items:center;justify-content:center;position:relative}
+.ci-av .g-dot{position:absolute;bottom:0;right:0;width:7px;height:7px;border-radius:50%;background:#22c55e;border:1.5px solid white}
+.ci-info{flex:1;min-width:0}
+.ci-name{font-size:8px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-prev{font-size:6.5px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:86px;margin-top:1px}
+.ci-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.ci-time{font-size:6px;color:#94a3b8}
+.ci-badge{background:#06b6d4;color:white;font-size:6px;font-weight:800;border-radius:8px;padding:1px 4px;min-width:13px;text-align:center}
+.ch-bnav{display:flex;justify-content:space-around;padding:8px 0 5px;border-top:1px solid #f1f5f9;background:white}
+.bn-icon{font-size:14px;opacity:0.35;display:flex;flex-direction:column;align-items:center}
+.bn-icon.act{opacity:1}
+.bn-dot{width:4px;height:4px;border-radius:50%;background:#4a6cf7;margin-top:2px}
+
+/* ── CHAT DETAIL screen ── */
+.cd-header{display:flex;align-items:center;gap:5px;padding:8px 10px 7px;background:white;border-bottom:1px solid #f1f5f9}
+.cd-back{font-size:13px;color:#64748b;line-height:1;margin-right:1px}
+.cd-name-wrap{flex:1}
+.cd-name{font-size:9px;font-weight:800;color:#1e293b;display:block}
+.cd-lastseen{font-size:6px;color:#94a3b8}
+.cd-avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);flex-shrink:0;font-size:12px;display:flex;align-items:center;justify-content:center}
+.cd-msgs{padding:6px 8px;display:flex;flex-direction:column;gap:5px;background:#f0f4f8;min-height:268px}
+.msg-ts{font-size:6px;color:#94a3b8;text-align:center;margin:2px 0}
+.msg-r{align-self:flex-start;background:white;border-radius:2px 10px 10px 10px;padding:5px 8px;max-width:122px;box-shadow:0 1px 3px rgba(0,0,0,0.07)}
+.msg-s{align-self:flex-end;background:#b2ebf2;border-radius:10px 2px 10px 10px;padding:5px 8px;max-width:122px}
+.msg-s.teal{background:#00bcd4}
+.mt{font-size:6.5px;color:#1e293b;line-height:1.45}
+.msg-s .mt{color:#004d57}
+.msg-s.teal .mt{color:white}
+.mts{font-size:5.5px;color:#94a3b8;text-align:right;margin-top:2px}
+.msg-s .mts{color:#26919e}
+.msg-s.teal .mts{color:rgba(255,255,255,0.75)}
+.typing-bubble{align-self:flex-start;background:white;border-radius:2px 10px 10px 10px;padding:6px 10px;display:flex;gap:3px;box-shadow:0 1px 3px rgba(0,0,0,0.07)}
+.typing-dot{width:4px;height:4px;border-radius:50%;background:#94a3b8}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<nav id="sidebar">
+  <div class="logo">
+    <h2>💬 Text Messaging App</h2>
+    <p>Requirements Document v2.0</p>
+  </div>
+  <ul>
+    <li class="nav-group">Overview</li>
+    <li><a href="#executive-summary">Executive Summary</a></li>
+    <li><a href="#app-overview">Application Overview</a></li>
+
+    <li class="nav-group">UI / UX Design</li>
+    <li><a href="#splash">Splash Screen</a></li>
+    <li><a href="#home">Home / Chats Screen</a></li>
+    <li><a href="#chat-detail">Chat Details Screen</a></li>
+
+    <li class="nav-group">Application Architecture</li>
+    <li><a href="#maui-arch">MAUI Architecture</a></li>
+    <li><a href="#folder-structure">Folder Structure</a></li>
+
+    <li class="nav-group">Backend</li>
+    <li><a href="#backend-arch">Backend Architecture</a></li>
+    <li><a href="#auth-flow">Authentication Flow</a></li>
+    <li><a href="#realtime-flow">Real-Time Flow</a></li>
+
+    <li class="nav-group">Data &amp; Services</li>
+    <li><a href="#database">PostgreSQL Database Design</a></li>
+    <li><a href="#media-deferred">Media Storage (Deferred)</a></li>
+    <li><a href="#supporting-services">Supporting Services</a></li>
+
+    <li class="nav-group">API Design</li>
+    <li><a href="#api-auth">Auth APIs</a></li>
+    <li><a href="#api-user">User APIs</a></li>
+    <li><a href="#api-chat">Chat APIs</a></li>
+    <li><a href="#api-file">File APIs (Deferred)</a></li>
+    <li><a href="#api-call">Call APIs (Deferred)</a></li>
+    <li><a href="#api-notification">Notification APIs</a></li>
+
+    <li class="nav-group">Communication</li>
+    <li><a href="#realtime-tech">Real-Time Technology</a></li>
+    <li><a href="#calling-tech">Calling Technology (Phase 2)</a></li>
+
+    <li class="nav-group">Quality &amp; Security</li>
+    <li><a href="#security">Security Requirements</a></li>
+    <li><a href="#notifications">Push Notifications</a></li>
+
+    <li class="nav-group">Planning</li>
+    <li><a href="#cost-phasing">Cost &amp; Phasing Summary</a></li>
+  </ul>
+</nav>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<div id="main">
+
+<h1 class="doc-title">Text Messaging Application — Requirements Document</h1>
+<div class="doc-meta">
+  <span>📄 Version: 2.0</span>
+  <span>📅 Date: September 2026</span>
+  <span>🏗️ Stack: .NET MAUI Blazor Hybrid (Android) · ASP.NET Core Web API + SignalR · PostgreSQL (Supabase)</span>
+</div>
+
+<!-- ═══════════════════════════════════ EXECUTIVE SUMMARY ═══════════════════════════════════ -->
+<h2 class="section-title" id="executive-summary">1. Executive Summary</h2>
+<p>This document defines the functional, technical, and architectural requirements for a cross-platform text messaging application. It is a cost-driven and scope-driven rewrite of an earlier Azure-based, WhatsApp-style design: the original design (Cosmos DB, Azure Communication Services calling, Notification Hub, API Management, Redis, Key Vault) was estimated to run <strong>$150–500+/month</strong> even at low traffic. This version targets <strong>$0–10/month</strong> by swapping every paid Azure service for a free-tier or self-hosted equivalent, and by narrowing v1 scope to its essential core: reliable, real-time <strong>text messaging</strong>. Media sharing and voice/video calling are both explicitly deferred to later phases (see §13) rather than cut permanently — the architecture is designed so they can be added without a rewrite.</p>
+
+<div class="toc-grid">
+  <div class="toc-item"><span class="toc-num">Frontend</span><span class="toc-label">.NET MAUI Blazor Hybrid — Android primary, iOS optional/later</span></div>
+  <div class="toc-item"><span class="toc-num">Backend</span><span class="toc-label">ASP.NET Core Web API + SignalR Hub, self-hosted in Docker</span></div>
+  <div class="toc-item"><span class="toc-num">Database</span><span class="toc-label">PostgreSQL via Supabase (free tier)</span></div>
+  <div class="toc-item"><span class="toc-num">Push</span><span class="toc-label">Firebase Cloud Messaging (FCM) — direct, free</span></div>
+  <div class="toc-item"><span class="toc-num">Hosting</span><span class="toc-label">Small VPS (Oracle Free Tier / Hetzner) + Nginx + Cloudflare</span></div>
+  <div class="toc-item"><span class="toc-num">Deferred</span><span class="toc-label">Media sharing &amp; voice/video calling — Phase 2/3</span></div>
+</div>
+
+<!-- ═══════════════════════════════════ APPLICATION OVERVIEW ═══════════════════════════════════ -->
+<h2 class="section-title" id="app-overview">2. Application Overview</h2>
+
+<h3>2.1 Core Feature Set (v1)</h3>
+<div class="screen-grid">
+  <div class="sg-cell">
+    <h5>Messaging</h5>
+    <ul><li>1-on-1 text conversations</li><li>Group text chats</li><li>Emoji reactions</li><li>Message edit &amp; delete</li><li>Sent / Delivered / Read receipts</li><li>Typing indicators</li></ul>
+  </div>
+  <div class="sg-cell">
+    <h5>User Management</h5>
+    <ul><li>Registration &amp; login</li><li>JWT authentication</li><li>Status message</li><li>Online / Offline presence</li><li>Optional small profile picture</li></ul>
+  </div>
+  <div class="sg-cell">
+    <h5>Notifications</h5>
+    <ul><li>Push notifications (FCM, Android)</li><li>In-app message alerts</li><li>Background delivery</li></ul>
+  </div>
+  <div class="sg-cell">
+    <h5>Not in v1</h5>
+    <ul><li>Photo / video / document / voice message sharing</li><li>Voice &amp; video calling</li><li>Desktop targets (Windows/macOS)</li></ul>
+  </div>
+</div>
+
+<div class="info-box amber">
+  <h4>⏳ Deferred to Phase 2 / Phase 3</h4>
+  <p><strong>Media sharing</strong> (photos, videos, documents, voice messages) and <strong>voice/video calling</strong> are intentionally out of v1 scope. Both add real infrastructure cost and complexity (object storage, antivirus scanning, TURN relays, per-minute billed calling SDKs) that isn't justified until the core text messaging experience is solid and in real users' hands. See §13 for the phased roadmap and what each addition will cost.</p>
+</div>
+
+<h3>2.2 Platform Support</h3>
+<table>
+  <tbody><tr><th>Platform</th><th>Target Version</th><th>Status</th></tr>
+  <tr><td>Android</td><td>API 24+ (Android 7.0)</td><td><strong>Primary, required for v1</strong></td></tr>
+  <tr><td>iOS</td><td>iOS 14+</td><td>Optional — Phase 2, requires a macOS build machine + Apple Developer Program ($99/yr). Not needed for v1.</td></tr>
+</tbody></table>
+<p>Windows/macOS desktop targets are technically reachable via MAUI's multi-platform support but are not a v1 goal and aren't tested or supported until there's a reason to.</p>
+
+<!-- ═══════════════════════════════════ UI/UX ═══════════════════════════════════ -->
+<h2 class="section-title" id="splash">3. UI/UX Design Requirements</h2>
+<p class="section-desc">Every screen is described with its purpose, layout, components, user actions, navigation flow, and validation rules. Mockups reflect the text-only v1 scope — media/attachment UI elements from the earlier design have been removed or marked as future work.</p>
+
+<!-- ───────── PHONE MOCKUP SHOWCASE ───────── -->
+<div class="mockup-showcase">
+  <div class="mockup-showcase-title">📱 Application Screen Visual Reference (v1 — Text Only)</div>
+  <div class="mockup-phones">
+
+    <!-- PHONE 1: Splash -->
+    <div class="phone-device">
+      <div class="ph">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status"><span>9:41</span><span>▐▐▐ ⬛</span></div>
+        <div class="splash-bg">
+          <div class="splash-diag"></div>
+          <div class="splash-diag2"></div>
+          <div class="splash-title-wrap">
+            <span class="splash-app-title">CHAT APP</span>
+            <span class="splash-app-sub">CONNECT &amp; CHAT</span>
+          </div>
+          <div class="splash-bubbles">
+            <div class="splash-bubble-1">
+              <div class="b-dot"></div><div class="b-dot"></div><div class="b-dot"></div>
+            </div>
+            <div class="splash-bubble-2">
+              <div class="b-dot"></div><div class="b-dot"></div><div class="b-dot"></div>
+            </div>
+          </div>
+          <div class="splash-cta">Get Started</div>
+        </div>
+      </div>
+      <div class="phone-label">Splash Screen</div>
+    </div>
+
+    <!-- PHONE 2: Chats -->
+    <div class="phone-device">
+      <div class="ph">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status"><span>9:41</span><span>▐▐▐ ⬛</span></div>
+        <div class="ch-header">
+          <div class="ch-hav"></div>
+          <span class="ch-htitle">CHATS</span>
+          <div class="ch-hmenu"><span></span><span></span><span></span></div>
+        </div>
+        <div class="ch-search">
+          <span class="ch-search-icon">🔍</span>
+          <span class="ch-search-text">Search</span>
+        </div>
+        <div class="ci">
+          <div class="ci-av" style="background:#e0f2fe">👩<div class="g-dot"></div></div>
+          <div class="ci-info">
+            <div class="ci-name">Alice Smith</div>
+            <div class="ci-prev">Wow, I forgot to send you that...</div>
+          </div>
+          <div class="ci-right"><span class="ci-time">8 min</span><span class="ci-badge">2</span></div>
+        </div>
+        <div class="ci">
+          <div class="ci-av" style="background:#f0fdf4">👨</div>
+          <div class="ci-info">
+            <div class="ci-name">Liam Woods</div>
+            <div class="ci-prev">Oh, I thought you were talking...</div>
+          </div>
+          <div class="ci-right"><span class="ci-time">22 min</span></div>
+        </div>
+        <div class="ci">
+          <div class="ci-av" style="background:#faf5ff">🧑</div>
+          <div class="ci-info">
+            <div class="ci-name">Oliver Williams</div>
+            <div class="ci-prev">Are you done with the app spec?</div>
+          </div>
+          <div class="ci-right"><span class="ci-time">48 min</span></div>
+        </div>
+        <div class="ci">
+          <div class="ci-av" style="background:#fff7ed">👩</div>
+          <div class="ci-info">
+            <div class="ci-name">Ashley Johnson</div>
+            <div class="ci-prev">Let's go to gym today!</div>
+          </div>
+          <div class="ci-right"><span class="ci-time">52 min</span></div>
+        </div>
+        <div class="ci">
+          <div class="ci-av" style="background:#fdf2f8">👩</div>
+          <div class="ci-info">
+            <div class="ci-name">Emma Clark</div>
+            <div class="ci-prev">Never gonna give you up ever...</div>
+          </div>
+          <div class="ci-right"><span class="ci-time">59 min</span></div>
+        </div>
+        <div class="ch-bnav">
+          <div class="bn-icon">👤</div>
+          <div class="bn-icon act">💬<div class="bn-dot"></div></div>
+          <div class="bn-icon">⚙️</div>
+        </div>
+      </div>
+      <div class="phone-label">Chats Screen</div>
+    </div>
+
+    <!-- PHONE 3: Chat Detail -->
+    <div class="phone-device">
+      <div class="ph">
+        <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+        <div class="ph-status"><span>9:41</span><span>▐▐▐ ⬛</span></div>
+        <div class="cd-header">
+          <span class="cd-back">‹</span>
+          <div class="cd-name-wrap">
+            <span class="cd-name">Alice Smith</span>
+            <span class="cd-lastseen">last seen recently</span>
+          </div>
+          <div class="cd-avatar">👩</div>
+        </div>
+        <div class="cd-msgs">
+          <div class="msg-ts">18:28</div>
+          <div class="msg-r">
+            <div class="mt">Lorem ipsum dolor sit amet, con sectetur adipiscing elit, sed do eiusmod tempor.</div>
+            <div class="mts">18:28</div>
+          </div>
+          <div class="msg-s teal">
+            <div class="mt">Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore.</div>
+            <div class="mts">18:30 ✓✓</div>
+          </div>
+          <div class="msg-ts">18:31</div>
+          <div class="msg-r">
+            <div class="mt">Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia.</div>
+            <div class="mts">18:31</div>
+          </div>
+          <div class="msg-s teal">
+            <div class="mt">Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit.</div>
+            <div class="mts">21:58 ✓✓</div>
+          </div>
+          <div class="typing-bubble">
+            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">Chat Detail Screen</div>
+    </div>
+
+  </div><!-- /mockup-phones -->
+</div><!-- /mockup-showcase -->
+
+<div class="screen-card" id="splash">
+  <div class="screen-header">
+    <div class="screen-icon">🌅</div>
+    <div><div class="screen-name">3.1 Splash Screen</div><div class="screen-purpose">First impression — branding &amp; app initialization</div></div>
+  </div>
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+  <div style="flex-shrink:0">
+    <div class="ph" style="width:140px;transform:scale(1);transform-origin:top left">
+      <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+      <div class="ph-status"><span>9:41</span><span>▐▐▐</span></div>
+      <div class="splash-bg" style="min-height:240px;padding:12px 12px 14px">
+        <div class="splash-diag"></div><div class="splash-diag2"></div>
+        <div class="splash-title-wrap">
+          <span class="splash-app-title">CHAT APP</span>
+          <span class="splash-app-sub">CONNECT &amp; CHAT</span>
+        </div>
+        <div class="splash-bubbles" style="width:74px;height:64px">
+          <div class="splash-bubble-1" style="width:46px;height:42px"><div class="b-dot"></div><div class="b-dot"></div><div class="b-dot"></div></div>
+          <div class="splash-bubble-2" style="width:42px;height:38px"><div class="b-dot"></div><div class="b-dot"></div><div class="b-dot"></div></div>
+        </div>
+        <div class="splash-cta" style="padding:7px 18px;font-size:7px">Get Started</div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:0.65rem;color:#94a3b8;margin-top:7px;font-weight:600">Splash Screen</div>
+  </div>
+  <div style="flex:1;min-width:220px">
+  <h4>Purpose</h4>
+  <p>Display the application logo and branding while the app performs startup initialization (loading configuration, checking auth token, preloading services). Automatically navigates away after 2–3 seconds.</p>
+  <div class="screen-grid">
+    <div class="sg-cell">
+      <h5>Layout</h5>
+      <ul>
+        <li>Full-screen solid background (brand color)</li>
+        <li>Centered app logo (SVG / PNG, 120×120 dp)</li>
+        <li>App name in white bold text below logo</li>
+        <li>Version number at bottom center</li>
+        <li>Activity indicator while initializing</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>Components / Controls</h5>
+      <ul>
+        <li><code>ContentPage</code> — full screen, no shell chrome</li>
+        <li><code>Image</code> — app logo</li>
+        <li><code>Label</code> — app name, version</li>
+        <li><code>ActivityIndicator</code> — loading state</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>User Actions</h5>
+      <ul>
+        <li>None — passive screen, no tappable elements</li>
+        <li>Cannot navigate back (no back stack entry)</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>Navigation Flow</h5>
+      <ul>
+        <li>If valid JWT token found → navigate to <strong>Home (Chats)</strong></li>
+        <li>If no token / token expired → navigate to <strong>Login Screen</strong></li>
+        <li>Minimum display: 2 s; maximum: 3 s regardless of init speed</li>
+      </ul>
+    </div>
+  </div>
+  <div class="sg-cell" style="margin-top:10px">
+    <h5>Startup Logic (ViewModel)</h5>
+    <ul>
+      <li>Check <code>SecureStorage</code> for stored JWT access token</li>
+      <li>Validate token expiry locally (decode JWT claims)</li>
+      <li>If token close to expiry (&lt;5 min) — silently call refresh endpoint</li>
+      <li>Initialize SignalR connection if token valid</li>
+      <li>Register device for push notifications</li>
+    </ul>
+  </div>
+  </div><!-- /flex content -->
+  </div><!-- /flex wrapper -->
+</div>
+
+<!-- HOME SCREEN -->
+<div class="screen-card" id="home">
+  <div class="screen-header">
+    <div class="screen-icon">💬</div>
+    <div><div class="screen-name">3.2 Home Screen — Chats</div><div class="screen-purpose">Default landing screen; lists all conversations</div></div>
+  </div>
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+  <div style="flex-shrink:0">
+    <div class="ph" style="width:148px">
+      <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+      <div class="ph-status"><span>9:41</span><span>▐▐▐</span></div>
+      <div class="ch-header">
+        <div class="ch-hav"></div>
+        <span class="ch-htitle">CHATS</span>
+        <div class="ch-hmenu"><span></span><span></span><span></span></div>
+      </div>
+      <div class="ch-search"><span class="ch-search-icon">🔍</span><span class="ch-search-text">Search</span></div>
+      <div class="ci">
+        <div class="ci-av" style="background:#e0f2fe">👩<div class="g-dot"></div></div>
+        <div class="ci-info"><div class="ci-name">Alice Smith</div><div class="ci-prev">Wow, I forgot to send you...</div></div>
+        <div class="ci-right"><span class="ci-time">8 min</span><span class="ci-badge">2</span></div>
+      </div>
+      <div class="ci">
+        <div class="ci-av" style="background:#f0fdf4">👨</div>
+        <div class="ci-info"><div class="ci-name">Liam Woods</div><div class="ci-prev">Oh, I thought you were...</div></div>
+        <div class="ci-right"><span class="ci-time">22 min</span></div>
+      </div>
+      <div class="ci">
+        <div class="ci-av" style="background:#faf5ff">🧑</div>
+        <div class="ci-info"><div class="ci-name">Oliver Williams</div><div class="ci-prev">Are you done with the...</div></div>
+        <div class="ci-right"><span class="ci-time">48 min</span></div>
+      </div>
+      <div class="ci">
+        <div class="ci-av" style="background:#fff7ed">👩</div>
+        <div class="ci-info"><div class="ci-name">Ashley Johnson</div><div class="ci-prev">Let's go to gym today!</div></div>
+        <div class="ci-right"><span class="ci-time">52 min</span></div>
+      </div>
+      <div class="ci">
+        <div class="ci-av" style="background:#fdf2f8">👩</div>
+        <div class="ci-info"><div class="ci-name">Emma Clark</div><div class="ci-prev">Never gonna give you up...</div></div>
+        <div class="ci-right"><span class="ci-time">59 min</span></div>
+      </div>
+      <div class="ch-bnav">
+        <div class="bn-icon">👤</div>
+        <div class="bn-icon act">💬<div class="bn-dot"></div></div>
+        <div class="bn-icon">⚙️</div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:0.65rem;color:#94a3b8;margin-top:7px;font-weight:600">Chats Screen</div>
+  </div>
+  <div style="flex:1;min-width:220px">
+  <h4>Purpose</h4>
+  <p>The central hub of the application. Displays a chronologically sorted list of all text conversations the authenticated user is part of, with last-message previews and unread counts. No stories/status row — that was never a spec'd v1 feature and is not part of a text-only app.</p>
+
+  <h4>Layout Description</h4>
+  <ul class="doc-list">
+    <li><strong>Top Navigation Bar (fixed)</strong> — App logo left, search icon right, overflow menu (New Chat)</li>
+    <li><strong>Search Bar</strong> — Collapsed by default; expands inline when search icon tapped</li>
+    <li><strong>Conversation List</strong> — Scrollable <code>CollectionView</code>, each row is a ConversationCell</li>
+    <li><strong>FAB (Floating Action Button)</strong> — bottom-right, opens New Chat / New Group dialog</li>
+    <li><strong>Footer Tab Bar (fixed)</strong> — Chats · Profile · Settings tabs (no Calls tab in v1)</li>
+  </ul>
+
+  <div class="screen-grid">
+    <div class="sg-cell">
+      <h5>Conversation Cell Layout</h5>
+      <ul>
+        <li>Avatar (circular, 48 dp, initials fallback if no profile picture) — left</li>
+        <li>Contact name — bold, 14sp</li>
+        <li>Last message preview — grey, 12sp, max 1 line, truncated</li>
+        <li>Timestamp — top right, 11sp</li>
+        <li>Unread badge — pill, top-right over avatar</li>
+        <li>Message status icon (✓✓ read receipt) for own messages</li>
+        <li>Online indicator — green dot on avatar</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>Components / Controls</h5>
+      <ul>
+        <li><code>CollectionView</code> — conversation list with virtualization</li>
+        <li><code>SearchBar</code> — live filter</li>
+        <li><code>RefreshView</code> — pull-to-refresh</li>
+        <li><code>SwipeView</code> — swipe left: Archive / Delete; swipe right: Mark Read</li>
+        <li><code>Shell.TabBar</code> — bottom navigation</li>
+        <li><code>ImageButton</code> — FAB for new conversation</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>User Actions</h5>
+      <ul>
+        <li>Tap conversation → open Chat Details</li>
+        <li>Long-press → context menu (Archive, Mute, Delete, Pin)</li>
+        <li>Swipe left → Delete / Archive</li>
+        <li>Swipe right → Mark as Read</li>
+        <li>Tap FAB → New Chat screen</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>Navigation Flow</h5>
+      <ul>
+        <li>Tap conversation → <strong>Chat Details Screen</strong></li>
+        <li>Tap Profile tab → <strong>Profile Screen</strong></li>
+        <li>Tap FAB → <strong>New Chat / Contact Picker</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>Validation Rules</h4>
+  <ul class="doc-list">
+    <li>Empty state shown when no conversations exist: illustration + "No conversations yet. Start chatting!"</li>
+    <li>No-results state shown when search returns nothing</li>
+    <li>Network error banner shown at top if API call fails (non-blocking)</li>
+  </ul>
+  </div><!-- /flex content -->
+  </div><!-- /flex wrapper -->
+</div>
+
+<!-- CHAT DETAILS -->
+<div class="screen-card" id="chat-detail">
+  <div class="screen-header">
+    <div class="screen-icon">📩</div>
+    <div><div class="screen-name">3.3 Chat Details Screen</div><div class="screen-purpose">Full conversation view with real-time text messaging</div></div>
+  </div>
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+  <div style="flex-shrink:0">
+    <div class="ph" style="width:148px">
+      <div class="ph-notch"><div class="ph-notch-pill"></div></div>
+      <div class="ph-status"><span>9:41</span><span>▐▐▐</span></div>
+      <div class="cd-header">
+        <span class="cd-back">‹</span>
+        <div class="cd-name-wrap"><span class="cd-name">Alice Smith</span><span class="cd-lastseen">last seen recently</span></div>
+        <div class="cd-avatar">👩</div>
+      </div>
+      <div class="cd-msgs">
+        <div class="msg-ts">18:28</div>
+        <div class="msg-r"><div class="mt">Lorem ipsum dolor sit amet, con sectetur adipiscing elit tempor.</div><div class="mts">18:28</div></div>
+        <div class="msg-s teal"><div class="mt">Duis aute irure dolor in reprehenderit in voluptate velit esse.</div><div class="mts">18:30 ✓✓</div></div>
+        <div class="msg-ts">18:31</div>
+        <div class="msg-r"><div class="mt">Excepteur sint occaecat cupidatat non proident, sunt.</div><div class="mts">18:31</div></div>
+        <div class="msg-s teal"><div class="mt">Nemo enim ipsam voluptatem quia voluptas sit aspernatur.</div><div class="mts">21:58 ✓✓</div></div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:0.65rem;color:#94a3b8;margin-top:7px;font-weight:600">Chat Detail Screen</div>
+  </div>
+  <div style="flex:1;min-width:220px">
+  <h4>Purpose</h4>
+  <p>Full-screen conversation view. Text-only messaging in v1 — no attachment picker, no voice-message recorder, no media viewer. Message composer is a single text input plus send button and an emoji-reaction affordance on existing messages.</p>
+
+  <h4>Layout Description</h4>
+  <ul class="doc-list">
+    <li><strong>Header</strong> — back button, contact name + last-seen/typing status, avatar</li>
+    <li><strong>Message List</strong> — reverse-chronological scroll, grouped by date separators</li>
+    <li><strong>Typing Indicator</strong> — animated dots bubble, shown when the other participant is typing</li>
+    <li><strong>Composer</strong> — text <code>Entry</code>, send button; no attachment/camera/mic icons in v1</li>
+  </ul>
+
+  <div class="screen-grid">
+    <div class="sg-cell">
+      <h5>Message Bubble</h5>
+      <ul>
+        <li>Text content, timestamp, edited flag if applicable</li>
+        <li>Read-receipt ticks (✓ sent, ✓✓ delivered, ✓✓ blue read) on own messages</li>
+        <li>Emoji reaction chips below bubble</li>
+        <li>Long-press → React / Edit / Delete / Reply</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>Components / Controls</h5>
+      <ul>
+        <li><code>CollectionView</code> — inverted message list</li>
+        <li><code>Entry</code> — text composer</li>
+        <li><code>ImageButton</code> — send</li>
+        <li><code>EmojiPicker.razor</code> — reaction picker popup</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>User Actions</h5>
+      <ul>
+        <li>Type + tap Send → message sent via REST, appears optimistically, confirmed via SignalR echo</li>
+        <li>Long-press message → context menu (React, Edit, Delete, Reply)</li>
+        <li>Scroll up → load older messages (paginated)</li>
+      </ul>
+    </div>
+    <div class="sg-cell">
+      <h5>Real-Time Behavior</h5>
+      <ul>
+        <li>Typing indicator sent on keystroke (debounced), cleared after 3s idle or on send</li>
+        <li>Read receipts update live as recipient views messages</li>
+        <li>New incoming messages append with a subtle animation + scroll-to-bottom if already at bottom</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>Validation Rules</h4>
+  <ul class="doc-list">
+    <li>Empty message cannot be sent (Send button disabled)</li>
+    <li>Message max length: 4,096 characters</li>
+    <li>Edit allowed within 15 minutes of sending; Delete-for-everyone within 60 minutes</li>
+  </ul>
+  </div><!-- /flex content -->
+  </div><!-- /flex wrapper -->
+</div>
+
+<!-- ═══════════════════════════════════ MAUI ARCHITECTURE ═══════════════════════════════════ -->
+<h2 class="section-title" id="maui-arch">4. MAUI Application Architecture</h2>
+<p class="section-desc">The app follows strict MVVM using .NET MAUI Blazor Hybrid. Blazor Razor components handle the UI; C# ViewModels handle state and commands; Services handle all external communication. Framework choice is unchanged from the original design — MAUI itself has no cloud dependency, so nothing here changed for cost reasons. What changed is scope: calling and media services are removed from v1.</p>
+
+<h3>4.1 MVVM Structure</h3>
+<table>
+  <tbody><tr><th>Layer</th><th>Technology</th><th>Responsibility</th></tr>
+  <tr><td>View</td><td>Blazor Razor Components (.razor)</td><td>UI rendering, data binding via @bind, event handling</td></tr>
+  <tr><td>ViewModel</td><td>C# classes inheriting <code>ObservableObject</code> (CommunityToolkit.Mvvm)</td><td>State management, commands, validation logic</td></tr>
+  <tr><td>Service</td><td>C# interfaces + implementations</td><td>API calls, SignalR hub, local storage, device APIs</td></tr>
+  <tr><td>Model</td><td>Plain C# record / class</td><td>DTOs, domain entities, API response models</td></tr>
+</tbody></table>
+
+<h3>4.2 Pages, ViewModels &amp; Services (v1)</h3>
+<table>
+  <tbody><tr><th>Page / Component</th><th>ViewModel</th><th>Key Services Used</th><th>Why Required</th></tr>
+  <tr><td>SplashPage.razor</td><td>SplashViewModel</td><td>IAuthService, INavigationService</td><td>Token check, initialization gating</td></tr>
+  <tr><td>LoginPage.razor</td><td>LoginViewModel</td><td>IAuthService, INavigationService</td><td>User authentication entry point</td></tr>
+  <tr><td>RegisterPage.razor</td><td>RegisterViewModel</td><td>IAuthService, IUserService</td><td>New user onboarding</td></tr>
+  <tr><td>ChatsPage.razor</td><td>ChatsViewModel</td><td>IConversationService, ISignalRService</td><td>Conversation list, real-time updates</td></tr>
+  <tr><td>ChatDetailPage.razor</td><td>ChatDetailViewModel</td><td>IMessageService, ISignalRService</td><td>Text messaging UI, real-time chat</td></tr>
+  <tr><td>ProfilePage.razor</td><td>ProfileViewModel</td><td>IUserService, IAuthService</td><td>Account management</td></tr>
+  <tr><td>ContactPickerPage.razor</td><td>ContactPickerViewModel</td><td>IUserService, IContactService</td><td>Select recipients for new chat</td></tr>
+</tbody></table>
+
+<div class="info-box amber">
+  <h4>⏳ Phase 2/3 Pages &amp; Services</h4>
+  <p><code>CallsPage.razor</code>, <code>ActiveCallPage.razor</code>, <code>CallsViewModel</code>, <code>ActiveCallViewModel</code>, <code>ICallService</code>, and <code>MediaViewerPage.razor</code>, <code>AttachmentPicker.razor</code> are not built for v1. <code>EmojiPicker.razor</code> is kept — reactions are in scope for text messaging.</p>
+</div>
+
+<h3>4.3 Service Interfaces (v1)</h3>
+<table>
+  <tbody><tr><th>Interface</th><th>Methods (key)</th><th>Description</th></tr>
+  <tr><td><code>IAuthService</code></td><td>LoginAsync, LogoutAsync, RefreshTokenAsync, GetCurrentUserAsync</td><td>JWT auth, token storage in SecureStorage</td></tr>
+  <tr><td><code>IConversationService</code></td><td>GetConversationsAsync, CreateConversationAsync, ArchiveAsync</td><td>Conversation CRUD via REST API</td></tr>
+  <tr><td><code>IMessageService</code></td><td>GetMessagesAsync, SendMessageAsync, EditMessageAsync, DeleteMessageAsync, ReactAsync</td><td>Message operations via REST API</td></tr>
+  <tr><td><code>ISignalRService</code></td><td>ConnectAsync, DisconnectAsync, SendTypingAsync, On&lt;T&gt;, Off&lt;T&gt;</td><td>Manages SignalR hub connection lifecycle</td></tr>
+  <tr><td><code>INotificationService</code></td><td>RegisterDeviceAsync, UnregisterDeviceAsync, HandlePushAsync</td><td>FCM push registration and handling</td></tr>
+  <tr><td><code>IUserService</code></td><td>GetProfileAsync, UpdateProfileAsync, SearchUsersAsync</td><td>User profile management (optional avatar upload)</td></tr>
+  <tr><td><code>INavigationService</code></td><td>NavigateToAsync, GoBackAsync, NavigateToRootAsync</td><td>Typed navigation abstraction over Shell</td></tr>
+  <tr><td><code>ILocalStorageService</code></td><td>GetAsync, SetAsync, RemoveAsync</td><td>Offline data cache (SQLite / Preferences)</td></tr>
+</tbody></table>
+
+<h3>4.4 Dependency Injection Registration (MauiProgram.cs)</h3>
+<pre><code>builder.Services.AddSingleton&lt;IAuthService, AuthService&gt;();
+builder.Services.AddSingleton&lt;ISignalRService, SignalRService&gt;();
+builder.Services.AddSingleton&lt;INotificationService, NotificationService&gt;();
+builder.Services.AddTransient&lt;IConversationService, ConversationService&gt;();
+builder.Services.AddTransient&lt;IMessageService, MessageService&gt;();
+builder.Services.AddTransient&lt;IUserService, UserService&gt;();
+builder.Services.AddScoped&lt;ChatsViewModel&gt;();
+builder.Services.AddScoped&lt;ChatDetailViewModel&gt;();
+// No ICallService / IFileService registrations in v1 — added in Phase 2/3
+// HttpClient with base address + JWT handler
+builder.Services.AddHttpClient("API", c =&gt; c.BaseAddress = new Uri(apiBaseUrl))
+    .AddHttpMessageHandler&lt;JwtAuthHandler&gt;();</code></pre>
+
+<h3 id="folder-structure">4.5 Folder Structure</h3>
+<pre><code>TextMessagingApp.MAUI/
+├── MauiProgram.cs
+├── App.xaml / App.xaml.cs
+├── AppShell.razor
+│
+├── Pages/                         # Blazor Razor pages (routed)
+│   ├── SplashPage.razor
+│   ├── Auth/
+│   │   ├── LoginPage.razor
+│   │   └── RegisterPage.razor
+│   ├── Chats/
+│   │   ├── ChatsPage.razor
+│   │   └── ChatDetailPage.razor
+│   ├── Profile/
+│   │   └── ProfilePage.razor
+│   └── Shared/
+│       └── ContactPickerPage.razor
+│   # Calls/, MediaViewerPage.razor — Phase 2/3
+│
+├── Components/                    # Reusable Blazor components
+│   ├── ConversationCell.razor
+│   ├── MessageBubble.razor
+│   ├── TypingIndicator.razor
+│   ├── EmojiPicker.razor
+│   ├── AvatarImage.razor
+│   └── StatusBadge.razor
+│
+├── ViewModels/
+│   ├── Base/ObservableViewModel.cs
+│   ├── SplashViewModel.cs
+│   ├── Auth/LoginViewModel.cs
+│   ├── Auth/RegisterViewModel.cs
+│   ├── Chats/ChatsViewModel.cs
+│   ├── Chats/ChatDetailViewModel.cs
+│   └── Profile/ProfileViewModel.cs
+│
+├── Services/
+│   ├── Auth/AuthService.cs
+│   ├── Chat/ConversationService.cs
+│   ├── Chat/MessageService.cs
+│   ├── RealTime/SignalRService.cs
+│   ├── Notifications/NotificationService.cs
+│   ├── Users/UserService.cs
+│   ├── Navigation/NavigationService.cs
+│   └── Storage/LocalStorageService.cs
+│
+├── Models/
+│   ├── DTOs/                      # API request/response models
+│   ├── Domain/                    # Local domain models
+│   └── Enums/
+│
+├── Handlers/
+│   └── JwtAuthHandler.cs          # DelegatingHandler for JWT injection
+│
+├── Platforms/
+│   ├── Android/                   # PRIMARY v1 target
+│   │   ├── MainActivity.cs
+│   │   └── FirebaseMessagingService.cs
+│   └── iOS/                       # Optional — Phase 2, not built for v1
+│
+└── wwwroot/
+    ├── css/app.css
+    └── js/interop.js               # JS interop for browser APIs</code></pre>
+
+<!-- ═══════════════════════════════════ BACKEND ARCHITECTURE ═══════════════════════════════════ -->
+<h2 class="section-title" id="backend-arch">5. Backend Architecture</h2>
+
+<h3>5.1 Component Overview</h3>
+<table>
+  <tbody><tr><th>Component</th><th>Technology</th><th>Role</th></tr>
+  <tr><td>Reverse Proxy / TLS</td><td>Nginx + Let's Encrypt</td><td>Routing, TLS termination, basic rate limiting (<code>limit_req</code>) — replaces Azure API Management</td></tr>
+  <tr><td>Web API</td><td>ASP.NET Core 8 Minimal API + Controllers, in Docker</td><td>REST endpoints for all CRUD operations</td></tr>
+  <tr><td>SignalR Hub</td><td>ASP.NET Core SignalR, same container as the API</td><td>Real-time WebSocket hub for messages, typing, presence, receipts</td></tr>
+  <tr><td>Background Services</td><td>ASP.NET Core IHostedService</td><td>Notification dispatcher (calls FCM directly after each message write — no change-feed plumbing needed)</td></tr>
+  <tr><td>Database</td><td>PostgreSQL via Supabase (free tier)</td><td>Primary data store — users, conversations, messages</td></tr>
+  <tr><td>Push Notifications</td><td>Firebase Cloud Messaging (FCM), called directly</td><td>Android push delivery — free, no hub middleman</td></tr>
+  <tr><td>Presence Cache</td><td>In-process <code>ConcurrentDictionary</code></td><td>Online presence tracking — single server, no Redis needed for v1 (see §10.4)</td></tr>
+  <tr><td>Secrets</td><td>Environment variables (.env, gitignored) + Docker secrets</td><td>Connection strings, JWT signing key, FCM credentials</td></tr>
+  <tr><td>CDN / DDoS</td><td>Cloudflare (free tier)</td><td>DNS, free SSL, basic DDoS protection in front of the VPS</td></tr>
+</tbody></table>
+
+<h3 id="auth-flow">5.2 Authentication Flow</h3>
+<pre><code>Client                          API                          PostgreSQL
+  |                              |                              |
+  |-- POST /api/auth/login -----&gt;|                              |
+  |   { phone, password }        |-- Query users table --------&gt;|
+  |                              |&lt;-- User row ------------------|
+  |                              |-- Verify bcrypt hash         |
+  |                              |-- Generate JWT (15 min)      |
+  |                              |-- Generate Refresh (30 days) |
+  |                              |-- Store refresh token -------&gt;|
+  |&lt;-- 200 { accessToken,        |                              |
+  |          refreshToken }      |                              |
+  |                              |                              |
+  |-- Subsequent API calls       |                              |
+  |   Authorization: Bearer {JWT}|                              |
+  |                              |-- Validate JWT middleware    |
+  |                              |-- Extract userId claim       |</code></pre>
+
+<h3 id="realtime-flow">5.3 Real-Time Messaging Flow</h3>
+<pre><code>Sender App          REST API          PostgreSQL         SignalR Hub       Receiver App
+    |                  |                  |                   |                  |
+    |-- POST /messages-&gt;|                  |                   |                  |
+    |                  |-- Write message -&gt;|                   |                  |
+    |                  |&lt;-- Row inserted --|                   |                  |
+    |&lt;-- 201 Created   |                  |                   |                  |
+    |                  |-- Directly invoke hub method --------&gt;|                  |
+    |                  |                  |                   |-- Push to ------&gt;|
+    |                  |                  |                   |   receiver group  |
+    |                  |                  |                   |                  |-- UI update
+    |  (SignalR also delivers to sender for delivery confirmation)               |
+    |&lt;----------------------------------------------------------|                  |</code></pre>
+<p>This is simpler than the original design: dropping Cosmos DB means there's no change-feed processor to run — the API pushes to SignalR directly, in the same request, right after the database write succeeds.</p>
+
+<!-- ═══════════════════════════════════ DATABASE ═══════════════════════════════════ -->
+<h2 class="section-title" id="database">6. PostgreSQL Database Design</h2>
+<p class="section-desc">Database: <code>text_messaging_db</code> — standard PostgreSQL, hosted on Supabase's free tier (500MB, generous for a text-only app; a self-hosted Postgres instance on the same VPS is a documented drop-in alternative if you'd rather avoid Supabase entirely). Relational tables replace Cosmos DB's document containers; JSONB is used only where the shape is genuinely flexible (reactions).</p>
+
+<h3>6.1 Tables Summary</h3>
+<table>
+  <tbody><tr><th>Table</th><th>Key</th><th>Purpose</th></tr>
+  <tr><td>users</td><td>id (PK)</td><td>User profiles, auth credentials, settings</td></tr>
+  <tr><td>conversations</td><td>id (PK)</td><td>Chat metadata: type, name (for groups), last message pointer</td></tr>
+  <tr><td>conversation_participants</td><td>(conversation_id, user_id) composite PK</td><td>Junction table — who is in which conversation. Replaces the original's embedded <code>participants</code> array; a real improvement Postgres makes easy.</td></tr>
+  <tr><td>messages</td><td>id (PK), indexed on (conversation_id, sent_at)</td><td>All text messages. No <code>attachments</code> column in v1 — intentionally simplified since media isn't in scope.</td></tr>
+  <tr><td>user_settings</td><td>user_id (PK, FK)</td><td>Per-user preferences, notification settings</td></tr>
+  <tr><td>device_tokens</td><td>id (PK), FK user_id</td><td>FCM registration tokens per device</td></tr>
+  <tr><td>refresh_tokens</td><td>id (PK), FK user_id</td><td>JWT refresh tokens with expiry</td></tr>
+</tbody></table>
+<p>The <code>calls</code> table from the original design is Phase 2 and omitted from the v1 schema entirely — it will be added alongside calling, not before.</p>
+
+<h3>6.2 Core Table Definitions</h3>
+<pre><code>CREATE TABLE users (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    display_name    VARCHAR(100) NOT NULL,
+    phone_number    VARCHAR(20) UNIQUE NOT NULL,
+    email           VARCHAR(255) UNIQUE,
+    password_hash   TEXT NOT NULL,
+    status_message  VARCHAR(140) DEFAULT 'Available',
+    avatar_url      TEXT,              -- optional, small profile picture only
+    is_online       BOOLEAN NOT NULL DEFAULT false,
+    last_seen_at    TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE conversations (
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_type VARCHAR(10) NOT NULL CHECK (conversation_type IN ('direct','group')),
+    group_name        VARCHAR(100),               -- null for direct conversations
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE conversation_participants (
+    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role            VARCHAR(10) NOT NULL DEFAULT 'member',
+    unread_count    INT NOT NULL DEFAULT 0,
+    is_muted        BOOLEAN NOT NULL DEFAULT false,
+    is_pinned       BOOLEAN NOT NULL DEFAULT false,
+    joined_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (conversation_id, user_id)
+);
+
+CREATE TABLE messages (
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id   UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id         UUID NOT NULL REFERENCES users(id),
+    text              VARCHAR(4096) NOT NULL,
+    reply_to_message_id UUID REFERENCES messages(id),
+    reactions         JSONB NOT NULL DEFAULT '[]',   -- [{ "userId": "...", "emoji": "❤️" }]
+    status            JSONB NOT NULL DEFAULT '{}',   -- { "userId": "sent"|"delivered"|"read" }
+    is_edited         BOOLEAN NOT NULL DEFAULT false,
+    edited_at         TIMESTAMPTZ,
+    is_deleted        BOOLEAN NOT NULL DEFAULT false,
+    deleted_at        TIMESTAMPTZ,
+    sent_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_messages_conversation_sent ON messages (conversation_id, sent_at DESC);</code></pre>
+
+<h4>Example row — messages</h4>
+<pre><code>id: 99z7w1v3-...
+conversation_id: 03k8p2n9-...
+sender_id: 07l4q3r2-...
+text: "See you tomorrow!"
+reply_to_message_id: null
+reactions: [{ "userId": "01j2k9x7-...", "emoji": "❤️" }]
+status: { "01j2k9x7-...": "read" }
+is_edited: false
+sent_at: 2026-09-03T10:30:00Z</code></pre>
+
+<h3>6.3 Indexing Strategy</h3>
+<ul class="doc-list">
+  <li><code>messages(conversation_id, sent_at DESC)</code> — supports cursor-based pagination of a conversation's history, the app's hottest query</li>
+  <li><code>users(phone_number)</code> unique index — login lookup and duplicate-registration checks</li>
+  <li><code>conversation_participants(user_id)</code> — supports "get my conversations" queries efficiently</li>
+</ul>
+
+<!-- ═══════════════════════════════════ MEDIA (DEFERRED) ═══════════════════════════════════ -->
+<h2 class="section-title" id="media-deferred">7. Media Storage — Deferred (Phase 2/3)</h2>
+<div class="info-box amber">
+  <h4>⏳ Not built for v1</h4>
+  <p>When photo/video/document/voice-message sharing is introduced, it will follow the same shape as the original Azure Blob design, just on cheaper infrastructure: <strong>Supabase Storage</strong> (S3-compatible, free tier then ~$0.021/GB) or <strong>Cloudflare R2</strong> (10GB free, no egress fees) as the object store, with the same public/private bucket split (avatars/thumbnails public, media/documents/voice private with short-lived signed URLs) and the same folder-per-conversation layout. This section is intentionally a stub — the full design gets written when this phase is actually scheduled, not before, so it reflects real v1 learnings rather than upfront guesswork.</p>
+</div>
+
+<!-- ═══════════════════════════════════ SUPPORTING SERVICES ═══════════════════════════════════ -->
+<h2 class="section-title" id="supporting-services">8. Supporting Services</h2>
+
+<table>
+  <tbody><tr><th>Service</th><th>Purpose</th><th>Cost</th></tr>
+  <tr><td>Supabase</td><td>Managed PostgreSQL (free tier: 500MB, generous for text-only data)</td><td>$0 → $25/mo Pro if outgrown</td></tr>
+  <tr><td>Firebase Cloud Messaging (FCM)</td><td>Android push notifications, called directly from the API</td><td>Free, unlimited</td></tr>
+  <tr><td>Cloudflare</td><td>DNS, free SSL, CDN, basic DDoS protection in front of the VPS</td><td>Free tier</td></tr>
+  <tr><td>VPS Host</td><td>Oracle Cloud Always-Free ARM instance (free forever, modest specs) or Hetzner CX22 as a paid fallback</td><td>$0, or ~€4.50/mo</td></tr>
+  <tr><td>Docker + Docker Compose</td><td>Container orchestration for the API + Nginx</td><td>Free</td></tr>
+  <tr><td>Nginx</td><td>Reverse proxy, TLS termination, request rate limiting</td><td>Free</td></tr>
+  <tr><td>Sentry</td><td>Error tracking</td><td>Free tier</td></tr>
+  <tr><td>Serilog</td><td>Structured file/console logging</td><td>Free</td></tr>
+  <tr><td>GitHub Actions</td><td>CI/CD — build, test, deploy on push</td><td>Free tier</td></tr>
+</tbody></table>
+
+<!-- ═══════════════════════════════════ API DESIGN ═══════════════════════════════════ -->
+<h2 class="section-title" id="api-auth">9. API Design — Authentication</h2>
+<p class="section-desc">Base URL: <code>https://api.yourdomain.com/api/v1</code>. All protected endpoints require <code>Authorization: Bearer {accessToken}</code>.</p>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/auth/register</span><span class="api-desc">Register new user account</span></div>
+  <div class="api-body">
+    <h5>Request Body</h5>
+    <pre><code>{ "displayName": "Jenil Patel", "phoneNumber": "+919876543210",
+  "email": "jenil@example.com", "password": "Secure@123" }</code></pre>
+    <h5>Response 201</h5>
+    <pre><code>{ "userId": "01J2K9X7M3...", "displayName": "Jenil Patel",
+  "accessToken": "eyJ...", "refreshToken": "rt_abc123..." }</code></pre>
+    <h5>Errors</h5><p><code>409</code> Phone/Email already registered &nbsp;|&nbsp; <code>400</code> Validation failed</p>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/auth/login</span><span class="api-desc">Authenticate user, return JWT tokens</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "phoneNumber": "+919876543210", "password": "Secure@123" }
+
+// Response 200
+{ "accessToken": "eyJ...",  "expiresIn": 900,
+  "refreshToken": "rt_abc123...", "userId": "01J2K9X7M3..." }</code></pre>
+    <p><code>401</code> Invalid credentials &nbsp;|&nbsp; <code>423</code> Account locked after 5 failed attempts</p>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/auth/refresh</span><span class="api-desc">Exchange refresh token for new access token</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "refreshToken": "rt_abc123..." }
+// Response 200
+{ "accessToken": "eyJ...", "expiresIn": 900, "refreshToken": "rt_new456..." }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/auth/logout</span><span class="api-desc">Revoke refresh token (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request (no body; token from Authorization header)
+// Response 204 No Content — refresh token deleted from PostgreSQL</code></pre>
+  </div>
+</div>
+
+<h2 class="section-title" id="api-user">9.2 User APIs</h2>
+
+<div class="api-card">
+  <div class="api-header"><span class="method GET">GET</span><span class="api-endpoint">/users/me</span><span class="api-desc">Get current user profile (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 200
+{ "userId": "01J2K9X7M3...", "displayName": "Jenil Patel",
+  "phoneNumber": "+919876543210", "email": "jenil@example.com",
+  "statusMessage": "Available", "isOnline": true, "lastSeenAt": "2026-09-03T10:45:00Z" }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method PUT">PUT</span><span class="api-endpoint">/users/me</span><span class="api-desc">Update profile details (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "displayName": "Jenil P.", "statusMessage": "Busy" }
+// Response 200 — updated user object</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method GET">GET</span><span class="api-endpoint">/users/search?q={query}&amp;limit=20</span><span class="api-desc">Search users by name or phone (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 200
+{ "results": [
+    { "userId": "07L4Q3R2Y5...", "displayName": "Rahul Shah", "isOnline": false }
+  ], "total": 1 }</code></pre>
+  </div>
+</div>
+
+<h2 class="section-title" id="api-chat">9.3 Chat APIs</h2>
+
+<div class="api-card">
+  <div class="api-header"><span class="method GET">GET</span><span class="api-endpoint">/conversations?limit=20&amp;cursor={cursor}</span><span class="api-desc">Get paginated conversation list (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 200
+{ "conversations": [
+    { "conversationId": "03K8P2N9X1...", "conversationType": "direct",
+      "participants": [...], "lastMessage": {...}, "unreadCount": 2 }
+  ], "nextCursor": "c2..." }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/conversations</span><span class="api-desc">Create new conversation (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "type": "direct", "participantIds": ["07L4Q3R2Y5..."] }
+// For group:
+{ "type": "group", "name": "Project Team", "participantIds": ["07L...", "08M..."] }
+// Response 201
+{ "conversationId": "03K8P2N9X1...", ... }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method GET">GET</span><span class="api-endpoint">/conversations/{conversationId}/messages?limit=30&amp;before={messageId}</span><span class="api-desc">Paginated message history (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 200
+{ "messages": [
+    { "messageId": "99Z7W1V3U8...", "senderId": "07L4Q3R2Y5...",
+      "text": "See you tomorrow!",
+      "sentAt": "2026-09-03T10:30:00Z", "status": { "01J...": "read" },
+      "reactions": [], "isEdited": false }
+  ], "hasMore": true, "nextCursor": "88Y..." }</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/conversations/{conversationId}/messages</span><span class="api-desc">Send a text message (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request — text only in v1
+{ "text": "Hello!", "replyToMessageId": null }
+// Response 201 — full message object</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method PATCH">PATCH</span><span class="api-endpoint">/messages/{messageId}</span><span class="api-desc">Edit message text (Protected, within 15 min)</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "text": "Corrected message text" }
+// Response 200 — updated message with isEdited: true</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method DELETE">DELETE</span><span class="api-endpoint">/messages/{messageId}?scope={me|everyone}</span><span class="api-desc">Delete message (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// scope=me: soft-delete for requesting user only
+// scope=everyone: within 60 min window — marks isDeleted=true for all
+// Response 204 No Content</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/messages/{messageId}/reactions</span><span class="api-desc">Add emoji reaction (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "emoji": "❤️" }
+// Response 200 — updated reactions array
+// Sending same emoji again removes the reaction (toggle)</code></pre>
+  </div>
+</div>
+
+<h2 class="section-title" id="api-file">9.4 File APIs</h2>
+<div class="info-box amber">
+  <h4>⏳ Phase 2/3 — Not implemented in v1</h4>
+  <p>File/media upload APIs are added when media sharing is introduced (see §7). No endpoints exist for this in v1 beyond the plain-text message API above.</p>
+</div>
+
+<h2 class="section-title" id="api-call">9.5 Call APIs</h2>
+<div class="info-box amber">
+  <h4>⏳ Phase 2 — Not implemented in v1</h4>
+  <p>When calling is eventually added, the plan is WebRTC-based signaling (SDP/ICE offer-answer exchange) carried over the existing SignalR hub, backed by a self-hosted coturn TURN relay — not a per-minute billed calling service (see §10.2). No call endpoints exist in v1.</p>
+</div>
+
+<h2 class="section-title" id="api-notification">9.6 Notification APIs</h2>
+
+<div class="api-card">
+  <div class="api-header"><span class="method POST">POST</span><span class="api-endpoint">/notifications/register</span><span class="api-desc">Register device push token (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Request
+{ "platform": "android", "deviceToken": "fcm-token-abc123" }
+// Response 204 — token stored in device_tokens table</code></pre>
+  </div>
+</div>
+
+<div class="api-card">
+  <div class="api-header"><span class="method DELETE">DELETE</span><span class="api-endpoint">/notifications/register/{platform}</span><span class="api-desc">Unregister device (on logout) (Protected)</span></div>
+  <div class="api-body">
+    <pre><code>// Response 204 — token removed from device_tokens</code></pre>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ REAL-TIME ═══════════════════════════════════ -->
+<h2 class="section-title" id="realtime-tech">10. Real-Time Communication Design</h2>
+
+<h3>10.1 Technology Comparison — Messaging</h3>
+<table>
+  <tbody><tr><th>Technology</th><th>Protocol</th><th>Pros</th><th>Cons</th></tr>
+  <tr class="rec-row"><td>SignalR (✅ Recommended)</td><td>WebSocket / SSE / Long Poll</td><td>Native .NET, auto-fallback, Hub abstraction, MAUI SDK available, fully self-hostable — no paid Azure SignalR Service required</td><td>Needs Redis backplane only once you run more than one server instance</td></tr>
+  <tr><td>Raw WebSocket</td><td>WebSocket</td><td>Lightweight</td><td>No built-in hub/group management, manual retry logic</td></tr>
+  <tr><td>gRPC streaming</td><td>HTTP/2</td><td>Efficient binary protocol</td><td>Limited browser support, complex MAUI setup, overkill for this app's needs</td></tr>
+</tbody></table>
+
+<h3 id="calling-tech">10.2 Phase 2 — Calling Technology Direction</h3>
+<div class="info-box purple">
+  <h4>🔭 Not built for v1 — direction only</h4>
+  <p>Hosted calling SDKs (Azure Communication Services, Twilio, Agora) all bill per-minute and were the single biggest cost driver in the original design. When calling is added, the recommended direction is <strong>self-hosted WebRTC</strong>: browser/MAUI WebRTC peer connections negotiated over the existing SignalR hub, using a free public STUN server (e.g. Google's) for NAT discovery, with a self-hosted <strong>coturn</strong> TURN relay on a small VPS (~$5/mo added) as a fallback for the ~10-20% of connections that can't establish a direct P2P path. This keeps calling essentially free at low volume instead of metered per minute.</p>
+</div>
+
+<h3>10.3 SignalR Hub Design (v1)</h3>
+<pre><code>// ChatHub.cs — Hub method signatures
+public class ChatHub : Hub
+{
+    // Client → Server
+    Task SendTypingIndicator(string conversationId);
+    Task StopTypingIndicator(string conversationId);
+    Task MarkMessagesRead(string conversationId, string[] messageIds);
+    Task JoinConversation(string conversationId);
+    Task LeaveConversation(string conversationId);
+
+    // Server → Client (via Clients.Group / Clients.User)
+    // "ReceiveMessage"      — new message pushed to group
+    // "MessageStatusUpdate" — delivery/read receipt update
+    // "TypingStarted"       — show typing indicator
+    // "TypingStopped"       — hide typing indicator
+    // "UserPresenceChanged" — online/offline toggle
+    // "MessageReaction"     — reaction added/removed
+    // "MessageEdited"       — edited message pushed
+    // "MessageDeleted"      — deletion notification
+    // "IncomingCall" / "CallStatusChanged" — Phase 2, not in v1
+}</code></pre>
+
+<h3>10.4 Presence Design (In-Memory)</h3>
+<ul class="doc-list">
+  <li>A singleton <code>PresenceTracker</code> service holds a <code>ConcurrentDictionary&lt;string, DateTime&gt;</code> mapping userId → last-seen-active timestamp</li>
+  <li>On SignalR connect: dictionary entry set/refreshed; broadcast <code>UserPresenceChanged(online)</code></li>
+  <li>Heartbeat every 60s refreshes the timestamp; a background timer sweeps entries older than 5 minutes and marks them offline</li>
+  <li>On disconnect: entry removed immediately + broadcast <code>UserPresenceChanged(offline)</code></li>
+  <li><code>GET /users/{userId}/presence</code> reads the in-memory tracker (falls back to the <code>users.last_seen_at</code> column if absent)</li>
+</ul>
+<div class="info-box">
+  <p><strong>Single-server assumption:</strong> this works because v1 runs one backend instance. If/when traffic requires scaling to multiple instances, presence (and the SignalR backplane) needs to move to Redis — that's a Phase 2/3 infrastructure upgrade, not a v1 concern.</p>
+</div>
+
+<!-- ═══════════════════════════════════ SECURITY ═══════════════════════════════════ -->
+<h2 class="section-title" id="security">11. Security Requirements</h2>
+
+<h3>11.1 Authentication &amp; Authorization</h3>
+<table>
+  <tbody><tr><th>Requirement</th><th>Implementation</th></tr>
+  <tr><td>JWT Access Token</td><td>HS256 signed, 15-minute expiry, claims: userId, email, roles</td></tr>
+  <tr><td>Refresh Token</td><td>Opaque random string (256-bit), 30-day expiry, stored hashed in the <code>refresh_tokens</code> table</td></tr>
+  <tr><td>Token Rotation</td><td>Each refresh call issues a new refresh token and invalidates the old one (rotation + reuse detection)</td></tr>
+  <tr><td>Password Storage</td><td>bcrypt with cost factor 12 (never store plaintext)</td></tr>
+  <tr><td>Account Lockout</td><td>Lock for 15 minutes after 5 consecutive failed logins (tracked in-memory alongside presence, per §10.4)</td></tr>
+  <tr><td>Authorization</td><td>Every message/conversation API validates that the requesting userId is a participant in the conversation</td></tr>
+</tbody></table>
+
+<h3>11.2 Data Encryption &amp; Secrets</h3>
+<ul class="doc-list">
+  <li><strong>In Transit:</strong> TLS 1.2+ enforced on all endpoints via Nginx + Let's Encrypt; HSTS headers</li>
+  <li><strong>At Rest:</strong> Supabase's underlying PostgreSQL storage is encrypted at rest by the provider by default</li>
+  <li><strong>Secrets:</strong> connection strings, JWT signing key, and FCM service-account credentials live in a gitignored <code>.env</code> file and/or Docker secrets — no dedicated secrets-manager service for v1; revisit only if a future compliance requirement demands one</li>
+  <li><strong>Device Storage:</strong> JWT tokens stored in platform <code>SecureStorage</code> (Android Keystore)</li>
+</ul>
+
+<h3>11.3 File Upload Security</h3>
+<div class="info-box amber">
+  <p>Deferred to Phase 2/3 alongside media support (see §7) — MIME/magic-byte validation and optional self-hosted ClamAV scanning will be designed when file upload is actually built. There is no file upload surface in v1 to secure.</p>
+</div>
+
+<h3>11.4 API Security</h3>
+<ul class="doc-list">
+  <li>Rate limiting: 100 requests/min per user, enforced via ASP.NET Core's built-in rate-limiting middleware (or Nginx <code>limit_req</code> as a second layer)</li>
+  <li>CORS restricted to known MAUI app origins</li>
+  <li>Input validation with FluentValidation on all request bodies</li>
+  <li>SQL injection prevented via parameterized queries / EF Core throughout</li>
+  <li>All error responses return generic messages (no stack traces in production)</li>
+</ul>
+
+<!-- ═══════════════════════════════════ NOTIFICATIONS ═══════════════════════════════════ -->
+<h2 class="section-title" id="notifications">12. Push Notification Design</h2>
+
+<h3>12.1 Notification Types (v1)</h3>
+<table>
+  <tbody><tr><th>Trigger Event</th><th>Title</th><th>Body</th><th>Data Payload</th></tr>
+  <tr><td>New message received</td><td>Sender name</td><td>Message preview text (or "New message" if preview disabled)</td><td>conversationId, messageId</td></tr>
+  <tr><td>Group mention</td><td>Group name</td><td>"{Sender} mentioned you: {preview}"</td><td>conversationId, messageId</td></tr>
+</tbody></table>
+<p>Call-related notification types (incoming/missed call) are Phase 2, added alongside calling.</p>
+
+<h3>12.2 Notification Flow (v1)</h3>
+<pre><code>New text message written to PostgreSQL
+        │
+        ▼
+API checks in-memory presence tracker (§10.4)
+        │
+        ├─── Recipient online?
+        │         Yes → SignalR push only (no push notification needed)
+        │         No  ▼
+        └─── Look up recipient's device_tokens rows
+                  │
+                  ▼
+     Call Firebase Cloud Messaging HTTP v1 API directly
+                  │
+                  ▼
+           Device push notification (Android)</code></pre>
+<p>iOS/APNS delivery is added in Phase 2 alongside iOS platform support — there's no APNS branch in v1 since Android is the only shipped target.</p>
+
+<h3>12.3 Notification Privacy</h3>
+<ul class="doc-list">
+  <li>If the user has disabled "preview text" in settings → notification body shows only "New message", not actual content</li>
+  <li>Notification payloads are data-only where possible; display handled by the MAUI <code>FirebaseMessagingService</code></li>
+</ul>
+
+<!-- ═══════════════════════════════════ COST & PHASING ═══════════════════════════════════ -->
+<h2 class="section-title" id="cost-phasing">13. Cost &amp; Phasing Summary</h2>
+
+<h3>13.1 v1 Monthly Cost Estimate</h3>
+<table>
+  <tbody><tr><th>Item</th><th>Est. Cost</th><th>Notes</th></tr>
+  <tr><td>VPS (Oracle Cloud Always-Free ARM)</td><td>$0</td><td>Free forever at modest specs — sufficient for v1 traffic. Hetzner CX22 (~€4.50/mo) documented as a paid fallback if preferred.</td></tr>
+  <tr><td>Supabase PostgreSQL</td><td>$0</td><td>Free tier — 500MB, plenty for text-only data at v1 scale</td></tr>
+  <tr><td>Cloudflare</td><td>$0</td><td>Free tier DNS/CDN/DDoS protection</td></tr>
+  <tr><td>Firebase Cloud Messaging</td><td>$0</td><td>Unlimited, no paid tier needed</td></tr>
+  <tr><td>Sentry</td><td>$0</td><td>Free tier, sufficient at low error volume</td></tr>
+  <tr><td>Domain name</td><td>~$1/mo</td><td>~$10-15/year amortized</td></tr>
+  <tr class="rec-row"><td><strong>Total</strong></td><td><strong>$0–10/month</strong></td><td>Genuinely $0/month if the Oracle free tier is used and a domain is already owned</td></tr>
+</tbody></table>
+
+<h3>13.2 Phase 2/3 Roadmap</h3>
+<ol class="doc-list">
+  <li><strong>Media sharing</strong> — photos, videos, documents, voice messages. Adds Supabase Storage or Cloudflare R2 (free tier to start). Highest-priority addition once text messaging is solid.</li>
+  <li><strong>Voice &amp; video calling</strong> — self-hosted WebRTC + coturn TURN relay (~$5/mo added VPS cost). See §10.2.</li>
+  <li><strong>iOS support</strong> — requires a macOS build machine and an Apple Developer Program membership ($99/yr). Purely a platform-reach decision, not a technical blocker.</li>
+  <li><strong>Scaling past one server</strong> — reintroduce Redis for the SignalR backplane and shared presence once running more than one backend instance; upgrade Supabase to Pro ($25/mo) if the free tier's limits are exceeded.</li>
+  <li><strong>Hardening</strong> — CDN/media caching, and a dedicated secrets manager only if a future compliance requirement makes environment-variable secrets insufficient.</li>
+</ol>
+
+<p style="text-align:center;font-size:0.75rem;color:#94a3b8;padding-bottom:40px;">
+  Text Messaging App Requirements Document v2.0 · Low-Cost Stack · Android-First · Text Messaging Only (v1) &nbsp;·&nbsp; Generated September 2026 &nbsp;·&nbsp; For internal use only
+</p>
+
+</div><!-- /main -->
+
+</body></html>
