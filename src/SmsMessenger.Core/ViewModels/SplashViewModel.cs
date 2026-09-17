@@ -15,7 +15,7 @@ public class SplashViewModel
 
     public async Task InitializeAsync()
     {
-        var route = _roleService.IsDefaultSmsApp() ? "//conversations" : "//onboarding";
+        var route = _roleService.IsDefaultSmsApp() ? "/conversations" : "/onboarding";
         await _navigation.NavigateToAsync(route);
     }
 }

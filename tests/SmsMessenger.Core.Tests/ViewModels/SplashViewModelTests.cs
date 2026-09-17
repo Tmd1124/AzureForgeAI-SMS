@@ -16,7 +16,7 @@ public class SplashViewModelTests
         var viewModel = new SplashViewModel(roleService.Object, nav.Object);
         await viewModel.InitializeAsync();
 
-        nav.Verify(n => n.NavigateToAsync("//conversations"), Times.Once);
+        nav.Verify(n => n.NavigateToAsync("/conversations"), Times.Once);
     }
 
     [Fact]
@@ -29,6 +29,6 @@ public class SplashViewModelTests
         var viewModel = new SplashViewModel(roleService.Object, nav.Object);
         await viewModel.InitializeAsync();
 
-        nav.Verify(n => n.NavigateToAsync("//onboarding"), Times.Once);
+        nav.Verify(n => n.NavigateToAsync("/onboarding"), Times.Once);
     }
 }
