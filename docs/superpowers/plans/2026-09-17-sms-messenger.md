@@ -21,6 +21,7 @@
 - The app must become the Android default SMS app to reliably send/receive — this requires a `BroadcastReceiver` for `SMS_DELIVER`, a compose `Activity` for `ACTION_SENDTO`/`ACTION_SEND`, and a `HeadlessSmsSendService` for `ACTION_RESPOND_VIA_MESSAGE`.
 - Android owns message storage (`Telephony.Sms` / `Telephony.Threads` content providers). The app does not maintain its own message database. As the default SMS app, the app is responsible for writing both incoming and outgoing messages into that provider itself — Android does not do this automatically on the app's behalf.
 - The only local app state is a handful of `Preferences` key/value entries (onboarding-complete flag, notification toggle, preferred-SIM choice) — not a database.
+- **Navigation architecture (corrected during Task 5 execution, ruled on by the controller):** `dotnet new maui-blazor` scaffolds ONE native host page (`MainPage.xaml`, containing a single `BlazorWebView` whose root component is `Components/Routes.razor`) with ordinary Blazor client-side routing (`<Router>`, `@page` directives, `NavigationManager`) handling every page inside that one WebView — **there is no MAUI Shell (`AppShell.xaml`/`.razor`, `Shell.Current`, `TabBar`, `ShellContent`) anywhere in this app, and none should be added.** Every task below that mentions `Shell.Current.GoToAsync(...)` means `NavigationManager.NavigateTo(...)` instead (same intent — programmatic navigation to a route string — different API), and every route string loses its MAUI-Shell-style `//` absolute-route prefix (use `/conversations`, not `//conversations`). `INavigationService`'s Android/MAUI implementation wraps `NavigationManager` (injected via constructor, same DI container the whole app shares), not `Shell.Current`. Where a task's Razor page navigates directly rather than through `INavigationService` (e.g. a button's `@onclick`), inject `NavigationManager` directly in that page instead. A bottom tab bar (Task 12) is implemented as an ordinary Razor component (e.g. links inside `MainLayout.razor` using `NavigationManager`/`NavLink`), not MAUI Shell's `<TabBar>` markup. `SplashPage.razor`'s route is `"/"` (the app's default/landing route, since a fresh `BlazorWebView` load always resolves to the Router's `/` match first — there is no separate "initial route" concept to configure outside of this), not `"/splash"`, and the template's demo pages (`Components/Pages/Home.razor`, `Counter.razor`, `Weather.razor`, `Components/Layout/NavMenu.razor`) should be deleted since `Home.razor`'s own `@page "/"` would otherwise collide with Splash's route.
 
 ---
 
@@ -481,12 +482,15 @@ git commit -m "feat: add SmsMessage, SmsThread, and ContactInfo models"
 
 **Files:**
 - Create: `src/SmsMessenger/Platforms/Android/SmsDeliverReceiver.cs`
+- Create: `src/SmsMessenger/Platforms/Android/WapPushDeliverReceiver.cs`
 - Create: `src/SmsMessenger/Platforms/Android/ComposeSmsActivity.cs`
 - Create: `src/SmsMessenger/Platforms/Android/HeadlessSmsSendService.cs`
 - Modify: `src/SmsMessenger/Platforms/Android/MainApplication.cs` (permission declarations)
 
 **Interfaces:**
-- Produces: the three Android components required for this app to be *eligible* to become the user's default SMS app. Their bodies are stubbed here (logged, no-op) — Task 9 fills in `SmsDeliverReceiver`'s real behavior. This task's whole purpose is to get Android to recognize the app as a valid default-SMS-app candidate, which is a prerequisite for every later manual test.
+- Produces: the four Android components required for this app to be *eligible* to become the user's default SMS app (per AOSP's `RoleManager` SMS-role eligibility check: an `ACTION_SENDTO`/`ACTION_SEND` activity, an `SMS_DELIVER` receiver, a `WAP_PUSH_DELIVER` receiver, and a `RESPOND_VIA_MESSAGE` service — all four, not three; Android's manifest permission model requires the WAP_PUSH_DELIVER receiver to be a *separate* component from the SMS_DELIVER receiver because each needs a different `android:permission` value declared on its `<receiver>` element, and a single receiver element can only declare one). Their bodies are stubbed here (logged, no-op) — Task 9 fills in `SmsDeliverReceiver`'s real behavior; `WapPushDeliverReceiver` stays a permanent no-op stub through v1, since MMS is out of scope — it exists solely to satisfy the eligibility check. This task's whole purpose is to get Android to recognize the app as a valid default-SMS-app candidate, which is a prerequisite for every later manual test.
+
+> **Correction (discovered during Task 4 execution, ruled on by the controller):** the original version of this task specified only three components and omitted `WapPushDeliverReceiver`. Deploying and checking Android's actual default-SMS-app picker confirmed the app was filtered out of the candidate list without it — AOSP's eligibility check requires all four. The steps below reflect the corrected, four-component version.
 
 - [ ] **Step 1: Declare the required permissions**
 
@@ -503,6 +507,7 @@ using Android.Runtime;
 [assembly: UsesPermission(Android.Manifest.Permission.ReadContacts)]
 [assembly: UsesPermission(Android.Manifest.Permission.ReadPhoneState)]
 [assembly: UsesPermission("android.permission.POST_NOTIFICATIONS")]
+[assembly: UsesPermission(Android.Manifest.Permission.ReceiveWapPush)]
 
 namespace SmsMessenger;
 
@@ -540,7 +545,34 @@ public class SmsDeliverReceiver : BroadcastReceiver
 }
 ```
 
-- [ ] **Step 3: Stub the compose-hand-off activity**
+- [ ] **Step 3: Stub the WAP push receiver (required for default-SMS-app eligibility)**
+
+`src/SmsMessenger/Platforms/Android/WapPushDeliverReceiver.cs`:
+
+```csharp
+using Android.App;
+using Android.Content;
+
+namespace SmsMessenger.Platforms.Android;
+
+[BroadcastReceiver(Enabled = true, Exported = true, Permission = "android.permission.BROADCAST_WAP_PUSH")]
+[IntentFilter(new[] { "android.provider.Telephony.WAP_PUSH_DELIVER" }, DataMimeType = "application/vnd.wap.mms-message")]
+public class WapPushDeliverReceiver : BroadcastReceiver
+{
+    public override void OnReceive(Context? context, Intent? intent)
+    {
+        // Permanent no-op: MMS is out of scope for v1 (see Global
+        // Constraints — no MMS/media in v1). This receiver exists solely
+        // so Android's RoleManager considers this app eligible for the
+        // default-SMS-app role, which requires handling WAP_PUSH_DELIVER
+        // alongside SMS_DELIVER. If MMS is ever added in a later phase,
+        // this is where that work starts.
+        global::Android.Util.Log.Debug("SmsMessenger", "WAP_PUSH_DELIVER received (stub — MMS not in v1 scope)");
+    }
+}
+```
+
+- [ ] **Step 4: Stub the compose-hand-off activity**
 
 `src/SmsMessenger/Platforms/Android/ComposeSmsActivity.cs`:
 
@@ -568,7 +600,7 @@ public class ComposeSmsActivity : Activity
 }
 ```
 
-- [ ] **Step 4: Stub the headless quick-reply service**
+- [ ] **Step 5: Stub the headless quick-reply service**
 
 `src/SmsMessenger/Platforms/Android/HeadlessSmsSendService.cs`:
 
@@ -595,7 +627,7 @@ public class HeadlessSmsSendService : IntentService
 }
 ```
 
-- [ ] **Step 5: Build to verify the manifest merges cleanly**
+- [ ] **Step 6: Build to verify the manifest merges cleanly**
 
 ```bash
 dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
@@ -603,17 +635,17 @@ dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
 
 Expected: `Build succeeded.`
 
-- [ ] **Step 6: Manual verification — the app becomes a default-SMS-app candidate**
+- [ ] **Step 7: Manual verification — the app becomes a default-SMS-app candidate**
 
-With the `sms_test` emulator running (Task 1, Step 8):
+This machine cannot run the Android emulator (ARM64 Windows host; no native Windows-ARM64 emulator exists, and the x86_64-under-software-emulation fallback stalls rather than boots — confirmed during Task 1). Use a physical Android device connected over USB with debugging enabled instead:
 
 ```bash
 dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
 ```
 
-On the emulator: open **Settings → Apps → Default apps → SMS app** (or send yourself a text via the emulator's own Messages app and watch for the "set default SMS app" prompt). Confirm **SmsMessenger now appears in the list of selectable default SMS apps.** This is the concrete, observable proof that Task 4's component/permission wiring is correct — if it doesn't appear, one of the three components or a permission is misconfigured.
+On the device: open **Settings → Apps → Default apps → SMS app** (or send yourself a text and watch for the "set default SMS app" prompt). Confirm **SmsMessenger now appears in the list of selectable default SMS apps.** This is the concrete, observable proof that Task 4's component/permission wiring is correct — if it doesn't appear, one of the four components or a permission is misconfigured.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/SmsMessenger/Platforms/Android
@@ -805,15 +837,24 @@ public class DefaultAppRoleService : IDefaultAppRoleService
 `src/SmsMessenger/Services/NavigationService.cs`:
 
 ```csharp
+using Microsoft.AspNetCore.Components;
 using SmsMessenger.Core.Services;
 
 namespace SmsMessenger.Services;
 
 public class NavigationService : INavigationService
 {
-    public async Task NavigateToAsync(string route)
+    private readonly NavigationManager _navigationManager;
+
+    public NavigationService(NavigationManager navigationManager)
     {
-        await Shell.Current.GoToAsync(route);
+        _navigationManager = navigationManager;
+    }
+
+    public Task NavigateToAsync(string route)
+    {
+        _navigationManager.NavigateTo(route);
+        return Task.CompletedTask;
     }
 }
 ```
@@ -837,7 +878,7 @@ builder.Services.AddTransient<SplashViewModel>();
 `src/SmsMessenger/Pages/SplashPage.razor`:
 
 ```razor
-@page "/splash"
+@page "/"
 @inject SmsMessenger.Core.ViewModels.SplashViewModel ViewModel
 
 <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#25D366;">
@@ -852,15 +893,15 @@ builder.Services.AddTransient<SplashViewModel>();
 }
 ```
 
-Register `//splash` as the app's initial route in `AppShell.razor` (the template-generated shell) so the app opens here first.
+`"/"` is Splash's route deliberately (not `"/splash"`) — see the Global Constraints navigation-architecture note: a fresh `BlazorWebView` load resolves to whatever the Router matches at `/`, so Splash has to own that route to be what opens first. Delete the template's demo pages that would otherwise collide with or clutter this: `Components/Pages/Home.razor` (claims `@page "/"` itself), `Components/Pages/Counter.razor`, `Components/Pages/Weather.razor`, and `Components/Layout/NavMenu.razor` (links to the now-deleted pages). Simplify `Components/Layout/MainLayout.razor` to drop the `NavMenu` reference if it has one — a bare `@Body` layout is enough for now; Task 12 adds real bottom navigation.
 
 - [ ] **Step 9: Build to verify it compiles**
 
 ```bash
-dotnet build SmsMessenger.sln -f net9.0-android
+dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
 ```
 
-Expected: `Build succeeded.` (`//conversations` and `//onboarding` routes don't exist yet — that's fine, they're Tasks 6 and 8; this step only proves the Splash wiring compiles.)
+Expected: `Build succeeded.` (`/conversations` and `/onboarding` routes don't exist yet — that's fine, they're Tasks 6 and 8; this step only proves the Splash wiring compiles. Note: `dotnet build SmsMessenger.sln -f net9.0-android` — building the whole solution with an Android target filter — fails from Task 2 onward, since `SmsMessenger.Core`/`SmsMessenger.Core.Tests` don't target Android; build the app project directly as shown, or build the solution with no `-f` filter.)
 
 - [ ] **Step 10: Commit**
 
@@ -1608,7 +1649,9 @@ builder.Services.AddTransient<ConversationsViewModel>();
 
 ```razor
 @page "/conversations"
+@using Microsoft.AspNetCore.Components
 @inject SmsMessenger.Core.ViewModels.ConversationsViewModel ViewModel
+@inject NavigationManager Nav
 
 <div style="padding:12px;">
     <input placeholder="Search contacts or numbers" @bind="ViewModel.SearchText" @bind:event="oninput" />
@@ -1639,9 +1682,9 @@ builder.Services.AddTransient<ConversationsViewModel>();
         await ViewModel.LoadCommand.ExecuteAsync(null);
     }
 
-    private async Task OpenThread(long threadId)
+    private void OpenThread(long threadId)
     {
-        await Shell.Current.GoToAsync($"//conversations/thread?id={threadId}");
+        Nav.NavigateTo($"/conversations/thread?id={threadId}");
     }
 }
 ```
@@ -1683,6 +1726,7 @@ git commit -m "feat: add thread list read path and Conversations screen"
 - Modify: `src/SmsMessenger/Platforms/Android/SmsDeliverReceiver.cs` (real implementation)
 - Create: `src/SmsMessenger/Platforms/Android/SmsService.cs`
 - Create: `src/SmsMessenger/Pages/Conversations/ThreadDetailPage.razor`
+- Modify: `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor` (`OpenThread` gains an `address` parameter)
 - Test: `tests/SmsMessenger.Core.Tests/ViewModels/ThreadDetailViewModelTests.cs`
 
 **Interfaces:**
@@ -2077,9 +2121,9 @@ builder.Services.AddSingleton<ISmsService, SmsService>();
 Update `ConversationsPage.razor`'s `OpenThread` (Task 8) to pass the address along:
 
 ```csharp
-private async Task OpenThread(long threadId, string address)
+private void OpenThread(long threadId, string address)
 {
-    await Shell.Current.GoToAsync($"//conversations/thread?id={threadId}&address={Uri.EscapeDataString(address)}");
+    Nav.NavigateTo($"/conversations/thread?id={threadId}&address={Uri.EscapeDataString(address)}");
 }
 ```
 
@@ -2322,6 +2366,7 @@ builder.Services.AddTransient<ContactPickerViewModel>();
 ```razor
 @page "/compose"
 @inject SmsMessenger.Core.ViewModels.ComposeViewModel ViewModel
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
 
 <div style="padding:12px;">
     <h3>New Message</h3>
@@ -2339,7 +2384,7 @@ builder.Services.AddTransient<ContactPickerViewModel>();
     }
 
     <input placeholder="Add a phone number" @onkeyup="OnRecipientKeyUp" @bind="_newRecipient" />
-    <button @onclick="() => Shell.Current.GoToAsync("/compose/pick-contact")">Pick from contacts</button>
+    <button @onclick="() => Nav.NavigateTo("/compose/pick-contact")">Pick from contacts</button>
 
     <textarea placeholder="Text message" @bind="ViewModel.MessageBody"></textarea>
     <button @onclick="() => ViewModel.SendCommand.ExecuteAsync(null)">Send</button>
@@ -2364,6 +2409,7 @@ builder.Services.AddTransient<ContactPickerViewModel>();
 ```razor
 @page "/compose/pick-contact"
 @inject SmsMessenger.Core.ViewModels.ContactPickerViewModel ViewModel
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
 
 <div style="padding:12px;">
     @foreach (var contact in ViewModel.Contacts)
@@ -2380,12 +2426,12 @@ builder.Services.AddTransient<ContactPickerViewModel>();
         await ViewModel.LoadCommand.ExecuteAsync(null);
     }
 
-    private async Task Select(string phoneNumber)
+    private void Select(string phoneNumber)
     {
         // Compose's own ComposeViewModel instance is transient-scoped per
         // navigation, so the picked number is passed back via query string
         // rather than a shared singleton state.
-        await Shell.Current.GoToAsync($"//compose?add={Uri.EscapeDataString(phoneNumber)}");
+        Nav.NavigateTo($"/compose?add={Uri.EscapeDataString(phoneNumber)}");
     }
 }
 ```
@@ -2417,7 +2463,7 @@ protected override void OnCreate(Bundle? savedInstanceState)
     var address = Intent?.Data?.SchemeSpecificPart;
     var prefillText = Intent?.GetStringExtra(Intent.ExtraText);
 
-    var route = $"//compose?add={Uri.EscapeDataString(address ?? string.Empty)}";
+    var route = $"/compose?add={Uri.EscapeDataString(address ?? string.Empty)}";
     var mainIntent = new Intent(this, typeof(MainActivity));
     mainIntent.PutExtra("initial_route", route);
     mainIntent.AddFlags(ActivityFlags.NewTask);
@@ -2426,7 +2472,7 @@ protected override void OnCreate(Bundle? savedInstanceState)
 }
 ```
 
-(`prefillText` is accepted for completeness with `ACTION_SEND` but MAUI Shell navigation only carries the recipient through the query string in this pass — passing the body too is a small follow-up extension using the same query-string pattern, not required for this task's deliverable.)
+(`prefillText` is accepted for completeness with `ACTION_SEND` but only the recipient is carried through in this pass, via the `initial_route` extra — passing the body too is a small follow-up extension using the same pattern. Note this hand-off is best-effort: nothing in this plan reads the `initial_route` extra back out on the `MainActivity`/`NavigationManager` side yet, so a cold-started app will land on Splash rather than Compose when launched this way — genuinely wiring that up would mean adding an `OnNewIntent` override to `MainActivity` that resolves `NavigationManager` from `MauiApplication.Current.Services` and calls `NavigateTo` with the extra's value, following the same DI-resolution pattern used in Task 9/11's broadcast receivers. Not required for this task's deliverable — the app is still fully usable via its own Compose button; this only affects the "another app hands off a number to text" entry point.)
 
 - [ ] **Step 8: Wire the real `HeadlessSmsSendService`**
 
@@ -2700,30 +2746,30 @@ git commit -m "feat: add local incoming-message notifications and Settings scree
 ### Task 12: Bottom navigation, end-to-end pass, and README
 
 **Files:**
-- Modify: `src/SmsMessenger/AppShell.razor` (tab bar: Conversations / Settings)
+- Modify: `src/SmsMessenger/Components/Layout/MainLayout.razor` (bottom nav bar: Conversations / Settings)
+- Create: `src/SmsMessenger/Components/Layout/BottomNav.razor`
 - Create: `README.md`
 
 **Interfaces:**
 - Consumes: every page from Tasks 5–11.
-- Produces: the final navigable shell a user actually opens, and the setup/testing instructions for anyone (including a future engineer) picking this repo up cold.
+- Produces: the final navigable layout a user actually opens, and the setup/testing instructions for anyone (including a future engineer) picking this repo up cold.
 
-- [ ] **Step 1: Wire up the bottom tab bar**
+- [ ] **Step 1: Add a bottom nav bar**
 
-Edit `src/SmsMessenger/AppShell.razor` so the app's real navigation is: Splash (initial route, not a tab) → Onboarding (not a tab, shown once) → a `TabBar` with **Conversations** and **Settings**, with Compose/ContactPicker/ThreadDetail reachable as pushed routes from Conversations rather than tabs:
+There is no MAUI Shell in this app (see the plan's Global Constraints navigation-architecture note) — bottom navigation is an ordinary Razor component using Blazor's `NavLink`, shown only on the two tab-equivalent pages (Conversations, Settings), not on Splash/Onboarding/ThreadDetail/Compose/ContactPicker.
+
+`src/SmsMessenger/Components/Layout/BottomNav.razor`:
 
 ```razor
-<Shell ...>
-    <ShellContent Route="splash" ContentTemplate="@(new RenderFragment(b => b.OpenComponent<SmsMessenger.Pages.SplashPage>(0)))" FlyoutItemIsVisible="false" />
-    <ShellContent Route="onboarding" ContentTemplate="@(new RenderFragment(b => b.OpenComponent<SmsMessenger.Pages.OnboardingPage>(0)))" FlyoutItemIsVisible="false" />
-
-    <TabBar>
-        <ShellContent Title="Messages" Route="conversations" ContentTemplate="@(new RenderFragment(b => b.OpenComponent<SmsMessenger.Pages.Conversations.ConversationsPage>(0)))" />
-        <ShellContent Title="Settings" Route="settings" ContentTemplate="@(new RenderFragment(b => b.OpenComponent<SmsMessenger.Pages.Settings.SettingsPage>(0)))" />
-    </TabBar>
-</Shell>
+<div style="display:flex;border-top:1px solid #eee;position:fixed;bottom:0;left:0;right:0;background:white;">
+    <NavLink href="/conversations" Match="NavLinkMatch.All" style="flex:1;text-align:center;padding:10px;">Messages</NavLink>
+    <NavLink href="/settings" Match="NavLinkMatch.All" style="flex:1;text-align:center;padding:10px;">Settings</NavLink>
+</div>
 ```
 
-(Adjust to match whatever Blazor Hybrid Shell syntax the installed MAUI template version actually generated in Task 1 — the template's `AppShell.razor` may use plain `<ShellContent>` markup with `@page` routes declared on each page instead; if so, keep that pattern and just add the two missing routes plus the `TabBar` grouping, rather than rewriting the whole file style.)
+Add it to `ConversationsPage.razor` (Task 8) and `SettingsPage.razor` (Task 11) — each page includes `<BottomNav />` once near the end of its markup (a `@using SmsMessenger.Components.Layout` in `Components/_Imports.razor`, already present from the template, makes it available with no extra import needed). Splash, Onboarding, ThreadDetail, Compose, and ContactPicker do not include it — those aren't tab-equivalent screens.
+
+Check `src/SmsMessenger/Components/Layout/MainLayout.razor` renders `@Body` without a leftover `NavMenu` reference (Task 5 already asked to simplify this file when the demo pages were removed) — if it still references the deleted `NavMenu.razor`, strip that reference now.
 
 - [ ] **Step 2: Build and do a full manual walkthrough**
 
@@ -2731,7 +2777,9 @@ Edit `src/SmsMessenger/AppShell.razor` so the app's real navigation is: Splash (
 dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
 ```
 
-Walk through, on the emulator, in order: fresh install → Splash routes to Onboarding → grant role + permissions → Continue lands on Conversations tab → seeded thread visible with correct contact name → open thread, send a message, watch Sent → Delivered → background the app, simulate an incoming text via emulator console, confirm notification → foreground, confirm thread updated → Compose a new message to two numbers, confirm the group-send warning and that both sends fire → Settings tab shows default-app status. This is the acceptance pass for the whole plan — if any step doesn't work, that's a defect in the corresponding earlier task, not a new task.
+This machine cannot run the Android emulator (see Task 1/4's notes — ARM64 Windows host, no working emulator path found). Do this walkthrough on the physical Android device connected over USB, same as every other manual verification in this plan.
+
+Walk through, on the device, in order: fresh install → Splash (`/`) routes to Onboarding → grant role + permissions → Continue lands on Conversations → seeded thread visible with correct contact name → open thread, send a message, watch Sent → Delivered → background the app, send yourself a real text from another phone/number, confirm notification → foreground, confirm thread updated → Compose a new message to two numbers, confirm the group-send warning and that both sends fire → tap Settings in the bottom nav, confirm default-app status shown → tap Messages in the bottom nav, confirm it returns to Conversations. This is the acceptance pass for the whole plan — if any step doesn't work, that's a defect in the corresponding earlier task, not a new task.
 
 - [ ] **Step 3: Write the README**
 
@@ -2749,14 +2797,24 @@ the implementation plan this was built from.
 ## Requirements
 
 - .NET SDK 9.0+ with the `android` workload (`dotnet workload install android`)
-- Android SDK with an x86_64 emulator system image and an AVD (see the
-  implementation plan's Task 1 for exact setup commands)
+- A physical Android device connected over USB with USB debugging enabled.
+  This project's development machine could not run the Android emulator at
+  all (ARM64 Windows host — see the implementation plan's Task 1 for the
+  full investigation); everything here is built and verified against a real
+  device instead. An emulator may work fine on an x86_64 host if you have
+  one, but is untested by this project.
 
 ## Build
 
-    dotnet build SmsMessenger.sln -f net9.0-android
+    dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
 
-## Run on the emulator
+(`dotnet build SmsMessenger.sln -f net9.0-android` — building the whole
+solution with an Android target filter — does not work, since
+`SmsMessenger.Core`/`SmsMessenger.Core.Tests` are plain `net9.0` projects
+that don't target Android; build the app project directly, or build the
+solution with no `-f` filter.)
+
+## Run on a device
 
     dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
 
@@ -2769,8 +2827,8 @@ of them touch the Android runtime, so they run on any machine with the .NET
 SDK. The Android-specific service implementations under
 `src/SmsMessenger/Platforms/Android/` call real platform APIs
 (`SmsManager`, content providers, `ContactsContract`, `RoleManager`) and are
-verified by hand on the emulator or a physical device, per the manual
-verification steps in each task of the implementation plan.
+verified by hand on a physical device, per the manual verification steps in
+each task of the implementation plan.
 
 ## What this app does and doesn't do
 
@@ -2784,8 +2842,8 @@ protocol.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/SmsMessenger/AppShell.razor README.md
-git commit -m "feat: wire up app navigation shell and add project README"
+git add src/SmsMessenger/Components/Layout README.md
+git commit -m "feat: wire up bottom navigation and add project README"
 ```
 
 ---

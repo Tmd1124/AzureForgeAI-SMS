@@ -21,7 +21,7 @@ public static class MauiProgram
 		builder.Services.AddMauiBlazorWebView();
 
 		builder.Services.AddSingleton<IDefaultAppRoleService, DefaultAppRoleService>();
-		builder.Services.AddSingleton<INavigationService, NavigationService>();
+		builder.Services.AddScoped<INavigationService, NavigationService>();
 		builder.Services.AddTransient<SplashViewModel>();
 
 #if DEBUG
