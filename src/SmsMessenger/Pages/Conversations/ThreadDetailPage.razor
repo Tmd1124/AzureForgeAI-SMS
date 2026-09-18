@@ -1,0 +1,42 @@
+@page "/conversations/thread"
+@inject IServiceProvider Services
+@using Microsoft.Extensions.DependencyInjection
+@using SmsMessenger.Core.Services
+@using SmsMessenger.Core.ViewModels
+
+@if (ViewModel is not null)
+{
+    <div style="display:flex;flex-direction:column;height:100vh;">
+        <div style="padding:10px;background:white;border-bottom:1px solid #eee;">@Address</div>
+        <div style="flex:1;overflow-y:auto;padding:8px;">
+            @foreach (var message in ViewModel.Messages)
+            {
+                <div style="text-align:@(message.IsOutgoing ? "right" : "left");margin:4px;">
+                    <div>@message.Body</div>
+                    <div style="font-size:0.75em;color:#94a3b8;">@message.StatusDisplay</div>
+                </div>
+            }
+        </div>
+        <div style="display:flex;padding:8px;">
+            <input style="flex:1;" placeholder="Text message" @bind="ViewModel.ComposeText" />
+            <button @onclick="() => ViewModel.SendCommand.ExecuteAsync(null)">Send</button>
+        </div>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "id")]
+    public long ThreadId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "address")]
+    public string Address { get; set; } = string.Empty;
+
+    private ThreadDetailViewModel? ViewModel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var smsService = Services.GetRequiredService<ISmsService>();
+        ViewModel = new ThreadDetailViewModel(smsService, ThreadId, Address);
+        await ViewModel.LoadCommand.ExecuteAsync(null);
+    }
+}

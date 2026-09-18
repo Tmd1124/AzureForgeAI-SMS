@@ -14,7 +14,7 @@
     {
         @foreach (var thread in ViewModel.Threads)
         {
-            <div @onclick="() => OpenThread(thread.Id)" style="padding:10px;border-bottom:1px solid #eee;">
+            <div @onclick="() => OpenThread(thread.Id, thread.Address)" style="padding:10px;border-bottom:1px solid #eee;">
                 <strong>@thread.DisplayNameOrAddress</strong>
                 @if (thread.UnreadCount > 0)
                 {
@@ -32,8 +32,8 @@
         await ViewModel.LoadCommand.ExecuteAsync(null);
     }
 
-    private void OpenThread(long threadId)
+    private void OpenThread(long threadId, string address)
     {
-        Nav.NavigateTo($"/conversations/thread?id={threadId}");
+        Nav.NavigateTo($"/conversations/thread?id={threadId}&address={Uri.EscapeDataString(address)}");
     }
 }

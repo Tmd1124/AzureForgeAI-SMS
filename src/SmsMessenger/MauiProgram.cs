@@ -24,6 +24,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IPermissionService, PermissionService>();
 		builder.Services.AddSingleton<IContactService, ContactService>();
 		builder.Services.AddSingleton<IThreadService, ThreadService>();
+		builder.Services.AddSingleton<ISmsService, SmsService>();
 		builder.Services.AddScoped<INavigationService, NavigationService>();
 		builder.Services.AddTransient<SplashViewModel>();
 		builder.Services.AddTransient<OnboardingViewModel>();

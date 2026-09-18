@@ -1,0 +1,9 @@
+using SmsMessenger.Core.Models;
+
+namespace SmsMessenger.Core.Services;
+
+public interface ISmsService
+{
+    Task<IReadOnlyList<SmsMessage>> GetMessagesAsync(long threadId);
+    Task SendAsync(string address, string body);
+}
