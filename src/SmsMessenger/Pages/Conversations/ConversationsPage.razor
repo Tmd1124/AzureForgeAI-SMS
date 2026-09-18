@@ -1,0 +1,39 @@
+@page "/conversations"
+@using Microsoft.AspNetCore.Components
+@inject SmsMessenger.Core.ViewModels.ConversationsViewModel ViewModel
+@inject NavigationManager Nav
+
+<div style="padding:12px;">
+    <input placeholder="Search contacts or numbers" @bind="ViewModel.SearchText" @bind:event="oninput" />
+
+    @if (ViewModel.Threads.Count == 0)
+    {
+        <p>No conversations yet.</p>
+    }
+    else
+    {
+        @foreach (var thread in ViewModel.Threads)
+        {
+            <div @onclick="() => OpenThread(thread.Id)" style="padding:10px;border-bottom:1px solid #eee;">
+                <strong>@thread.DisplayNameOrAddress</strong>
+                @if (thread.UnreadCount > 0)
+                {
+                    <span style="color:#06b6d4;"> ● @thread.UnreadCount</span>
+                }
+                <div style="color:#94a3b8;font-size:0.85em;">@thread.PreviewText</div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ViewModel.LoadCommand.ExecuteAsync(null);
+    }
+
+    private void OpenThread(long threadId)
+    {
+        Nav.NavigateTo($"/conversations/thread?id={threadId}");
+    }
+}
