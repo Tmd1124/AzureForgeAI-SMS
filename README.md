@@ -49,3 +49,27 @@ SMS Can & Can't Do") — SMS has no typing indicators, no cross-network read
 receipts, no reactions, no edit/delete, and no true shared group threads.
 These are not missing features to add later; they don't exist in the SMS
 protocol.
+
+## The menu (top-right icon on Conversations)
+
+Tapping the top-right icon on Conversations (your profile photo once you've
+set one, a gear icon until then) opens a menu with:
+
+- **Theme** — Light/Dark/System plus an accent color, applied instantly and
+  remembered across restarts.
+- **Your Profile** — a display name and photo, shown in the menu header and
+  as the Conversations top-right icon.
+- **Trash** — long-press a conversation in Conversations to trash it (the
+  underlying messages are never deleted from Android's SMS provider, only
+  hidden and recorded in a local SQLite table); restore it from here.
+- **Blocked** — long-press a conversation to block it, which both hides it
+  locally and registers the number with Android's `BlockedNumberContract`
+  so the OS stops delivering future texts from it; unblock from here.
+- **Mark as Read** — marks every conversation read in one action.
+- **Undo** — reverses the single most recent Trash, Block, or Mark as Read
+  action; press again to reverse the one before that. The undo stack is
+  in-memory only and resets when the app restarts.
+
+See `docs/superpowers/specs/2026-09-18-conversations-menu-design.md` and
+`docs/superpowers/plans/2026-09-18-conversations-menu.md` for the design and
+implementation plan this was built from.
