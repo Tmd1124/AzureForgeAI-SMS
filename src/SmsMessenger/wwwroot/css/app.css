@@ -86,3 +86,19 @@ h1:focus {
         padding-left: env(safe-area-inset-left);
     }
 }
+
+:root {
+    --accent-color: #25D366;
+    --surface-color: #ffffff;
+    --text-color: #111111;
+}
+
+body[data-theme="dark"] {
+    --surface-color: #121212;
+    --text-color: #f1f1f1;
+}
+
+body {
+    background-color: var(--surface-color);
+    color: var(--text-color);
+}

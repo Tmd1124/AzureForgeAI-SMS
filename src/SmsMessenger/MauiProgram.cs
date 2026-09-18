@@ -49,6 +49,9 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IMarkAsReadService, MarkAsReadService>();
 		builder.Services.AddTransient<MenuViewModel>();
 
+		builder.Services.AddSingleton<IThemeService, ThemeService>();
+		builder.Services.AddTransient<ThemeViewModel>();
+
 		builder.Services.AddTransient<SettingsViewModel>();
 		builder.Services.AddSingleton<PendingNavigationStore>();
 

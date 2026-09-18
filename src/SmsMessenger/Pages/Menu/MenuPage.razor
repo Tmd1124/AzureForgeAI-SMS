@@ -10,6 +10,9 @@
         <p style="color:#06b6d4;">@ViewModel.StatusMessage</p>
     }
 
+    <div @onclick="@(() => Nav.NavigateTo("/theme"))" style="padding:12px 0;border-bottom:1px solid #eee;">
+        🎨 Theme
+    </div>
     <div @onclick="@(() => Nav.NavigateTo("/trash"))" style="padding:12px 0;border-bottom:1px solid #eee;">
         🗑 Trash
     </div>

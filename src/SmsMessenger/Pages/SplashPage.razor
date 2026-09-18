@@ -1,15 +1,19 @@
 @page "/"
 @inject SmsMessenger.Core.ViewModels.SplashViewModel ViewModel
 @inject SmsMessenger.Core.Services.PendingNavigationStore PendingNav
+@inject SmsMessenger.Core.Services.IThemeService ThemeService
 @inject Microsoft.AspNetCore.Components.NavigationManager Nav
+@inject Microsoft.JSInterop.IJSRuntime JS
 
-<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#25D366;">
+<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:var(--accent-color);">
     <h1 style="color:white;">SMS Messenger</h1>
 </div>
 
 @code {
     protected override async Task OnInitializedAsync()
     {
+        await JS.InvokeVoidAsync("applyTheme", ThemeService.GetThemeMode().ToString(), ThemeService.GetAccentColor());
+
         var pendingRoute = PendingNav.ConsumePendingRoute();
         if (!string.IsNullOrEmpty(pendingRoute))
         {
