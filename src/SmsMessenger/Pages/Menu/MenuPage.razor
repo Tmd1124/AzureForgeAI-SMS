@@ -1,14 +1,26 @@
 @page "/menu"
+@inject SmsMessenger.Core.ViewModels.MenuViewModel ViewModel
 @inject Microsoft.AspNetCore.Components.NavigationManager Nav
 
 <div style="padding:12px;">
     <h3>Menu</h3>
+
+    @if (!string.IsNullOrEmpty(ViewModel.StatusMessage))
+    {
+        <p style="color:#06b6d4;">@ViewModel.StatusMessage</p>
+    }
 
     <div @onclick="@(() => Nav.NavigateTo("/trash"))" style="padding:12px 0;border-bottom:1px solid #eee;">
         🗑 Trash
     </div>
     <div @onclick="@(() => Nav.NavigateTo("/blocked"))" style="padding:12px 0;border-bottom:1px solid #eee;">
         🚫 Blocked
+    </div>
+    <div @onclick="() => ViewModel.MarkAllAsReadCommand.ExecuteAsync(null)" style="padding:12px 0;border-bottom:1px solid #eee;">
+        ✓ Mark as Read
+    </div>
+    <div @onclick="() => ViewModel.UndoCommand.ExecuteAsync(null)" style="padding:12px 0;border-bottom:1px solid #eee;">
+        ↩ Undo
     </div>
     <div @onclick="@(() => Nav.NavigateTo("/settings"))" style="padding:12px 0;border-bottom:1px solid #eee;">
         ⚙ Message Settings

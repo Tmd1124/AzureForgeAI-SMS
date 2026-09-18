@@ -46,6 +46,9 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IContactBlockService, ContactBlockService>();
 		builder.Services.AddTransient<BlockedViewModel>();
 
+		builder.Services.AddSingleton<IMarkAsReadService, MarkAsReadService>();
+		builder.Services.AddTransient<MenuViewModel>();
+
 		builder.Services.AddTransient<SettingsViewModel>();
 		builder.Services.AddSingleton<PendingNavigationStore>();
 
