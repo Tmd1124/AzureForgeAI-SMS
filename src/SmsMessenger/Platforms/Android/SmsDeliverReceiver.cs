@@ -2,6 +2,7 @@ using Android.App;
 using Android.Content;
 using Microsoft.Extensions.DependencyInjection;
 using SmsMessenger.Core.Services;
+using SmsMessenger.Core.Utils;
 using AndroidTelephony = global::Android.Provider.Telephony;
 using AndroidContentValues = global::Android.Content.ContentValues;
 
@@ -27,6 +28,14 @@ public class SmsDeliverReceiver : BroadcastReceiver
         var address = messages[0]!.OriginatingAddress ?? string.Empty;
         var body = string.Concat(messages.Select(m => m!.MessageBody));
 
+        var services = MauiApplication.Current.Services;
+        var blockService = services.GetRequiredService<IContactBlockService>();
+        var normalizedAddress = PhoneNumberFormatter.ToComparableDigits(address);
+        if (blockService.IsBlockedAsync(normalizedAddress).GetAwaiter().GetResult())
+        {
+            return;
+        }
+
         var values = new AndroidContentValues();
         values.Put("address", address);
         values.Put("body", body);
@@ -44,7 +53,6 @@ public class SmsDeliverReceiver : BroadcastReceiver
             }
         }
 
-        var services = MauiApplication.Current.Services;
         var contactService = services.GetRequiredService<IContactService>();
         var contact = contactService.LookupAsync(address).GetAwaiter().GetResult();
 

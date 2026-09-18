@@ -22,6 +22,12 @@ public partial class MenuViewModel : ObservableObject
     private async Task MarkAllAsRead()
     {
         var threadIds = await _markAsReadService.MarkAllAsReadAsync();
+        if (threadIds.Count == 0)
+        {
+            StatusMessage = "Nothing to mark as read";
+            return;
+        }
+
         _undoStack.Push(new MarkAsReadUndoAction(threadIds, _markAsReadService));
         StatusMessage = $"Marked {threadIds.Count} conversation(s) as read";
     }

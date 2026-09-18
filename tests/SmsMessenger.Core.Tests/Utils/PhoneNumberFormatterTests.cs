@@ -20,4 +20,14 @@ public class PhoneNumberFormatterTests
     {
         Assert.Equal(raw, PhoneNumberFormatter.ToDisplayFormat(raw));
     }
+
+    [Theory]
+    [InlineData("5550142231", "5550142231")]
+    [InlineData("+15550142231", "5550142231")]
+    [InlineData("15550142231", "5550142231")]
+    [InlineData("(555) 014-2231", "5550142231")]
+    public void ToComparableDigits_normalizes_equivalent_numbers_to_the_same_key(string raw, string expected)
+    {
+        Assert.Equal(expected, PhoneNumberFormatter.ToComparableDigits(raw));
+    }
 }

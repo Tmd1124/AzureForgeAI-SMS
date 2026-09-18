@@ -6,10 +6,9 @@
 
 <div style="padding:12px;">
     <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-        @{ var profile = ProfileService.GetProfile(); }
-        @if (!string.IsNullOrEmpty(profile.PhotoPath))
+        @if (!string.IsNullOrEmpty(_photoDataUri))
         {
-            <img @onclick="@(() => Nav.NavigateTo("/menu"))" src="@($"file://{profile.PhotoPath}")"
+            <img @onclick="@(() => Nav.NavigateTo("/menu"))" src="@_photoDataUri"
                  style="width:40px;height:40px;border-radius:50%;object-fit:cover;" />
         }
         else
@@ -54,7 +53,7 @@
 @if (_actionSheetThreadId is not null)
 {
     <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;" @onclick="CloseActionSheet">
-        <div style="background:white;width:100%;padding:12px;" @onclick:stopPropagation="true">
+        <div style="background:var(--card-color);width:100%;padding:12px;" @onclick:stopPropagation="true">
             <div @onclick="TrashSelectedThread" style="padding:12px;">🗑 Trash</div>
             <div @onclick="BlockSelectedThread" style="padding:12px;">🚫 Block</div>
         </div>
@@ -66,9 +65,11 @@
     private string _actionSheetAddress = string.Empty;
     private CancellationTokenSource? _longPressCts;
     private bool _longPressTriggered;
+    private string? _photoDataUri;
 
     protected override async Task OnInitializedAsync()
     {
+        _photoDataUri = await ProfileService.GetProfilePhotoDataUriAsync();
         await ViewModel.LoadCommand.ExecuteAsync(null);
     }
 

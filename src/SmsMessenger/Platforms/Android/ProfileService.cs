@@ -1,5 +1,6 @@
 using SmsMessenger.Core.Models;
 using SmsMessenger.Core.Services;
+using SmsMessenger.Core.Utils;
 
 namespace SmsMessenger.Platforms.Android;
 
@@ -42,4 +43,6 @@ public class ProfileService : IProfileService
 
         return destinationPath;
     }
+
+    public Task<string?> GetProfilePhotoDataUriAsync() => ImageDataUriHelper.ToDataUriAsync(GetProfile().PhotoPath);
 }

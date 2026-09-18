@@ -16,6 +16,12 @@ public static partial class PhoneNumberFormatter
         };
     }
 
+    public static string ToComparableDigits(string raw)
+    {
+        var digits = DigitsOnlyRegex().Replace(raw, "");
+        return digits.Length == 11 && digits[0] == '1' ? digits[1..] : digits;
+    }
+
     [GeneratedRegex(@"[^\d]")]
     private static partial Regex DigitsOnlyRegex();
 }

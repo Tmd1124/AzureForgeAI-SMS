@@ -62,9 +62,11 @@ set one, a gear icon until then) opens a menu with:
 - **Trash** — long-press a conversation in Conversations to trash it (the
   underlying messages are never deleted from Android's SMS provider, only
   hidden and recorded in a local SQLite table); restore it from here.
-- **Blocked** — long-press a conversation to block it, which both hides it
-  locally and registers the number with Android's `BlockedNumberContract`
-  so the OS stops delivering future texts from it; unblock from here.
+- **Blocked** — long-press a conversation to block it, which hides it
+  locally right away and, on a best-effort basis, registers the number with
+  Android's `BlockedNumberContract` so the OS also stops delivering future
+  texts from it; if that OS-level registration fails for any reason, the
+  app still falls back to its own local filtering. Unblock from here.
 - **Mark as Read** — marks every conversation read in one action.
 - **Undo** — reverses the single most recent Trash, Block, or Mark as Read
   action; press again to reverse the one before that. The undo stack is

@@ -6,10 +6,10 @@
 <div style="padding:12px;">
     @{ var profile = ProfileService.GetProfile(); }
     <div @onclick="@(() => Nav.NavigateTo("/profile"))"
-         style="display:flex;align-items:center;gap:12px;padding:12px;background:#f8fafc;border-radius:12px;margin-bottom:12px;">
-        @if (!string.IsNullOrEmpty(profile.PhotoPath))
+         style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--card-color);border-radius:12px;margin-bottom:12px;">
+        @if (!string.IsNullOrEmpty(_photoDataUri))
         {
-            <img src="@($"file://{profile.PhotoPath}")" style="width:56px;height:56px;border-radius:50%;object-fit:cover;" />
+            <img src="@_photoDataUri" style="width:56px;height:56px;border-radius:50%;object-fit:cover;" />
         }
         else
         {
@@ -45,3 +45,12 @@
         ⚙ Message Settings
     </div>
 </div>
+
+@code {
+    private string? _photoDataUri;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _photoDataUri = await ProfileService.GetProfilePhotoDataUriAsync();
+    }
+}

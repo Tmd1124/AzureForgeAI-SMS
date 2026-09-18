@@ -87,7 +87,7 @@ public class ConversationsViewModelTests
     }
 
     [Fact]
-    public async Task TrashThreadCommand_trashes_the_thread_pushes_an_undo_action_and_removes_it_from_Threads()
+    public async Task TrashThreadCommand_trashes_the_thread_and_pushes_an_undo_action()
     {
         var threadService = new Mock<IThreadService>();
         threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>

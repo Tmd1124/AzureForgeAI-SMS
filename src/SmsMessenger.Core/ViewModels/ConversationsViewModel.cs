@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using SmsMessenger.Core.Data;
 using SmsMessenger.Core.Models;
 using SmsMessenger.Core.Services;
+using SmsMessenger.Core.Utils;
 
 namespace SmsMessenger.Core.ViewModels;
 
@@ -56,8 +57,9 @@ public partial class ConversationsViewModel : ObservableObject
     [RelayCommand]
     private async Task BlockThread(string address)
     {
-        await _blockService.BlockAsync(address);
-        _undoStack.Push(new BlockUndoAction(address, _blockService));
+        var normalizedAddress = PhoneNumberFormatter.ToComparableDigits(address);
+        await _blockService.BlockAsync(normalizedAddress);
+        _undoStack.Push(new BlockUndoAction(normalizedAddress, _blockService));
         await Load();
     }
 

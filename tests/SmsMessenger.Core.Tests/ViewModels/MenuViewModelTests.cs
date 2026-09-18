@@ -21,6 +21,20 @@ public class MenuViewModelTests
     }
 
     [Fact]
+    public async Task MarkAllAsReadCommand_does_not_push_an_undo_action_when_nothing_was_unread()
+    {
+        var markAsRead = new Mock<IMarkAsReadService>();
+        markAsRead.Setup(s => s.MarkAllAsReadAsync()).ReturnsAsync(new List<long>());
+        var undoStack = new Mock<IUndoStack>();
+        var viewModel = new MenuViewModel(markAsRead.Object, undoStack.Object);
+
+        await viewModel.MarkAllAsReadCommand.ExecuteAsync(null);
+
+        undoStack.Verify(s => s.Push(It.IsAny<IUndoableAction>()), Times.Never);
+        Assert.Equal("Nothing to mark as read", viewModel.StatusMessage);
+    }
+
+    [Fact]
     public async Task UndoCommand_reports_what_was_undone()
     {
         var markAsRead = new Mock<IMarkAsReadService>();
