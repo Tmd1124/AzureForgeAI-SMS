@@ -12,10 +12,17 @@ public class ComposeSmsActivity : Activity
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
-        // Task 10 replaces this body with: extract the recipient address
-        // (Intent.Data, "smsto:<number>") and any prefilled body
-        // (Intent.GetStringExtra(Intent.ExtraText)), then hand off to
-        // MainActivity's Compose page with those values pre-populated.
+
+        var address = Intent?.Data?.SchemeSpecificPart;
+        // ACTION_SEND's body text isn't carried through "initial_route" yet — no code reads it back out on
+        // the MainActivity/NavigationManager side, so only the recipient survives this hand-off for now.
+        _ = Intent?.GetStringExtra(Intent.ExtraText);
+
+        var route = $"/compose?add={Uri.EscapeDataString(address ?? string.Empty)}";
+        var mainIntent = new Intent(this, typeof(MainActivity));
+        mainIntent.PutExtra("initial_route", route);
+        mainIntent.AddFlags(ActivityFlags.NewTask);
+        StartActivity(mainIntent);
         Finish();
     }
 }

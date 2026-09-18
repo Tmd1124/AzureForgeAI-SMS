@@ -717,7 +717,7 @@ public class SplashViewModelTests
         var viewModel = new SplashViewModel(roleService.Object, nav.Object);
         await viewModel.InitializeAsync();
 
-        nav.Verify(n => n.NavigateToAsync("//conversations"), Times.Once);
+        nav.Verify(n => n.NavigateToAsync("/conversations"), Times.Once);
     }
 
     [Fact]
@@ -730,7 +730,7 @@ public class SplashViewModelTests
         var viewModel = new SplashViewModel(roleService.Object, nav.Object);
         await viewModel.InitializeAsync();
 
-        nav.Verify(n => n.NavigateToAsync("//onboarding"), Times.Once);
+        nav.Verify(n => n.NavigateToAsync("/onboarding"), Times.Once);
     }
 }
 ```
@@ -765,7 +765,7 @@ public class SplashViewModel
 
     public async Task InitializeAsync()
     {
-        var route = _roleService.IsDefaultSmsApp() ? "//conversations" : "//onboarding";
+        var route = _roleService.IsDefaultSmsApp() ? "/conversations" : "/onboarding";
         await _navigation.NavigateToAsync(route);
     }
 }
@@ -990,7 +990,7 @@ public class OnboardingViewModelTests
         await viewModel.RequestPermissionsCommand.ExecuteAsync(null);
         await viewModel.ContinueCommand.ExecuteAsync(null);
 
-        nav.Verify(n => n.NavigateToAsync("//conversations"), Times.Once);
+        nav.Verify(n => n.NavigateToAsync("/conversations"), Times.Once);
     }
 }
 ```
@@ -1055,7 +1055,7 @@ public partial class OnboardingViewModel : ObservableObject
     {
         if (CanContinue)
         {
-            await _navigation.NavigateToAsync("//conversations");
+            await _navigation.NavigateToAsync("/conversations");
         }
     }
 }
@@ -1694,20 +1694,22 @@ builder.Services.AddTransient<ConversationsViewModel>();
 - [ ] **Step 8: Build to verify it compiles**
 
 ```bash
-dotnet build SmsMessenger.sln -f net9.0-android
+dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
 
-- [ ] **Step 9: Manual verification on the emulator**
+- [ ] **Step 9: Manual verification on the physical device**
 
-Using the emulator console (connect via `telnet localhost <console-port>`, found with `adb devices`), simulate an incoming text from the "Alice Smith" number seeded in Task 7:
+There is no emulator on this machine (see Task 1), so there's no console `sms send` trick available — but the physical device is the user's own real phone, which already has real SMS history from normal use. Deploy and open the Conversations screen; confirm real threads appear with correctly resolved contact names (not raw numbers, for any sender already in Contacts — including "Alice Smith" from Task 7 if you've texted that number), message previews, and timestamps.
 
+If the device genuinely has no existing SMS history to check against (e.g. a fresh/reset device), seed one test row directly instead:
+
+```bash
+adb shell content insert --uri content://sms/inbox --bind address:s:5550148890 --bind body:s:"Hey! Are we still on for tomorrow?" --bind date:l:$(($(date +%s%N)/1000000)) --bind read:i:0
 ```
-sms send 5550148890 Hey! Are we still on for tomorrow?
-```
 
-Relaunch/foreground the app and open the Conversations screen. Confirm the thread shows **"Alice Smith"** (not the raw number), the message preview, and an unread indicator.
+Relaunch/foreground the app and open the Conversations screen. Confirm the thread shows **"Alice Smith"** (not the raw number), the message preview, and an unread indicator. (If `content insert` is denied by the device's permission model, that's fine — fall back to verifying against real existing history instead; this task's read path doesn't care which data it's reading.)
 
 - [ ] **Step 10: Commit**
 
@@ -2132,19 +2134,23 @@ private void OpenThread(long threadId, string address)
 - [ ] **Step 9: Build to verify it compiles**
 
 ```bash
-dotnet build SmsMessenger.sln -f net9.0-android
+dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
 
 - [ ] **Step 10: Manual verification — real send/receive round trip**
 
-With `sms_test` still running and set as default SMS app (Tasks 4/6):
+There is no emulator on this machine, and the fake `555`-prefixed numbers used elsewhere in this plan (e.g. "Alice Smith" at `5550148890`) only work with an emulator's simulated telephony stack (its console `sms send` command injects directly into the virtual modem) — they are not real, routable numbers and will not deliver over the physical device's actual SIM/carrier. On a real device, this task's send/receive path needs a real, reachable phone number.
 
-1. Open the "Alice Smith" thread (or start a new one to `5550148890`) and send "Yes! 10am works for me". Confirm the message appears immediately with **"✓ Sent"**, and within a few seconds updates to **"✓✓ Delivered"** (watch logcat for the `DeliveryStatusReceiver` debug line to confirm the callback fired: `adb logcat | grep SmsMessenger`).
-2. From the emulator console, simulate a reply: `sms send 5550148890 Perfect, see you then`.
-3. Return to the Conversations list, confirm the thread's preview and unread badge updated, then open it and confirm the new inbound message appears with no status text (incoming messages never show Sent/Delivered).
-4. Type a message over 160 characters and send it; confirm it arrives as one continuous message in the thread (multi-part reassembly), not multiple separate bubbles.
+First, try texting the device's own number from itself (self-SMS) — many carriers allow this and it round-trips through the real network, exercising both the send path (Sent → Delivered) and the receive path (`SmsDeliverReceiver` firing on a genuinely delivered message) in one test, entirely on this one device:
+
+1. Find the device's own number (`Settings → About phone → Status → SIM status`, or ask the user).
+2. Set the app as the default SMS app if it isn't already (Task 6's onboarding flow, or `RoleManager`/Settings directly).
+3. Open a thread to the device's own number (or start one) and send "Yes! 10am works for me". Confirm the message appears immediately with **"✓ Sent"**, and — if self-SMS is supported by this carrier — updates to **"✓✓ Delivered"** and a second copy arrives as an inbound message (watch `adb logcat | grep SmsMessenger` for the `DeliveryStatusReceiver` and `SmsDeliverReceiver` debug lines firing).
+4. If the carrier does not support self-SMS (delivery never happens, no inbound copy arrives), ask the user for a real second number to test with — their own second phone, another device they have access to, or a family member/friend willing to receive one test text — and repeat the send from this device to that number, and have that number text back a reply to test the receive path. This is a real, user-involving step; don't fabricate delivery evidence if the round trip can't be completed. Report NEEDS_CONTEXT and ask if no second number is available and self-SMS doesn't work — this task's manual verification genuinely can't be completed without SOME way to send and receive one real text.
+5. Type a message over 160 characters and send it; confirm it arrives as one continuous message in the thread (multi-part reassembly), not multiple separate bubbles.
+6. Confirm the received message (from step 3 or 4) shows no status text (incoming messages never show Sent/Delivered), and that the Conversations list's preview/unread badge updated for it.
 
 - [ ] **Step 11: Commit**
 
@@ -2495,15 +2501,17 @@ protected override void OnHandleIntent(Intent? intent)
 - [ ] **Step 9: Build to verify it compiles**
 
 ```bash
-dotnet build SmsMessenger.sln -f net9.0-android
+dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
 
-- [ ] **Step 10: Manual verification on the emulator**
+- [ ] **Step 10: Manual verification on the physical device**
 
-1. From Conversations, tap the FAB → Compose. Add two recipients (the seeded Alice Smith number and a second made-up number, e.g. `5559990001`) by typing and via "Pick from contacts." Confirm the "sending to N people individually" warning appears.
-2. Send a message; confirm `SendAsync` fires once per recipient (check `adb logcat` or step through in the debugger) and both recipients receive independent 1:1 texts (verify via the emulator's stock Messages app for the second number, since it's not a real contact thread in this app).
+There is no emulator on this machine and fake `555`-prefixed numbers don't route over a real carrier (see Task 9's Step 10). Use two real, reachable numbers for this test — e.g. the device's own number (if self-SMS works, per Task 9's finding) plus whatever second number was used there, or two numbers the user provides:
+
+1. From Conversations, tap the FAB → Compose. Add both real recipients by typing and via "Pick from contacts." Confirm the "sending to N people individually" warning appears.
+2. Send a message; confirm `SendAsync` fires once per recipient (check `adb logcat` or step through in the debugger) and both recipients receive independent 1:1 texts (verify by checking each recipient device/number's own messaging app — they should NOT see each other or a shared thread, since that's the whole point of "individual group texting").
 3. From another Android app (e.g. Contacts), long-press a number and choose "Send SMS" if offered; confirm it hands off into this app's Compose screen with the number prefilled.
 
 - [ ] **Step 11: Commit**
@@ -2725,14 +2733,14 @@ builder.Services.AddTransient<SettingsViewModel>();
 - [ ] **Step 9: Build to verify it compiles**
 
 ```bash
-dotnet build SmsMessenger.sln -f net9.0-android
+dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
 
-- [ ] **Step 10: Manual verification on the emulator**
+- [ ] **Step 10: Manual verification on the physical device**
 
-Background the app (press Home), then from the emulator console: `sms send 5550148890 Testing notifications`. Confirm a system notification appears showing the sender and message text. Tap it and confirm the app opens. Open Settings and confirm "Default SMS app: Yes ✓" is shown.
+Background the app (press Home), then have a real text sent to the device — self-SMS if the carrier supports it (per Task 9's Step 10 finding), or from whatever second number was used there. Confirm a system notification appears showing the sender and message text. Tap it and confirm the app opens. Open Settings and confirm "Default SMS app: Yes ✓" is shown.
 
 - [ ] **Step 11: Commit**
 

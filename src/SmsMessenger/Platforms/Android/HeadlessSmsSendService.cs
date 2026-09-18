@@ -1,6 +1,8 @@
 using Android.App;
 using Android.Content;
 using Android.OS;
+using Microsoft.Extensions.DependencyInjection;
+using SmsMessenger.Core.Services;
 
 namespace SmsMessenger.Platforms.Android;
 
@@ -12,9 +14,13 @@ public class HeadlessSmsSendService : IntentService
 
     protected override void OnHandleIntent(Intent? intent)
     {
-        // Task 10 replaces this body with: extract the recipient + reply
-        // text from the intent and send it via ISmsService, without
-        // opening any UI.
-        global::Android.Util.Log.Debug("SmsMessenger", "RESPOND_VIA_MESSAGE received (stub — Task 10 implements this)");
+        var address = intent?.Data?.SchemeSpecificPart;
+        var body = intent?.GetStringExtra("android.intent.extra.TEXT");
+
+        if (!string.IsNullOrEmpty(address) && !string.IsNullOrEmpty(body))
+        {
+            var smsService = MauiApplication.Current.Services.GetRequiredService<ISmsService>();
+            smsService.SendAsync(address, body).GetAwaiter().GetResult();
+        }
     }
 }

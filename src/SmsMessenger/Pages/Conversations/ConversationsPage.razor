@@ -24,6 +24,11 @@
             </div>
         }
     }
+
+    <button @onclick="@(() => Nav.NavigateTo("/compose"))"
+            style="position:fixed;right:24px;bottom:24px;width:56px;height:56px;border-radius:50%;background:#25D366;color:white;font-size:1.5em;border:none;">
+        +
+    </button>
 </div>
 
 @code {

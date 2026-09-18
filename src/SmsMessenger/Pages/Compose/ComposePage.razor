@@ -1,0 +1,49 @@
+@page "/compose"
+@inject SmsMessenger.Core.ViewModels.ComposeViewModel ViewModel
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+
+<div style="padding:12px;">
+    <h3>New Message</h3>
+
+    @foreach (var recipient in ViewModel.Recipients)
+    {
+        <span style="background:#e2e8f0;border-radius:12px;padding:4px 10px;margin:2px;display:inline-block;">
+            @recipient <a @onclick="() => ViewModel.RemoveRecipientCommand.Execute(recipient)">✕</a>
+        </span>
+    }
+
+    @if (ViewModel.IsGroupSend)
+    {
+        <p style="color:#92400e;">Sending to @ViewModel.Recipients.Count people individually — they won't see each other or each other's replies.</p>
+    }
+
+    <input placeholder="Add a phone number" @onkeyup="OnRecipientKeyUp" @bind="_newRecipient" />
+    <button @onclick="@(() => Nav.NavigateTo("/compose/pick-contact"))">Pick from contacts</button>
+
+    <textarea placeholder="Text message" @bind="ViewModel.MessageBody"></textarea>
+    <button @onclick="() => ViewModel.SendCommand.ExecuteAsync(null)">Send</button>
+</div>
+
+@code {
+    private string _newRecipient = string.Empty;
+
+    [SupplyParameterFromQuery(Name = "add")]
+    public string? AddParam { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrEmpty(AddParam))
+        {
+            ViewModel.AddRecipientCommand.Execute(AddParam);
+        }
+    }
+
+    private void OnRecipientKeyUp(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_newRecipient))
+        {
+            ViewModel.AddRecipientCommand.Execute(_newRecipient);
+            _newRecipient = string.Empty;
+        }
+    }
+}

@@ -29,6 +29,8 @@ public static class MauiProgram
 		builder.Services.AddTransient<SplashViewModel>();
 		builder.Services.AddTransient<OnboardingViewModel>();
 		builder.Services.AddTransient<ConversationsViewModel>();
+		builder.Services.AddTransient<ComposeViewModel>();
+		builder.Services.AddTransient<ContactPickerViewModel>();
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

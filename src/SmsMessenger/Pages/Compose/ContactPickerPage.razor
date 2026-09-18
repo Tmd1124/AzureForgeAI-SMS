@@ -1,0 +1,24 @@
+@page "/compose/pick-contact"
+@inject SmsMessenger.Core.ViewModels.ContactPickerViewModel ViewModel
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+
+<div style="padding:12px;">
+    @foreach (var contact in ViewModel.Contacts)
+    {
+        <div @onclick="() => Select(contact.PhoneNumber)" style="padding:8px;border-bottom:1px solid #eee;">
+            @contact.DisplayName — @contact.PhoneNumber
+        </div>
+    }
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ViewModel.LoadCommand.ExecuteAsync(null);
+    }
+
+    private void Select(string phoneNumber)
+    {
+        Nav.NavigateTo($"/compose?add={Uri.EscapeDataString(phoneNumber)}");
+    }
+}
