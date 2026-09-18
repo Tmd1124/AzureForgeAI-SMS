@@ -1,5 +1,7 @@
 @page "/"
 @inject SmsMessenger.Core.ViewModels.SplashViewModel ViewModel
+@inject SmsMessenger.Core.Services.PendingNavigationStore PendingNav
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
 
 <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#25D366;">
     <h1 style="color:white;">SMS Messenger</h1>
@@ -8,6 +10,13 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
+        var pendingRoute = PendingNav.ConsumePendingRoute();
+        if (!string.IsNullOrEmpty(pendingRoute))
+        {
+            Nav.NavigateTo(pendingRoute);
+            return;
+        }
+
         await ViewModel.InitializeAsync();
     }
 }
