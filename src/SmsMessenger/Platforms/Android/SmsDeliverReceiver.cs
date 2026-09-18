@@ -1,5 +1,7 @@
 using Android.App;
 using Android.Content;
+using Microsoft.Extensions.DependencyInjection;
+using SmsMessenger.Core.Services;
 using AndroidTelephony = global::Android.Provider.Telephony;
 using AndroidContentValues = global::Android.Content.ContentValues;
 
@@ -30,9 +32,23 @@ public class SmsDeliverReceiver : BroadcastReceiver
         values.Put("body", body);
         values.Put("date", Java.Lang.JavaSystem.CurrentTimeMillis());
         values.Put("read", 0);
-        context.ContentResolver!.Insert(AndroidTelephony.Sms.Inbox.ContentUri!, values);
+        var insertedUri = context.ContentResolver!.Insert(AndroidTelephony.Sms.Inbox.ContentUri!, values);
 
-        // Task 11 hooks INotificationService in here to raise a local
-        // notification when the app isn't in the foreground.
+        var threadId = 0L;
+        if (insertedUri is not null)
+        {
+            using var threadCursor = context.ContentResolver!.Query(insertedUri, new[] { "thread_id" }, null, null, null);
+            if (threadCursor is not null && threadCursor.MoveToFirst())
+            {
+                threadId = threadCursor.GetLong(threadCursor.GetColumnIndexOrThrow("thread_id"));
+            }
+        }
+
+        var services = MauiApplication.Current.Services;
+        var contactService = services.GetRequiredService<IContactService>();
+        var contact = contactService.LookupAsync(address).GetAwaiter().GetResult();
+
+        var notificationService = services.GetRequiredService<INotificationService>();
+        notificationService.NotifyIncomingMessage(contact?.DisplayName ?? address, body, threadId, address);
     }
 }
