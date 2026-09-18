@@ -21,7 +21,10 @@
     {
         @foreach (var thread in ViewModel.Threads)
         {
-            <div @onclick="() => OpenThread(thread.Id, thread.Address)" style="padding:10px;border-bottom:1px solid #eee;">
+            <div @onpointerdown="() => OnPointerDown(thread.Id, thread.Address)"
+                 @onpointerup="() => OnPointerUp(thread.Id, thread.Address)"
+                 @onpointerleave="CancelLongPress"
+                 style="padding:10px;border-bottom:1px solid #eee;">
                 <strong>@thread.DisplayNameOrAddress</strong>
                 @if (thread.UnreadCount > 0)
                 {
@@ -38,7 +41,21 @@
     </button>
 </div>
 
+@if (_actionSheetThreadId is not null)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;" @onclick="CloseActionSheet">
+        <div style="background:white;width:100%;padding:12px;" @onclick:stopPropagation="true">
+            <div @onclick="TrashSelectedThread" style="padding:12px;">🗑 Trash</div>
+        </div>
+    </div>
+}
+
 @code {
+    private long? _actionSheetThreadId;
+    private string _actionSheetAddress = string.Empty;
+    private CancellationTokenSource? _longPressCts;
+    private bool _longPressTriggered;
+
     protected override async Task OnInitializedAsync()
     {
         await ViewModel.LoadCommand.ExecuteAsync(null);
@@ -47,5 +64,52 @@
     private void OpenThread(long threadId, string address)
     {
         Nav.NavigateTo($"/conversations/thread?id={threadId}&address={Uri.EscapeDataString(address)}");
+    }
+
+    private void OnPointerDown(long threadId, string address)
+    {
+        _longPressTriggered = false;
+        _longPressCts = new CancellationTokenSource();
+        var token = _longPressCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(500, token);
+                _longPressTriggered = true;
+                await InvokeAsync(() =>
+                {
+                    _actionSheetThreadId = threadId;
+                    _actionSheetAddress = address;
+                    StateHasChanged();
+                });
+            }
+            catch (TaskCanceledException)
+            {
+                // pointer released or left before the long-press threshold — a normal tap, not a long-press
+            }
+        });
+    }
+
+    private void CancelLongPress() => _longPressCts?.Cancel();
+
+    private void OnPointerUp(long threadId, string address)
+    {
+        _longPressCts?.Cancel();
+        if (!_longPressTriggered)
+        {
+            OpenThread(threadId, address);
+        }
+    }
+
+    private void CloseActionSheet() => _actionSheetThreadId = null;
+
+    private async Task TrashSelectedThread()
+    {
+        if (_actionSheetThreadId is long id)
+        {
+            await ViewModel.TrashThreadCommand.ExecuteAsync(id);
+        }
+        CloseActionSheet();
     }
 }

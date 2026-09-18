@@ -1,4 +1,5 @@
 using Moq;
+using SmsMessenger.Core.Data;
 using SmsMessenger.Core.Models;
 using SmsMessenger.Core.Services;
 using SmsMessenger.Core.ViewModels;
@@ -17,6 +18,13 @@ public class ConversationsViewModelTests
         UnreadCount = 0
     };
 
+    private static Mock<ITrashRepository> MakeEmptyTrashRepository()
+    {
+        var repository = new Mock<ITrashRepository>();
+        repository.Setup(r => r.GetTrashedThreadIdsAsync()).ReturnsAsync(new List<long>());
+        return repository;
+    }
+
     [Fact]
     public async Task LoadCommand_populates_Threads_from_the_service()
     {
@@ -26,11 +34,49 @@ public class ConversationsViewModelTests
             MakeThread(1, "5550142231", "Alice Smith", "hi"),
             MakeThread(2, "5550148890", null, "hey there")
         });
-        var viewModel = new ConversationsViewModel(threadService.Object);
+        var viewModel = new ConversationsViewModel(threadService.Object, MakeEmptyTrashRepository().Object, new Mock<IUndoStack>().Object);
 
         await viewModel.LoadCommand.ExecuteAsync(null);
 
         Assert.Equal(2, viewModel.Threads.Count);
+    }
+
+    [Fact]
+    public async Task LoadCommand_excludes_trashed_threads()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi"),
+            MakeThread(2, "5550148890", null, "hey there")
+        });
+        var trashRepository = new Mock<ITrashRepository>();
+        trashRepository.Setup(r => r.GetTrashedThreadIdsAsync()).ReturnsAsync(new List<long> { 2 });
+        var viewModel = new ConversationsViewModel(threadService.Object, trashRepository.Object, new Mock<IUndoStack>().Object);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Single(viewModel.Threads);
+        Assert.Equal(1, viewModel.Threads[0].Id);
+    }
+
+    [Fact]
+    public async Task TrashThreadCommand_trashes_the_thread_pushes_an_undo_action_and_removes_it_from_Threads()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi")
+        });
+        var trashRepository = MakeEmptyTrashRepository();
+        var undoStack = new Mock<IUndoStack>();
+        var viewModel = new ConversationsViewModel(threadService.Object, trashRepository.Object, undoStack.Object);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.TrashThreadCommand.ExecuteAsync(1L);
+
+        trashRepository.Verify(r => r.TrashThreadAsync(1), Times.Once);
+        undoStack.Verify(s => s.Push(It.IsAny<IUndoableAction>()), Times.Once);
     }
 
     [Fact]
@@ -42,7 +88,7 @@ public class ConversationsViewModelTests
             MakeThread(1, "5550142231", "Alice Smith", "hi"),
             MakeThread(2, "5550148890", "Bob Jones", "hey there")
         });
-        var viewModel = new ConversationsViewModel(threadService.Object);
+        var viewModel = new ConversationsViewModel(threadService.Object, MakeEmptyTrashRepository().Object, new Mock<IUndoStack>().Object);
         await viewModel.LoadCommand.ExecuteAsync(null);
 
         viewModel.SearchText = "alice";
@@ -60,7 +106,7 @@ public class ConversationsViewModelTests
             MakeThread(1, "5550142231", "Alice Smith", "hi"),
             MakeThread(2, "5550148890", null, "hey there")
         });
-        var viewModel = new ConversationsViewModel(threadService.Object);
+        var viewModel = new ConversationsViewModel(threadService.Object, MakeEmptyTrashRepository().Object, new Mock<IUndoStack>().Object);
         await viewModel.LoadCommand.ExecuteAsync(null);
 
         viewModel.SearchText = "8890";
@@ -78,7 +124,7 @@ public class ConversationsViewModelTests
             MakeThread(1, "5550142231", "Alice Smith", "let's go to the gym"),
             MakeThread(2, "5550148890", "Bob Jones", "see you tomorrow")
         });
-        var viewModel = new ConversationsViewModel(threadService.Object);
+        var viewModel = new ConversationsViewModel(threadService.Object, MakeEmptyTrashRepository().Object, new Mock<IUndoStack>().Object);
         await viewModel.LoadCommand.ExecuteAsync(null);
 
         viewModel.SearchText = "gym";

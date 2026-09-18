@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using SmsMessenger.Core.Data;
 using SmsMessenger.Core.Services;
 using SmsMessenger.Core.ViewModels;
 using SmsMessenger.Platforms.Android;
@@ -32,6 +33,13 @@ public static class MauiProgram
 		builder.Services.AddTransient<ComposeViewModel>();
 		builder.Services.AddTransient<ContactPickerViewModel>();
 		builder.Services.AddSingleton<INotificationService, NotificationService>();
+
+		var trashRepository = new TrashRepository(Path.Combine(FileSystem.AppDataDirectory, "SmsMessenger.db"));
+		trashRepository.InitializeAsync().GetAwaiter().GetResult();
+		builder.Services.AddSingleton<ITrashRepository>(trashRepository);
+		builder.Services.AddSingleton<IUndoStack, UndoStack>();
+		builder.Services.AddTransient<TrashViewModel>();
+
 		builder.Services.AddTransient<SettingsViewModel>();
 		builder.Services.AddSingleton<PendingNavigationStore>();
 
