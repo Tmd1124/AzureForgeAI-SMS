@@ -46,6 +46,7 @@
     <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;" @onclick="CloseActionSheet">
         <div style="background:white;width:100%;padding:12px;" @onclick:stopPropagation="true">
             <div @onclick="TrashSelectedThread" style="padding:12px;">🗑 Trash</div>
+            <div @onclick="BlockSelectedThread" style="padding:12px;">🚫 Block</div>
         </div>
     </div>
 }
@@ -109,6 +110,15 @@
         if (_actionSheetThreadId is long id)
         {
             await ViewModel.TrashThreadCommand.ExecuteAsync(id);
+        }
+        CloseActionSheet();
+    }
+
+    private async Task BlockSelectedThread()
+    {
+        if (_actionSheetThreadId is not null)
+        {
+            await ViewModel.BlockThreadCommand.ExecuteAsync(_actionSheetAddress);
         }
         CloseActionSheet();
     }

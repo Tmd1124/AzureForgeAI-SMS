@@ -40,6 +40,12 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IUndoStack, UndoStack>();
 		builder.Services.AddTransient<TrashViewModel>();
 
+		var blockedNumberRepository = new BlockedNumberRepository(Path.Combine(FileSystem.AppDataDirectory, "SmsMessenger.db"));
+		blockedNumberRepository.InitializeAsync().GetAwaiter().GetResult();
+		builder.Services.AddSingleton<IBlockedNumberRepository>(blockedNumberRepository);
+		builder.Services.AddSingleton<IContactBlockService, ContactBlockService>();
+		builder.Services.AddTransient<BlockedViewModel>();
+
 		builder.Services.AddTransient<SettingsViewModel>();
 		builder.Services.AddSingleton<PendingNavigationStore>();
 
