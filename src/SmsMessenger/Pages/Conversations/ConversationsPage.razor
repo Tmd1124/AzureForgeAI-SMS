@@ -1,14 +1,24 @@
 @page "/conversations"
 @using Microsoft.AspNetCore.Components
 @inject SmsMessenger.Core.ViewModels.ConversationsViewModel ViewModel
+@inject SmsMessenger.Core.Services.IProfileService ProfileService
 @inject NavigationManager Nav
 
 <div style="padding:12px;">
     <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-        <button @onclick="@(() => Nav.NavigateTo("/menu"))"
-                style="width:40px;height:40px;border-radius:50%;border:none;background:#e2e8f0;font-size:1.2em;">
-            ⚙
-        </button>
+        @{ var profile = ProfileService.GetProfile(); }
+        @if (!string.IsNullOrEmpty(profile.PhotoPath))
+        {
+            <img @onclick="@(() => Nav.NavigateTo("/menu"))" src="@($"file://{profile.PhotoPath}")"
+                 style="width:40px;height:40px;border-radius:50%;object-fit:cover;" />
+        }
+        else
+        {
+            <button @onclick="@(() => Nav.NavigateTo("/menu"))"
+                    style="width:40px;height:40px;border-radius:50%;border:none;background:#e2e8f0;font-size:1.2em;">
+                ⚙
+            </button>
+        }
     </div>
 
     <input placeholder="Search contacts or numbers" @bind="ViewModel.SearchText" @bind:event="oninput" />

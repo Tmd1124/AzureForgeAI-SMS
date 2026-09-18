@@ -55,6 +55,9 @@ public static class MauiProgram
 		builder.Services.AddTransient<SettingsViewModel>();
 		builder.Services.AddSingleton<PendingNavigationStore>();
 
+		builder.Services.AddSingleton<IProfileService, ProfileService>();
+		builder.Services.AddTransient<ProfileViewModel>();
+
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();
 		builder.Logging.AddDebug();

@@ -1,9 +1,22 @@
 @page "/menu"
 @inject SmsMessenger.Core.ViewModels.MenuViewModel ViewModel
+@inject SmsMessenger.Core.Services.IProfileService ProfileService
 @inject Microsoft.AspNetCore.Components.NavigationManager Nav
 
 <div style="padding:12px;">
-    <h3>Menu</h3>
+    @{ var profile = ProfileService.GetProfile(); }
+    <div @onclick="@(() => Nav.NavigateTo("/profile"))"
+         style="display:flex;align-items:center;gap:12px;padding:12px;background:#f8fafc;border-radius:12px;margin-bottom:12px;">
+        @if (!string.IsNullOrEmpty(profile.PhotoPath))
+        {
+            <img src="@($"file://{profile.PhotoPath}")" style="width:56px;height:56px;border-radius:50%;object-fit:cover;" />
+        }
+        else
+        {
+            <div style="width:56px;height:56px;border-radius:50%;background:#e2e8f0;"></div>
+        }
+        <strong>@(string.IsNullOrEmpty(profile.DisplayName) ? "Set up your profile" : profile.DisplayName)</strong>
+    </div>
 
     @if (!string.IsNullOrEmpty(ViewModel.StatusMessage))
     {
@@ -12,6 +25,9 @@
 
     <div @onclick="@(() => Nav.NavigateTo("/theme"))" style="padding:12px 0;border-bottom:1px solid #eee;">
         🎨 Theme
+    </div>
+    <div @onclick="@(() => Nav.NavigateTo("/profile"))" style="padding:12px 0;border-bottom:1px solid #eee;">
+        👤 Your Profile
     </div>
     <div @onclick="@(() => Nav.NavigateTo("/trash"))" style="padding:12px 0;border-bottom:1px solid #eee;">
         🗑 Trash

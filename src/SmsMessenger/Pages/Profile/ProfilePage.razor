@@ -1,0 +1,35 @@
+@page "/profile"
+@inject SmsMessenger.Core.ViewModels.ProfileViewModel ViewModel
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+
+<div style="padding:12px;">
+    <h3>Your Profile</h3>
+
+    @if (!string.IsNullOrEmpty(ViewModel.PhotoPath))
+    {
+        <img src="@($"file://{ViewModel.PhotoPath}")"
+             @onclick="() => ViewModel.PickPhotoCommand.ExecuteAsync(null)"
+             style="width:80px;height:80px;border-radius:50%;object-fit:cover;" />
+    }
+    else
+    {
+        <button @onclick="() => ViewModel.PickPhotoCommand.ExecuteAsync(null)"
+                style="width:80px;height:80px;border-radius:50%;background:#e2e8f0;border:none;">
+            + Photo
+        </button>
+    }
+
+    <div style="margin-top:12px;">
+        <input placeholder="Your name" @bind="ViewModel.DisplayName" />
+    </div>
+
+    <button @onclick="Save" style="margin-top:12px;">Save</button>
+</div>
+
+@code {
+    private void Save()
+    {
+        ViewModel.SaveCommand.Execute(null);
+        Nav.NavigateTo("/menu");
+    }
+}
