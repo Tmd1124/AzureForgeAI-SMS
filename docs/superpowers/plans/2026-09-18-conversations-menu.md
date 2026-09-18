@@ -1172,8 +1172,7 @@ Replace the full contents of `src/SmsMessenger/Pages/Conversations/Conversations
     {
         @foreach (var thread in ViewModel.Threads)
         {
-            <div @onclick="() => OpenThread(thread.Id, thread.Address)"
-                 @onpointerdown="() => OnPointerDown(thread.Id, thread.Address)"
+            <div @onpointerdown="() => OnPointerDown(thread.Id, thread.Address)"
                  @onpointerup="() => OnPointerUp(thread.Id, thread.Address)"
                  @onpointerleave="CancelLongPress"
                  style="padding:10px;border-bottom:1px solid #eee;">
@@ -3139,8 +3138,7 @@ Replace the full contents of `src/SmsMessenger/Pages/Conversations/Conversations
     {
         @foreach (var thread in ViewModel.Threads)
         {
-            <div @onclick="() => OpenThread(thread.Id, thread.Address)"
-                 @onpointerdown="() => OnPointerDown(thread.Id, thread.Address)"
+            <div @onpointerdown="() => OnPointerDown(thread.Id, thread.Address)"
                  @onpointerup="() => OnPointerUp(thread.Id, thread.Address)"
                  @onpointerleave="CancelLongPress"
                  style="padding:10px;border-bottom:1px solid #eee;">
