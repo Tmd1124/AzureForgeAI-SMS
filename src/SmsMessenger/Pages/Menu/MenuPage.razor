@@ -1,0 +1,10 @@
+@page "/menu"
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+
+<div style="padding:12px;">
+    <h3>Menu</h3>
+
+    <div @onclick="@(() => Nav.NavigateTo("/settings"))" style="padding:12px 0;border-bottom:1px solid #eee;">
+        ⚙ Message Settings
+    </div>
+</div>
