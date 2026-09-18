@@ -68,6 +68,7 @@ public class TrashRepositoryTests : IDisposable
 
     public void Dispose()
     {
+        _repository.Dispose();
         if (File.Exists(_dbPath))
         {
             File.Delete(_dbPath);
@@ -163,7 +164,7 @@ using SmsMessenger.Core.Models;
 
 namespace SmsMessenger.Core.Data;
 
-public class TrashRepository : ITrashRepository
+public class TrashRepository : ITrashRepository, IDisposable
 {
     private readonly SQLiteAsyncConnection _db;
 
@@ -187,8 +188,12 @@ public class TrashRepository : ITrashRepository
         var rows = await _db.Table<TrashedThread>().ToListAsync();
         return rows.Select(r => r.ThreadId).ToList();
     }
+
+    public void Dispose() => _db.CloseAsync().GetAwaiter().GetResult();
 }
 ```
+
+`IDisposable` here isn't optional polish — `sqlite-net-pcl` pools native SQLite connections per file path and never closes one just because the C# wrapper is garbage collected. On Windows, `File.Delete` throws `IOException` ("being used by another process") on a file with an open native handle, which is exactly what the test fixtures below do in their own `Dispose()`. Without closing the connection first, every one of these tests fails on Windows at teardown, not at the assertion.
 
 - [ ] **Step 5: Run it to verify it passes**
 
@@ -221,6 +226,7 @@ public class BlockedNumberRepositoryTests : IDisposable
 
     public void Dispose()
     {
+        _repository.Dispose();
         if (File.Exists(_dbPath))
         {
             File.Delete(_dbPath);
@@ -319,7 +325,7 @@ using SmsMessenger.Core.Models;
 
 namespace SmsMessenger.Core.Data;
 
-public class BlockedNumberRepository : IBlockedNumberRepository
+public class BlockedNumberRepository : IBlockedNumberRepository, IDisposable
 {
     private readonly SQLiteAsyncConnection _db;
 
@@ -343,8 +349,12 @@ public class BlockedNumberRepository : IBlockedNumberRepository
         var rows = await _db.Table<BlockedNumber>().ToListAsync();
         return rows;
     }
+
+    public void Dispose() => _db.CloseAsync().GetAwaiter().GetResult();
 }
 ```
+
+Same reasoning as `TrashRepository` above: without closing the pooled native connection, the test fixture's own `Dispose()` fails to delete the temp file on Windows.
 
 - [ ] **Step 9: Run it to verify it passes**
 
@@ -999,7 +1009,7 @@ public partial class ConversationsViewModel : ObservableObject
 dotnet test tests/SmsMessenger.Core.Tests --filter ConversationsViewModelTests
 ```
 
-Expected: PASS (7 tests).
+Expected: PASS (6 tests).
 
 - [ ] **Step 9: Write the failing tests for `TrashViewModel`**
 
@@ -1803,7 +1813,7 @@ public partial class ConversationsViewModel : ObservableObject
 dotnet test tests/SmsMessenger.Core.Tests --filter ConversationsViewModelTests
 ```
 
-Expected: PASS (9 tests).
+Expected: PASS (8 tests).
 
 - [ ] **Step 10: Write the failing tests for `BlockedViewModel`**
 
