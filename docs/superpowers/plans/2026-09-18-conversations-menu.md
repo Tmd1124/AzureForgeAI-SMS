@@ -1498,17 +1498,36 @@ public class ContactBlockService : IContactBlockService
     {
         await _repository.BlockAsync(phoneNumber);
 
-        var context = AndroidApp.Context;
-        var values = new AndroidContentValues();
-        values.Put(AndroidBlockedNumberContract.BlockedNumbers.ColumnOriginalNumber, phoneNumber);
-        context.ContentResolver!.Insert(AndroidBlockedNumberContract.BlockedNumbers.ContentUri!, values);
+        try
+        {
+            var context = AndroidApp.Context;
+            var values = new AndroidContentValues();
+            values.Put(AndroidBlockedNumberContract.BlockedNumbers.ColumnOriginalNumber, phoneNumber);
+            context.ContentResolver!.Insert(AndroidBlockedNumberContract.BlockedNumbers.ContentUri!, values);
+        }
+        catch (Exception ex)
+        {
+            // Best-effort OS-level block, per this task's own fallback: if BlockedNumberContract
+            // access is denied on this device (e.g. SecurityException), the local repository row
+            // above already makes the number filtered out of this app's UI — that's a fully
+            // functional fallback on its own, so a failure here must not leave the caller's
+            // undo-stack push / Load() from running.
+            global::Android.Util.Log.Warn("SmsMessenger", $"BlockedNumberContract insert failed, falling back to local-only block: {ex.Message}");
+        }
     }
 
     public async Task UnblockAsync(string phoneNumber)
     {
         await _repository.UnblockAsync(phoneNumber);
 
-        AndroidBlockedNumberContract.Unblock(AndroidApp.Context, phoneNumber);
+        try
+        {
+            AndroidBlockedNumberContract.Unblock(AndroidApp.Context, phoneNumber);
+        }
+        catch (Exception ex)
+        {
+            global::Android.Util.Log.Warn("SmsMessenger", $"BlockedNumberContract unblock failed: {ex.Message}");
+        }
     }
 
     public Task<bool> IsBlockedAsync(string phoneNumber) => _repository.IsBlockedAsync(phoneNumber);
