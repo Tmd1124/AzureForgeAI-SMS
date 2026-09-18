@@ -3,7 +3,7 @@ using SmsMessenger.Core.Models;
 
 namespace SmsMessenger.Core.Data;
 
-public class TrashRepository : ITrashRepository, IAsyncDisposable
+public class TrashRepository : ITrashRepository, IDisposable
 {
     private readonly SQLiteAsyncConnection _db;
 
@@ -28,8 +28,8 @@ public class TrashRepository : ITrashRepository, IAsyncDisposable
         return rows.Select(r => r.ThreadId).ToList();
     }
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        await _db.CloseAsync();
+        _db.CloseAsync().GetAwaiter().GetResult();
     }
 }

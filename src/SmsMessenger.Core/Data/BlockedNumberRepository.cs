@@ -3,7 +3,7 @@ using SmsMessenger.Core.Models;
 
 namespace SmsMessenger.Core.Data;
 
-public class BlockedNumberRepository : IBlockedNumberRepository, IAsyncDisposable
+public class BlockedNumberRepository : IBlockedNumberRepository, IDisposable
 {
     private readonly SQLiteAsyncConnection _db;
 
@@ -28,8 +28,8 @@ public class BlockedNumberRepository : IBlockedNumberRepository, IAsyncDisposabl
         return rows;
     }
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        await _db.CloseAsync();
+        _db.CloseAsync().GetAwaiter().GetResult();
     }
 }

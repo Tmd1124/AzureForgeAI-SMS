@@ -2,7 +2,7 @@ using SmsMessenger.Core.Data;
 
 namespace SmsMessenger.Core.Tests.Data;
 
-public class BlockedNumberRepositoryTests : IAsyncLifetime
+public class BlockedNumberRepositoryTests : IDisposable
 {
     private readonly string _dbPath;
     private readonly BlockedNumberRepository _repository;
@@ -11,16 +11,12 @@ public class BlockedNumberRepositoryTests : IAsyncLifetime
     {
         _dbPath = Path.Combine(Path.GetTempPath(), $"blocked-test-{Guid.NewGuid()}.db3");
         _repository = new BlockedNumberRepository(_dbPath);
+        _repository.InitializeAsync().GetAwaiter().GetResult();
     }
 
-    public async Task InitializeAsync()
+    public void Dispose()
     {
-        await _repository.InitializeAsync();
-    }
-
-    public async Task DisposeAsync()
-    {
-        await _repository.DisposeAsync();
+        _repository.Dispose();
         if (File.Exists(_dbPath))
         {
             File.Delete(_dbPath);
