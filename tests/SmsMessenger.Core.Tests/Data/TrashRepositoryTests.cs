@@ -16,7 +16,6 @@ public class TrashRepositoryTests : IDisposable
 
     public void Dispose()
     {
-        _repository.Dispose();
         if (File.Exists(_dbPath))
         {
             File.Delete(_dbPath);
