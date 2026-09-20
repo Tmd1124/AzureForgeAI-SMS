@@ -8,7 +8,7 @@ namespace SmsMessenger.Platforms.Android;
 
 public class ContactService : IContactService
 {
-    public Task<ContactInfo?> LookupAsync(string phoneNumber)
+    public async Task<ContactInfo?> LookupAsync(string phoneNumber)
     {
         var context = AndroidApp.Context;
         var uri = AndroidUri.WithAppendedPath(AndroidContactsContract.PhoneLookup.ContentFilterUri, AndroidUri.Encode(phoneNumber));
@@ -17,19 +17,47 @@ public class ContactService : IContactService
         using var cursor = context.ContentResolver!.Query(uri!, projection, null, null, null);
         if (cursor is null || !cursor.MoveToFirst())
         {
-            return Task.FromResult<ContactInfo?>(null);
+            return null;
         }
 
         var name = cursor.GetString(cursor.GetColumnIndexOrThrow(AndroidContactsContract.PhoneLookup.InterfaceConsts.DisplayName));
         var photoIndex = cursor.GetColumnIndex(AndroidContactsContract.PhoneLookup.InterfaceConsts.PhotoUri);
-        var photo = photoIndex >= 0 ? cursor.GetString(photoIndex) : null;
+        var photoUri = photoIndex >= 0 ? cursor.GetString(photoIndex) : null;
 
-        return Task.FromResult<ContactInfo?>(new ContactInfo
+        return new ContactInfo
         {
             DisplayName = name ?? phoneNumber,
             PhoneNumber = phoneNumber,
-            PhotoUri = photo
-        });
+            PhotoUri = await ToPhotoDataUriAsync(context, photoUri)
+        };
+    }
+
+    // ContactsContract only ever gives back a content:// URI, which the BlazorWebView can't load
+    // as an <img src> (same cross-origin restriction that affected the profile photo). Converting
+    // to a data: URI here means every consumer of ContactInfo.PhotoUri gets something renderable.
+    private static async Task<string?> ToPhotoDataUriAsync(global::Android.Content.Context context, string? photoUri)
+    {
+        if (string.IsNullOrEmpty(photoUri))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var stream = context.ContentResolver!.OpenInputStream(AndroidUri.Parse(photoUri)!);
+            if (stream is null)
+            {
+                return null;
+            }
+
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            return $"data:image/jpeg;base64,{Convert.ToBase64String(memoryStream.ToArray())}";
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     public Task<IReadOnlyList<ContactInfo>> GetAllContactsAsync()

@@ -46,6 +46,10 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IContactBlockService, ContactBlockService>();
 		builder.Services.AddTransient<BlockedViewModel>();
 
+		var favoriteRepository = new FavoriteRepository(Path.Combine(FileSystem.AppDataDirectory, "SmsMessenger.db"));
+		favoriteRepository.InitializeAsync().GetAwaiter().GetResult();
+		builder.Services.AddSingleton<IFavoriteRepository>(favoriteRepository);
+
 		builder.Services.AddSingleton<IMarkAsReadService, MarkAsReadService>();
 		builder.Services.AddTransient<MenuViewModel>();
 

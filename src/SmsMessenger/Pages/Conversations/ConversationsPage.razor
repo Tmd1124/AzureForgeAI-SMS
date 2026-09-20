@@ -1,11 +1,16 @@
 @page "/conversations"
 @using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
 @inject SmsMessenger.Core.ViewModels.ConversationsViewModel ViewModel
 @inject SmsMessenger.Core.Services.IProfileService ProfileService
 @inject NavigationManager Nav
 
 <div style="padding:12px;">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:8px;">
+        <button @onclick="OpenSearch"
+                style="width:40px;height:40px;border-radius:50%;border:none;background:#e2e8f0;font-size:1.2em;">
+            🔍
+        </button>
         @if (!string.IsNullOrEmpty(_photoDataUri))
         {
             <img @onclick="@(() => Nav.NavigateTo("/menu"))" src="@_photoDataUri"
@@ -20,8 +25,6 @@
         }
     </div>
 
-    <input placeholder="Search contacts or numbers" @bind="ViewModel.SearchText" @bind:event="oninput" />
-
     @if (ViewModel.Threads.Count == 0)
     {
         <p>No conversations yet.</p>
@@ -30,16 +33,30 @@
     {
         @foreach (var thread in ViewModel.Threads)
         {
-            <div @onpointerdown="() => OnPointerDown(thread.Id, thread.Address)"
+            <div @onpointerdown="() => OnPointerDown(thread.Id, thread.Address, thread.IsFavorite)"
                  @onpointerup="() => OnPointerUp(thread.Id, thread.Address)"
                  @onpointerleave="CancelLongPress"
-                 style="padding:10px;border-bottom:1px solid #eee;">
-                <strong>@thread.DisplayNameOrAddress</strong>
-                @if (thread.UnreadCount > 0)
+                 style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #eee;">
+                @if (!string.IsNullOrEmpty(thread.PhotoUri))
                 {
-                    <span style="color:#06b6d4;"> ● @thread.UnreadCount</span>
+                    <img src="@thread.PhotoUri" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;" />
                 }
-                <div style="color:#94a3b8;font-size:0.85em;">@thread.PreviewText</div>
+                else
+                {
+                    <div style="width:40px;height:40px;border-radius:50%;background:var(--accent-color);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;">@thread.Initials</div>
+                }
+                <div>
+                    <strong>@thread.DisplayNameOrAddress</strong>
+                    @if (thread.IsFavorite)
+                    {
+                        <span> ❤️</span>
+                    }
+                    @if (thread.UnreadCount > 0)
+                    {
+                        <span style="color:#06b6d4;"> ● @thread.UnreadCount</span>
+                    }
+                    <div style="color:#94a3b8;font-size:0.85em;">@thread.PreviewText</div>
+                </div>
             </div>
         }
     }
@@ -54,8 +71,18 @@
 {
     <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;" @onclick="CloseActionSheet">
         <div style="background:var(--card-color);width:100%;padding:12px;" @onclick:stopPropagation="true">
+            <div @onclick="FavoriteSelectedThread" style="padding:12px;">@(_actionSheetIsFavorite ? "💔 Unfavorite" : "❤️ Favorite")</div>
             <div @onclick="TrashSelectedThread" style="padding:12px;">🗑 Trash</div>
             <div @onclick="BlockSelectedThread" style="padding:12px;">🚫 Block</div>
+        </div>
+    </div>
+}
+
+@if (_isSearchOpen)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);" @onclick="CloseSearch">
+        <div style="background:var(--card-color);padding:12px;" @onclick:stopPropagation="true">
+            <input @ref="_searchInput" placeholder="Search contacts or numbers" @bind="ViewModel.SearchText" @bind:event="oninput" style="width:100%;" />
         </div>
     </div>
 }
@@ -63,9 +90,13 @@
 @code {
     private long? _actionSheetThreadId;
     private string _actionSheetAddress = string.Empty;
+    private bool _actionSheetIsFavorite;
     private CancellationTokenSource? _longPressCts;
     private bool _longPressTriggered;
     private string? _photoDataUri;
+    private bool _isSearchOpen;
+    private bool _shouldFocusSearch;
+    private ElementReference _searchInput;
 
     protected override async Task OnInitializedAsync()
     {
@@ -73,12 +104,33 @@
         await ViewModel.LoadCommand.ExecuteAsync(null);
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_shouldFocusSearch)
+        {
+            _shouldFocusSearch = false;
+            await _searchInput.FocusAsync();
+        }
+    }
+
+    private void OpenSearch()
+    {
+        _isSearchOpen = true;
+        _shouldFocusSearch = true;
+    }
+
+    private void CloseSearch()
+    {
+        _isSearchOpen = false;
+        ViewModel.SearchText = string.Empty;
+    }
+
     private void OpenThread(long threadId, string address)
     {
         Nav.NavigateTo($"/conversations/thread?id={threadId}&address={Uri.EscapeDataString(address)}");
     }
 
-    private void OnPointerDown(long threadId, string address)
+    private void OnPointerDown(long threadId, string address, bool isFavorite)
     {
         _longPressTriggered = false;
         _longPressCts = new CancellationTokenSource();
@@ -93,6 +145,7 @@
                 {
                     _actionSheetThreadId = threadId;
                     _actionSheetAddress = address;
+                    _actionSheetIsFavorite = isFavorite;
                     StateHasChanged();
                 });
             }
@@ -130,6 +183,15 @@
         if (_actionSheetThreadId is not null)
         {
             await ViewModel.BlockThreadCommand.ExecuteAsync(_actionSheetAddress);
+        }
+        CloseActionSheet();
+    }
+
+    private async Task FavoriteSelectedThread()
+    {
+        if (_actionSheetThreadId is long id)
+        {
+            await ViewModel.FavoriteThreadCommand.ExecuteAsync(id);
         }
         CloseActionSheet();
     }

@@ -8,13 +8,13 @@ namespace SmsMessenger.Core.Tests.ViewModels;
 
 public class ConversationsViewModelTests
 {
-    private static SmsThread MakeThread(long id, string address, string? name, string lastMessage) => new()
+    private static SmsThread MakeThread(long id, string address, string? name, string lastMessage, DateTimeOffset? timestamp = null) => new()
     {
         Id = id,
         Address = address,
         DisplayName = name,
         LastMessageBody = lastMessage,
-        LastMessageTimestamp = DateTimeOffset.UtcNow,
+        LastMessageTimestamp = timestamp ?? DateTimeOffset.UtcNow,
         UnreadCount = 0
     };
 
@@ -32,6 +32,26 @@ public class ConversationsViewModelTests
         return service;
     }
 
+    private static Mock<IFavoriteRepository> MakeEmptyFavoriteRepository()
+    {
+        var repository = new Mock<IFavoriteRepository>();
+        repository.Setup(r => r.GetFavoriteThreadIdsAsync()).ReturnsAsync(new List<long>());
+        return repository;
+    }
+
+    private static ConversationsViewModel MakeViewModel(
+        Mock<IThreadService> threadService,
+        Mock<ITrashRepository>? trashRepository = null,
+        Mock<IContactBlockService>? blockService = null,
+        Mock<IFavoriteRepository>? favoriteRepository = null,
+        Mock<IUndoStack>? undoStack = null) =>
+        new(
+            threadService.Object,
+            (trashRepository ?? MakeEmptyTrashRepository()).Object,
+            (blockService ?? MakeEmptyBlockService()).Object,
+            (favoriteRepository ?? MakeEmptyFavoriteRepository()).Object,
+            (undoStack ?? new Mock<IUndoStack>()).Object);
+
     [Fact]
     public async Task LoadCommand_populates_Threads_from_the_service()
     {
@@ -41,7 +61,7 @@ public class ConversationsViewModelTests
             MakeThread(1, "5550142231", "Alice Smith", "hi"),
             MakeThread(2, "5550148890", null, "hey there")
         });
-        var viewModel = new ConversationsViewModel(threadService.Object, MakeEmptyTrashRepository().Object, MakeEmptyBlockService().Object, new Mock<IUndoStack>().Object);
+        var viewModel = MakeViewModel(threadService);
 
         await viewModel.LoadCommand.ExecuteAsync(null);
 
@@ -59,7 +79,7 @@ public class ConversationsViewModelTests
         });
         var trashRepository = new Mock<ITrashRepository>();
         trashRepository.Setup(r => r.GetTrashedThreadIdsAsync()).ReturnsAsync(new List<long> { 2 });
-        var viewModel = new ConversationsViewModel(threadService.Object, trashRepository.Object, MakeEmptyBlockService().Object, new Mock<IUndoStack>().Object);
+        var viewModel = MakeViewModel(threadService, trashRepository: trashRepository);
 
         await viewModel.LoadCommand.ExecuteAsync(null);
 
@@ -78,12 +98,35 @@ public class ConversationsViewModelTests
         });
         var blockService = new Mock<IContactBlockService>();
         blockService.Setup(s => s.GetBlockedNumbersAsync()).ReturnsAsync(new List<string> { "5550148890" });
-        var viewModel = new ConversationsViewModel(threadService.Object, MakeEmptyTrashRepository().Object, blockService.Object, new Mock<IUndoStack>().Object);
+        var viewModel = MakeViewModel(threadService, blockService: blockService);
 
         await viewModel.LoadCommand.ExecuteAsync(null);
 
         Assert.Single(viewModel.Threads);
         Assert.Equal(1, viewModel.Threads[0].Id);
+    }
+
+    [Fact]
+    public async Task LoadCommand_sorts_favorited_threads_to_the_top_regardless_of_recency()
+    {
+        var older = DateTimeOffset.UtcNow.AddDays(-5);
+        var newer = DateTimeOffset.UtcNow;
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi", newer),
+            MakeThread(2, "5550148890", "Bob Jones", "hey", older)
+        });
+        var favoriteRepository = new Mock<IFavoriteRepository>();
+        favoriteRepository.Setup(r => r.GetFavoriteThreadIdsAsync()).ReturnsAsync(new List<long> { 2 });
+        var viewModel = MakeViewModel(threadService, favoriteRepository: favoriteRepository);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, viewModel.Threads[0].Id);
+        Assert.True(viewModel.Threads[0].IsFavorite);
+        Assert.Equal(1, viewModel.Threads[1].Id);
+        Assert.False(viewModel.Threads[1].IsFavorite);
     }
 
     [Fact]
@@ -96,7 +139,7 @@ public class ConversationsViewModelTests
         });
         var trashRepository = MakeEmptyTrashRepository();
         var undoStack = new Mock<IUndoStack>();
-        var viewModel = new ConversationsViewModel(threadService.Object, trashRepository.Object, MakeEmptyBlockService().Object, undoStack.Object);
+        var viewModel = MakeViewModel(threadService, trashRepository: trashRepository, undoStack: undoStack);
         await viewModel.LoadCommand.ExecuteAsync(null);
 
         await viewModel.TrashThreadCommand.ExecuteAsync(1L);
@@ -115,13 +158,52 @@ public class ConversationsViewModelTests
         });
         var blockService = MakeEmptyBlockService();
         var undoStack = new Mock<IUndoStack>();
-        var viewModel = new ConversationsViewModel(threadService.Object, MakeEmptyTrashRepository().Object, blockService.Object, undoStack.Object);
+        var viewModel = MakeViewModel(threadService, blockService: blockService, undoStack: undoStack);
         await viewModel.LoadCommand.ExecuteAsync(null);
 
         await viewModel.BlockThreadCommand.ExecuteAsync("5550142231");
 
         blockService.Verify(s => s.BlockAsync("5550142231"), Times.Once);
         undoStack.Verify(s => s.Push(It.IsAny<IUndoableAction>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task FavoriteThreadCommand_favorites_a_non_favorited_thread_and_does_not_touch_undo()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi")
+        });
+        var favoriteRepository = MakeEmptyFavoriteRepository();
+        var undoStack = new Mock<IUndoStack>();
+        var viewModel = MakeViewModel(threadService, favoriteRepository: favoriteRepository, undoStack: undoStack);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.FavoriteThreadCommand.ExecuteAsync(1L);
+
+        favoriteRepository.Verify(r => r.FavoriteThreadAsync(1), Times.Once);
+        favoriteRepository.Verify(r => r.UnfavoriteThreadAsync(It.IsAny<long>()), Times.Never);
+        undoStack.Verify(s => s.Push(It.IsAny<IUndoableAction>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task FavoriteThreadCommand_unfavorites_an_already_favorited_thread()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi")
+        });
+        var favoriteRepository = new Mock<IFavoriteRepository>();
+        favoriteRepository.Setup(r => r.GetFavoriteThreadIdsAsync()).ReturnsAsync(new List<long> { 1 });
+        var viewModel = MakeViewModel(threadService, favoriteRepository: favoriteRepository);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.FavoriteThreadCommand.ExecuteAsync(1L);
+
+        favoriteRepository.Verify(r => r.UnfavoriteThreadAsync(1), Times.Once);
+        favoriteRepository.Verify(r => r.FavoriteThreadAsync(It.IsAny<long>()), Times.Never);
     }
 
     [Fact]
@@ -133,7 +215,7 @@ public class ConversationsViewModelTests
             MakeThread(1, "5550142231", "Alice Smith", "hi"),
             MakeThread(2, "5550148890", "Bob Jones", "hey there")
         });
-        var viewModel = new ConversationsViewModel(threadService.Object, MakeEmptyTrashRepository().Object, MakeEmptyBlockService().Object, new Mock<IUndoStack>().Object);
+        var viewModel = MakeViewModel(threadService);
         await viewModel.LoadCommand.ExecuteAsync(null);
 
         viewModel.SearchText = "alice";
@@ -151,7 +233,7 @@ public class ConversationsViewModelTests
             MakeThread(1, "5550142231", "Alice Smith", "hi"),
             MakeThread(2, "5550148890", null, "hey there")
         });
-        var viewModel = new ConversationsViewModel(threadService.Object, MakeEmptyTrashRepository().Object, MakeEmptyBlockService().Object, new Mock<IUndoStack>().Object);
+        var viewModel = MakeViewModel(threadService);
         await viewModel.LoadCommand.ExecuteAsync(null);
 
         viewModel.SearchText = "8890";
@@ -169,7 +251,7 @@ public class ConversationsViewModelTests
             MakeThread(1, "5550142231", "Alice Smith", "let's go to the gym"),
             MakeThread(2, "5550148890", "Bob Jones", "see you tomorrow")
         });
-        var viewModel = new ConversationsViewModel(threadService.Object, MakeEmptyTrashRepository().Object, MakeEmptyBlockService().Object, new Mock<IUndoStack>().Object);
+        var viewModel = MakeViewModel(threadService);
         await viewModel.LoadCommand.ExecuteAsync(null);
 
         viewModel.SearchText = "gym";

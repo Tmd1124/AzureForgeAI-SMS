@@ -55,6 +55,7 @@ public class ThreadService : IThreadService
                 Id = threadId,
                 Address = address,
                 DisplayName = contact?.DisplayName,
+                PhotoUri = contact?.PhotoUri,
                 LastMessageBody = cursor.GetString(bodyIdx) ?? string.Empty,
                 LastMessageTimestamp = DateTimeOffset.FromUnixTimeMilliseconds(cursor.GetLong(dateIdx)),
                 UnreadCount = unread
