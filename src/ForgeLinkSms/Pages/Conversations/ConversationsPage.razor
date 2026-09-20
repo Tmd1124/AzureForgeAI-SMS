@@ -19,6 +19,7 @@
             <button @onclick="TrashSelectedThreads" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">🗑</button>
             @if (_selectedThreadIds.Count == 1)
             {
+                <button @onclick="CallSelectedThread" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">📞</button>
                 <button @onclick="OpenOverflowForSingleSelection" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">⋮</button>
             }
         </div>
@@ -362,6 +363,23 @@
         var ids = _selectedThreadIds.ToList();
         _selectedThreadIds.Clear();
         await ViewModel.TrashThreadsCommand.ExecuteAsync(ids);
+    }
+
+    private void CallSelectedThread()
+    {
+        if (_selectedThreadIds.Count != 1)
+        {
+            return;
+        }
+
+        var threadId = _selectedThreadIds.First();
+        var thread = ViewModel.Threads.FirstOrDefault(t => t.Id == threadId);
+        if (thread is null)
+        {
+            return;
+        }
+
+        PhoneDialer.Default.Open(thread.Address);
     }
 
     private void OpenOverflowForSingleSelection()

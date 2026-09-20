@@ -36,7 +36,10 @@
 @if (ViewModel is not null)
 {
     <div style="display:flex;flex-direction:column;height:100vh;">
-        <div style="padding:10px;background:var(--card-color);border-bottom:1px solid #eee;">@DisplayName</div>
+        <div style="display:flex;align-items:center;padding:10px;background:var(--card-color);border-bottom:1px solid #eee;">
+            <span style="flex:1;">@DisplayName</span>
+            <button @onclick="CallThreadContact" style="width:36px;height:32px;border:none;background:transparent;font-size:1.1em;line-height:1;padding:0;">📞</button>
+        </div>
         <div style="flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column-reverse;">
             @* Rendered newest-first: paired with column-reverse, the browser's default scroll
                position lands on the newest message (bottom) without any JS interop, and stays
@@ -142,6 +145,8 @@
         ViewModel!.ComposeText = string.IsNullOrEmpty(ViewModel.ComposeText) ? text : $"{ViewModel.ComposeText}\n{text}";
     }
 
+    private void CallThreadContact() => PhoneDialer.Default.Open(Address);
+
     protected override async Task OnInitializedAsync()
     {
         DisplayName = Address;
@@ -155,6 +160,8 @@
         var smsService = Services.GetRequiredService<ISmsService>();
         ViewModel = new ThreadDetailViewModel(smsService, ThreadId, Address);
         await ViewModel.LoadCommand.ExecuteAsync(null);
+
+        await Services.GetRequiredService<IMarkAsReadService>().MarkThreadAsReadAsync(ThreadId);
     }
 
     private IEnumerable<(ForgeLinkSms.Core.Models.SmsMessage Message, bool ShowDateSeparator)> MessagesWithDateSeparators()
