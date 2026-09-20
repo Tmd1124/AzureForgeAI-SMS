@@ -11,7 +11,7 @@
 <div style="padding:12px;">
     @if (_selectedThreadIds.Count > 0)
     {
-        <div style="display:flex;align-items:center;gap:2px;margin-bottom:8px;">
+        <div style="position:sticky;top:0;z-index:10;background:var(--surface-color);display:flex;align-items:center;gap:2px;margin-bottom:8px;padding:6px 0;">
             <button @onclick="ClearSelection" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">✕</button>
             <strong style="flex:1;">@_selectedThreadIds.Count selected</strong>
             <button @onclick="ToggleFavoriteSelectedThreads" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">@(AllSelectedAreFavorited() ? "💔" : "❤️")</button>

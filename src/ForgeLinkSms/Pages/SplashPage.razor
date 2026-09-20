@@ -31,7 +31,7 @@
         border-radius: 50%;
         background: radial-gradient(circle, rgba(255, 149, 0, 0.35) 0%, rgba(60, 170, 255, 0.25) 45%, rgba(0, 0, 0, 0) 72%);
         transform: scale(0);
-        animation: splash-flare 420ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        animation: splash-flare 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
     .splash-logo {
@@ -40,7 +40,7 @@
         max-width: 260px;
         border-radius: 20%;
         filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5));
-        animation: splash-grow 3000ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        animation: splash-grow 1000ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
     @@keyframes splash-flare {
@@ -88,7 +88,7 @@
             return;
         }
 
-        await Task.Delay(3000);
+        await Task.Delay(1000);
         await ViewModel.InitializeAsync();
     }
 }
