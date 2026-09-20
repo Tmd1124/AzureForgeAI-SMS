@@ -26,12 +26,12 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IContactService, ContactService>();
 		builder.Services.AddSingleton<IThreadService, ThreadService>();
 		builder.Services.AddSingleton<ISmsService, SmsService>();
+		builder.Services.AddSingleton<ICalendarService, CalendarService>();
 		builder.Services.AddScoped<INavigationService, NavigationService>();
 		builder.Services.AddTransient<SplashViewModel>();
 		builder.Services.AddTransient<OnboardingViewModel>();
 		builder.Services.AddTransient<ConversationsViewModel>();
 		builder.Services.AddTransient<ComposeViewModel>();
-		builder.Services.AddTransient<ContactPickerViewModel>();
 		builder.Services.AddSingleton<INotificationService, NotificationService>();
 
 		var trashRepository = new TrashRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));

@@ -1,7 +1,9 @@
 @page "/conversations/thread"
 @inject IServiceProvider Services
+@inject ForgeLinkSms.Core.Services.ICalendarService CalendarService
 @using Microsoft.Extensions.DependencyInjection
 @using ForgeLinkSms.Core.Services
+@using ForgeLinkSms.Core.Utils
 @using ForgeLinkSms.Core.ViewModels
 
 <style>
@@ -48,7 +50,27 @@
                          @onpointerup="CancelMessageLongPress"
                          @onpointerleave="CancelMessageLongPress"
                          style="max-width:75%;padding:8px 12px;border-radius:16px;user-select:none;-webkit-user-select:none;background:@(message.IsOutgoing ? "var(--accent-color)" : "var(--card-color)");color:@(message.IsOutgoing ? "white" : "var(--text-color)");">
-                        @message.Body
+                        @foreach (var segment in MessageLinkParser.Parse(message.Body))
+                        {
+                            switch (segment.Kind)
+                            {
+                                case MessageLinkKind.Url:
+                                    <span style="text-decoration:underline;cursor:pointer;" @onclick="() => OpenUrl(segment)">@segment.Text</span>
+                                    break;
+                                case MessageLinkKind.PhoneNumber:
+                                    <span style="text-decoration:underline;cursor:pointer;" @onclick="() => CallNumber(segment)">@segment.Text</span>
+                                    break;
+                                case MessageLinkKind.Address:
+                                    <span style="text-decoration:underline;cursor:pointer;" @onclick="() => OpenMap(segment)">@segment.Text</span>
+                                    break;
+                                case MessageLinkKind.Appointment:
+                                    <span style="text-decoration:underline;cursor:pointer;" @onclick="() => OpenCalendarEvent(segment, message.Body)">@segment.Text</span>
+                                    break;
+                                default:
+                                    @segment.Text
+                                    break;
+                            }
+                        }
                     </div>
                     <div style="font-size:0.75em;color:#94a3b8;margin-top:2px;">
                         @message.Timestamp.LocalDateTime.ToString("h:mm tt")
@@ -180,5 +202,37 @@
             await ViewModel!.SendReactionCommand.ExecuteAsync((emoji, _reactionTargetMessage.Body));
         }
         CloseReactionBar();
+    }
+
+    private static async Task OpenUrl(MessageTextSegment segment)
+    {
+        if (segment.Data is string url)
+        {
+            await Launcher.Default.OpenAsync(new Uri(url));
+        }
+    }
+
+    private static void CallNumber(MessageTextSegment segment)
+    {
+        if (segment.Data is string digits)
+        {
+            PhoneDialer.Default.Open(digits);
+        }
+    }
+
+    private static async Task OpenMap(MessageTextSegment segment)
+    {
+        if (segment.Data is string address)
+        {
+            await Launcher.Default.OpenAsync(new Uri("geo:0,0?q=" + Uri.EscapeDataString(address)));
+        }
+    }
+
+    private async Task OpenCalendarEvent(MessageTextSegment segment, string messageBody)
+    {
+        if (segment.Data is DateTime start)
+        {
+            await CalendarService.OpenNewEventAsync(messageBody, start, start.AddHours(1));
+        }
     }
 }
