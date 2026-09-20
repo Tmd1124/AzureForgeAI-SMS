@@ -26,6 +26,14 @@
         }
     </div>
 
+    @if (_isSearchOpen)
+    {
+        <div style="display:flex;align-items:center;gap:8px;background:var(--card-color);padding:12px;margin-bottom:8px;border-radius:8px;">
+            <input @ref="_searchInput" placeholder="Search contacts or numbers" @bind="ViewModel.SearchText" @bind:event="oninput" style="flex:1;min-width:0;" />
+            <button @onclick="CloseSearch" style="border:none;background:transparent;font-size:1.2em;">✕</button>
+        </div>
+    }
+
     @if (ViewModel.Threads.Count == 0)
     {
         <p>No conversations yet.</p>
@@ -88,15 +96,6 @@
     </div>
 }
 
-@if (_isSearchOpen)
-{
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);touch-action:none;" @onpointerdown="CloseSearch">
-        <div style="background:var(--card-color);padding:12px;" @onpointerdown:stopPropagation="true">
-            <input @ref="_searchInput" placeholder="Search contacts or numbers" @bind="ViewModel.SearchText" @bind:event="oninput" style="width:100%;" />
-        </div>
-    </div>
-}
-
 @code {
     private long? _actionSheetThreadId;
     private string _actionSheetAddress = string.Empty;
@@ -129,6 +128,11 @@
 
     private void OpenSearch()
     {
+        if (_isSearchOpen)
+        {
+            CloseSearch();
+            return;
+        }
         _isSearchOpen = true;
         _shouldFocusSearch = true;
     }
