@@ -265,6 +265,48 @@ public class ConversationsViewModelTests
     }
 
     [Fact]
+    public async Task TrashThreadsCommand_trashes_every_thread_and_pushes_a_single_bulk_undo_action()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi"),
+            MakeThread(2, "5550148890", "Bob Jones", "hey")
+        });
+        var trashRepository = MakeEmptyTrashRepository();
+        var undoStack = new Mock<IUndoStack>();
+        var viewModel = MakeViewModel(threadService, trashRepository: trashRepository, undoStack: undoStack);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.TrashThreadsCommand.ExecuteAsync(new List<long> { 1, 2 });
+
+        trashRepository.Verify(r => r.TrashThreadAsync(1), Times.Once);
+        trashRepository.Verify(r => r.TrashThreadAsync(2), Times.Once);
+        undoStack.Verify(s => s.Push(It.IsAny<IUndoableAction>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ArchiveThreadsCommand_archives_every_thread_and_pushes_a_single_bulk_undo_action()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi"),
+            MakeThread(2, "5550148890", "Bob Jones", "hey")
+        });
+        var archiveRepository = MakeEmptyArchiveRepository();
+        var undoStack = new Mock<IUndoStack>();
+        var viewModel = MakeViewModel(threadService, archiveRepository: archiveRepository, undoStack: undoStack);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.ArchiveThreadsCommand.ExecuteAsync(new List<long> { 1, 2 });
+
+        archiveRepository.Verify(r => r.ArchiveThreadAsync(1), Times.Once);
+        archiveRepository.Verify(r => r.ArchiveThreadAsync(2), Times.Once);
+        undoStack.Verify(s => s.Push(It.IsAny<IUndoableAction>()), Times.Once);
+    }
+
+    [Fact]
     public async Task TrashThreadCommand_trashes_the_thread_and_pushes_an_undo_action()
     {
         var threadService = new Mock<IThreadService>();
@@ -338,6 +380,48 @@ public class ConversationsViewModelTests
         await viewModel.FavoriteThreadCommand.ExecuteAsync(1L);
 
         favoriteRepository.Verify(r => r.UnfavoriteThreadAsync(1), Times.Once);
+        favoriteRepository.Verify(r => r.FavoriteThreadAsync(It.IsAny<long>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task FavoriteThreadsCommand_favorites_every_thread_when_not_all_are_already_favorited()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi"),
+            MakeThread(2, "5550148890", "Bob Jones", "hey")
+        });
+        var favoriteRepository = new Mock<IFavoriteRepository>();
+        favoriteRepository.Setup(r => r.GetFavoriteThreadIdsAsync()).ReturnsAsync(new List<long> { 1 });
+        var viewModel = MakeViewModel(threadService, favoriteRepository: favoriteRepository);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.FavoriteThreadsCommand.ExecuteAsync(new List<long> { 1, 2 });
+
+        favoriteRepository.Verify(r => r.FavoriteThreadAsync(1), Times.Once);
+        favoriteRepository.Verify(r => r.FavoriteThreadAsync(2), Times.Once);
+        favoriteRepository.Verify(r => r.UnfavoriteThreadAsync(It.IsAny<long>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task FavoriteThreadsCommand_unfavorites_every_thread_when_all_are_already_favorited()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi"),
+            MakeThread(2, "5550148890", "Bob Jones", "hey")
+        });
+        var favoriteRepository = new Mock<IFavoriteRepository>();
+        favoriteRepository.Setup(r => r.GetFavoriteThreadIdsAsync()).ReturnsAsync(new List<long> { 1, 2 });
+        var viewModel = MakeViewModel(threadService, favoriteRepository: favoriteRepository);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.FavoriteThreadsCommand.ExecuteAsync(new List<long> { 1, 2 });
+
+        favoriteRepository.Verify(r => r.UnfavoriteThreadAsync(1), Times.Once);
+        favoriteRepository.Verify(r => r.UnfavoriteThreadAsync(2), Times.Once);
         favoriteRepository.Verify(r => r.FavoriteThreadAsync(It.IsAny<long>()), Times.Never);
     }
 

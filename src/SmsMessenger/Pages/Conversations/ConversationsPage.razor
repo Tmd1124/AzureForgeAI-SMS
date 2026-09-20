@@ -9,24 +9,41 @@
 @inject NavigationManager Nav
 
 <div style="padding:12px;">
-    <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:8px;">
-        <button @onclick="OpenSearch"
-                style="width:40px;height:40px;border-radius:50%;border:none;background:#e2e8f0;font-size:1.2em;">
-            🔍
-        </button>
-        @if (!string.IsNullOrEmpty(_photoDataUri))
-        {
-            <img @onclick="@(() => Nav.NavigateTo("/menu"))" src="@_photoDataUri"
-                 style="width:40px;height:40px;border-radius:50%;object-fit:cover;" />
-        }
-        else
-        {
-            <button @onclick="@(() => Nav.NavigateTo("/menu"))"
-                    style="width:40px;height:40px;border-radius:50%;border:none;background:#e2e8f0;font-size:1.2em;">
-                ⚙
+    @if (_selectedThreadIds.Count > 0)
+    {
+        <div style="display:flex;align-items:center;gap:2px;margin-bottom:8px;">
+            <button @onclick="ClearSelection" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">✕</button>
+            <strong style="flex:1;">@_selectedThreadIds.Count selected</strong>
+            <button @onclick="ToggleFavoriteSelectedThreads" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">@(AllSelectedAreFavorited() ? "💔" : "❤️")</button>
+            <button @onclick="ArchiveSelectedThreads" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">📦</button>
+            <button @onclick="TrashSelectedThreads" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">🗑</button>
+            @if (_selectedThreadIds.Count == 1)
+            {
+                <button @onclick="OpenOverflowForSingleSelection" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">⋮</button>
+            }
+        </div>
+    }
+    else
+    {
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:8px;">
+            <button @onclick="OpenSearch"
+                    style="width:32px;height:32px;border-radius:50%;border:none;background:#e2e8f0;font-size:0.9em;padding:0;">
+                🔍
             </button>
-        }
-    </div>
+            @if (!string.IsNullOrEmpty(_photoDataUri))
+            {
+                <img @onclick="@(() => Nav.NavigateTo("/menu"))" src="@_photoDataUri"
+                     style="width:32px;height:32px;border-radius:50%;object-fit:cover;" />
+            }
+            else
+            {
+                <button @onclick="@(() => Nav.NavigateTo("/menu"))"
+                        style="width:32px;height:32px;border-radius:50%;border:none;background:#e2e8f0;font-size:0.9em;padding:0;">
+                    ⚙
+                </button>
+            }
+        </div>
+    }
 
     @if (_isSearchOpen)
     {
@@ -47,12 +64,18 @@
     {
         @foreach (var thread in ViewModel.Threads)
         {
-            <div @onpointerdown="e => OnPointerDown(thread.Id, thread.Address, thread.IsFavorite, thread.UnreadCount > 0, e)"
+            <div @onpointerdown="e => OnPointerDown(thread.Id, e)"
                  @onpointerup="e => OnPointerUp(thread.Id, thread.Address, e)"
                  @onpointermove="OnPointerMove"
                  @onpointerleave="CancelLongPress"
-                 style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #eee;touch-action:pan-y;background:@(thread.UnreadCount > 0 ? "rgba(234,179,8,0.15)" : "transparent");">
-                @if (!string.IsNullOrEmpty(thread.PhotoUri))
+                 style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #eee;touch-action:pan-y;user-select:none;-webkit-user-select:none;background:@RowBackground(thread);">
+                @if (_selectedThreadIds.Count > 0)
+                {
+                    <div style="width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3em;background:@(_selectedThreadIds.Contains(thread.Id) ? "var(--accent-color)" : "transparent");border:2px solid var(--accent-color);color:white;">
+                        @(_selectedThreadIds.Contains(thread.Id) ? "✓" : "")
+                    </div>
+                }
+                else if (!string.IsNullOrEmpty(thread.PhotoUri))
                 {
                     <img src="@thread.PhotoUri" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;" />
                 }
@@ -117,6 +140,16 @@
     private bool _shouldFocusSearch;
     private ElementReference _searchInput;
     private bool _isLoading = true;
+    private readonly HashSet<long> _selectedThreadIds = new();
+
+    private string RowBackground(SmsMessenger.Core.Models.SmsThread thread)
+    {
+        if (_selectedThreadIds.Contains(thread.Id))
+        {
+            return "rgba(99,102,241,0.2)";
+        }
+        return thread.UnreadCount > 0 ? "rgba(234,179,8,0.15)" : "transparent";
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -180,7 +213,7 @@
         Nav.NavigateTo($"/conversations/thread?id={threadId}&address={Uri.EscapeDataString(address)}");
     }
 
-    private void OnPointerDown(long threadId, string address, bool isFavorite, bool isUnread, PointerEventArgs e)
+    private void OnPointerDown(long threadId, PointerEventArgs e)
     {
         _activePointerDownThreadId = threadId;
         _pointerDownX = e.ClientX;
@@ -195,10 +228,7 @@
                 _longPressTriggered = true;
                 await InvokeAsync(() =>
                 {
-                    _actionSheetThreadId = threadId;
-                    _actionSheetAddress = address;
-                    _actionSheetIsFavorite = isFavorite;
-                    _actionSheetIsUnread = isUnread;
+                    _selectedThreadIds.Add(threadId);
                     StateHasChanged();
                 });
             }
@@ -234,6 +264,17 @@
             return;
         }
 
+        if (_selectedThreadIds.Count > 0)
+        {
+            // Already in selection mode: any tap toggles that row's checkbox instead of
+            // opening the thread or triggering a swipe action.
+            if (!_selectedThreadIds.Remove(threadId))
+            {
+                _selectedThreadIds.Add(threadId);
+            }
+            return;
+        }
+
         var deltaX = e.ClientX - _pointerDownX;
         if (deltaX >= SwipeThreshold)
         {
@@ -258,6 +299,7 @@
             await ViewModel.TrashThreadCommand.ExecuteAsync(id);
         }
         CloseActionSheet();
+        ClearSelection();
     }
 
     private async Task BlockSelectedThread()
@@ -267,6 +309,7 @@
             await ViewModel.BlockThreadCommand.ExecuteAsync(_actionSheetAddress);
         }
         CloseActionSheet();
+        ClearSelection();
     }
 
     private async Task FavoriteSelectedThread()
@@ -276,6 +319,7 @@
             await ViewModel.FavoriteThreadCommand.ExecuteAsync(id);
         }
         CloseActionSheet();
+        ClearSelection();
     }
 
     private async Task MarkReadSelectedThread()
@@ -285,10 +329,58 @@
             await ViewModel.MarkThreadReadStateCommand.ExecuteAsync(id);
         }
         CloseActionSheet();
+        ClearSelection();
     }
 
     private async Task AddContact(string address)
     {
         await ContactService.AddContactAsync(address);
+    }
+
+    private void ClearSelection() => _selectedThreadIds.Clear();
+
+    private bool AllSelectedAreFavorited() =>
+        _selectedThreadIds.Count > 0 &&
+        _selectedThreadIds.All(id => ViewModel.Threads.FirstOrDefault(t => t.Id == id)?.IsFavorite == true);
+
+    private async Task ToggleFavoriteSelectedThreads()
+    {
+        var ids = _selectedThreadIds.ToList();
+        _selectedThreadIds.Clear();
+        await ViewModel.FavoriteThreadsCommand.ExecuteAsync(ids);
+    }
+
+    private async Task ArchiveSelectedThreads()
+    {
+        var ids = _selectedThreadIds.ToList();
+        _selectedThreadIds.Clear();
+        await ViewModel.ArchiveThreadsCommand.ExecuteAsync(ids);
+    }
+
+    private async Task TrashSelectedThreads()
+    {
+        var ids = _selectedThreadIds.ToList();
+        _selectedThreadIds.Clear();
+        await ViewModel.TrashThreadsCommand.ExecuteAsync(ids);
+    }
+
+    private void OpenOverflowForSingleSelection()
+    {
+        if (_selectedThreadIds.Count != 1)
+        {
+            return;
+        }
+
+        var threadId = _selectedThreadIds.First();
+        var thread = ViewModel.Threads.FirstOrDefault(t => t.Id == threadId);
+        if (thread is null)
+        {
+            return;
+        }
+
+        _actionSheetThreadId = threadId;
+        _actionSheetAddress = thread.Address;
+        _actionSheetIsFavorite = thread.IsFavorite;
+        _actionSheetIsUnread = thread.UnreadCount > 0;
     }
 }

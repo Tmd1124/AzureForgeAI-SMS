@@ -129,6 +129,38 @@ public partial class ConversationsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task FavoriteThreads(IReadOnlyList<long> threadIds)
+    {
+        var threads = threadIds
+            .Select(id => _allThreads.FirstOrDefault(t => t.Id == id))
+            .Where(t => t is not null)
+            .Cast<SmsThread>()
+            .ToList();
+        if (threads.Count == 0)
+        {
+            return;
+        }
+
+        // Mirrors the single-item toggle: if every selected thread is already a favorite,
+        // the action removes them all; otherwise it favorites everything selected. No undo
+        // here, matching the existing single-item Favorite toggle.
+        var allFavorited = threads.All(t => t.IsFavorite);
+        foreach (var thread in threads)
+        {
+            if (allFavorited)
+            {
+                await _favoriteRepository.UnfavoriteThreadAsync(thread.Id);
+            }
+            else
+            {
+                await _favoriteRepository.FavoriteThreadAsync(thread.Id);
+            }
+        }
+
+        await Load();
+    }
+
+    [RelayCommand]
     private async Task TrashThread(long threadId)
     {
         await _trashRepository.TrashThreadAsync(threadId);
@@ -141,6 +173,32 @@ public partial class ConversationsViewModel : ObservableObject
     {
         await _archiveRepository.ArchiveThreadAsync(threadId);
         _undoStack.Push(new ArchiveUndoAction(threadId, _archiveRepository));
+        await Load();
+    }
+
+    [RelayCommand]
+    private async Task TrashThreads(IReadOnlyList<long> threadIds)
+    {
+        var undoActions = new List<IUndoableAction>();
+        foreach (var threadId in threadIds)
+        {
+            await _trashRepository.TrashThreadAsync(threadId);
+            undoActions.Add(new TrashUndoAction(threadId, _trashRepository));
+        }
+        _undoStack.Push(new BulkUndoAction(undoActions, $"Trashed {threadIds.Count} conversation(s)"));
+        await Load();
+    }
+
+    [RelayCommand]
+    private async Task ArchiveThreads(IReadOnlyList<long> threadIds)
+    {
+        var undoActions = new List<IUndoableAction>();
+        foreach (var threadId in threadIds)
+        {
+            await _archiveRepository.ArchiveThreadAsync(threadId);
+            undoActions.Add(new ArchiveUndoAction(threadId, _archiveRepository));
+        }
+        _undoStack.Push(new BulkUndoAction(undoActions, $"Archived {threadIds.Count} conversation(s)"));
         await Load();
     }
 

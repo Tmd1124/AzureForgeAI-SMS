@@ -4,6 +4,32 @@
 @using SmsMessenger.Core.Services
 @using SmsMessenger.Core.ViewModels
 
+<style>
+    .compose-grow-wrap {
+        display: inline-grid;
+        vertical-align: bottom;
+    }
+    .compose-grow-wrap::after {
+        content: attr(data-replicated-value) " ";
+        white-space: pre-wrap;
+        visibility: hidden;
+    }
+    .compose-grow-wrap > textarea {
+        resize: none;
+        overflow-y: auto;
+    }
+    .compose-grow-wrap > textarea,
+    .compose-grow-wrap::after {
+        font: inherit;
+        padding: 8px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 16px;
+        grid-area: 1 / 1 / 2 / 2;
+        max-height: 150px;
+        line-height: 1.3;
+    }
+</style>
+
 @if (ViewModel is not null)
 {
     <div style="display:flex;flex-direction:column;height:100vh;">
@@ -18,7 +44,10 @@
             @foreach (var (message, showDateSeparator) in MessagesWithDateSeparators().Reverse())
             {
                 <div style="display:flex;flex-direction:column;align-items:@(message.IsOutgoing ? "flex-end" : "flex-start");margin:4px 4px;">
-                    <div style="max-width:75%;padding:8px 12px;border-radius:16px;background:@(message.IsOutgoing ? "var(--accent-color)" : "var(--card-color)");color:@(message.IsOutgoing ? "white" : "var(--text-color)");">
+                    <div @onpointerdown="() => OnMessagePointerDown(message)"
+                         @onpointerup="CancelMessageLongPress"
+                         @onpointerleave="CancelMessageLongPress"
+                         style="max-width:75%;padding:8px 12px;border-radius:16px;user-select:none;-webkit-user-select:none;background:@(message.IsOutgoing ? "var(--accent-color)" : "var(--card-color)");color:@(message.IsOutgoing ? "white" : "var(--text-color)");">
                         @message.Body
                     </div>
                     <div style="font-size:0.75em;color:#94a3b8;margin-top:2px;">
@@ -37,14 +66,29 @@
                 }
             }
         </div>
-        <div style="display:flex;align-items:center;padding:8px;">
-            <input style="flex:1;" placeholder="Text message" @bind="ViewModel.ComposeText" @bind:event="oninput" />
+        <div style="display:flex;align-items:flex-end;padding:8px;">
+            <div class="compose-grow-wrap" data-replicated-value="@ViewModel.ComposeText" style="flex:1;">
+                <textarea placeholder="Text message" rows="1" spellcheck="true" autocorrect="on" autocapitalize="sentences"
+                          @bind="ViewModel.ComposeText" @bind:event="oninput"></textarea>
+            </div>
             @if (!string.IsNullOrWhiteSpace(ViewModel.ComposeText))
             {
                 <button @onclick="() => ViewModel.SendCommand.ExecuteAsync(null)"
                         style="width:40px;height:40px;border-radius:50%;border:none;background:#22c55e;color:white;font-size:1.2em;margin-left:8px;flex-shrink:0;">
                     ➤
                 </button>
+            }
+        </div>
+    </div>
+}
+
+@if (_reactionTargetMessage is not null)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;" @onclick="CloseReactionBar">
+        <div style="background:var(--card-color);width:100%;padding:16px;border-radius:16px 16px 0 0;display:flex;justify-content:space-around;" @onclick:stopPropagation="true">
+            @foreach (var emoji in ReactionEmojis)
+            {
+                <button @onclick="() => SendReaction(emoji)" style="border:none;background:transparent;font-size:2em;">@emoji</button>
             }
         </div>
     </div>
@@ -59,6 +103,9 @@
 
     private ThreadDetailViewModel? ViewModel;
     private string DisplayName = string.Empty;
+    private static readonly string[] ReactionEmojis = { "👍", "❤️", "😂", "😮", "😢", "🙏" };
+    private SmsMessenger.Core.Models.SmsMessage? _reactionTargetMessage;
+    private CancellationTokenSource? _messageLongPressCts;
 
     protected override async Task OnInitializedAsync()
     {
@@ -98,5 +145,40 @@
             return "Yesterday";
         }
         return date.ToString("MMMM d, yyyy");
+    }
+
+    private void OnMessagePointerDown(SmsMessenger.Core.Models.SmsMessage message)
+    {
+        _messageLongPressCts = new CancellationTokenSource();
+        var token = _messageLongPressCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(500, token);
+                await InvokeAsync(() =>
+                {
+                    _reactionTargetMessage = message;
+                    StateHasChanged();
+                });
+            }
+            catch (TaskCanceledException)
+            {
+                // pointer released or left before the long-press threshold — a normal tap, not a long-press
+            }
+        });
+    }
+
+    private void CancelMessageLongPress() => _messageLongPressCts?.Cancel();
+
+    private void CloseReactionBar() => _reactionTargetMessage = null;
+
+    private async Task SendReaction(string emoji)
+    {
+        if (_reactionTargetMessage is not null)
+        {
+            await ViewModel!.SendReactionCommand.ExecuteAsync((emoji, _reactionTargetMessage.Body));
+        }
+        CloseReactionBar();
     }
 }

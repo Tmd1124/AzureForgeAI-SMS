@@ -53,4 +53,45 @@ public class ThreadDetailViewModelTests
         sms.Verify(s => s.SendAsync("5550148890", "See you then"), Times.Once);
         Assert.Equal(string.Empty, viewModel.ComposeText);
     }
+
+    [Fact]
+    public async Task SendReactionCommand_sends_the_emoji_quoting_the_target_message()
+    {
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.GetMessagesAsync(1)).ReturnsAsync(new List<SmsMessage>());
+        var viewModel = new ThreadDetailViewModel(sms.Object, threadId: 1, address: "5550148890");
+
+        await viewModel.SendReactionCommand.ExecuteAsync(("👍", "You still coming over"));
+
+        sms.Verify(s => s.SendAsync("5550148890", "👍 to \"You still coming over\""), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendReactionCommand_truncates_a_long_target_message()
+    {
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.GetMessagesAsync(1)).ReturnsAsync(new List<SmsMessage>());
+        var viewModel = new ThreadDetailViewModel(sms.Object, threadId: 1, address: "5550148890");
+        var longBody = new string('a', 60);
+
+        await viewModel.SendReactionCommand.ExecuteAsync(("❤️", longBody));
+
+        var expectedQuote = new string('a', 40) + "…";
+        sms.Verify(s => s.SendAsync("5550148890", $"❤️ to \"{expectedQuote}\""), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendReactionCommand_reloads_messages_after_sending()
+    {
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.GetMessagesAsync(1)).ReturnsAsync(new List<SmsMessage>
+        {
+            new() { Id = 1, ThreadId = 1, Address = "5550148890", Body = "👍 to \"hi\"", Timestamp = DateTimeOffset.UtcNow, IsOutgoing = true, Status = SmsMessageStatus.Sent }
+        });
+        var viewModel = new ThreadDetailViewModel(sms.Object, threadId: 1, address: "5550148890");
+
+        await viewModel.SendReactionCommand.ExecuteAsync(("👍", "hi"));
+
+        Assert.Single(viewModel.Messages);
+    }
 }
