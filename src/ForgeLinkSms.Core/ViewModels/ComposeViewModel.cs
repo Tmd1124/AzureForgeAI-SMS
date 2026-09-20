@@ -2,25 +2,111 @@ using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ForgeLinkSms.Core.Models;
 using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.Utils;
 
 namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class ComposeViewModel : ObservableObject
 {
     private readonly ISmsService _smsService;
+    private readonly IContactService _contactService;
+    private readonly List<ContactInfo> _allContacts = new();
+    private readonly List<string> _selectedForGroup = new();
 
     public ObservableCollection<string> Recipients { get; } = new();
 
     [ObservableProperty]
     private string _messageBody = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilteredContacts))]
+    private string _searchText = string.Empty;
+
     public bool IsGroupSend => Recipients.Count > 1;
 
-    public ComposeViewModel(ISmsService smsService)
+    [ObservableProperty]
+    private bool _isMultiSelecting;
+
+    public int SelectedCount => _selectedForGroup.Count;
+
+    public bool IsContactSelected(ContactInfo contact) =>
+        _selectedForGroup.Contains(PhoneNumberFormatter.ToComparableDigits(contact.PhoneNumber));
+
+    public IReadOnlyList<ContactInfo> FilteredContacts => _allContacts
+        .Where(c => !Recipients.Contains(PhoneNumberFormatter.ToComparableDigits(c.PhoneNumber)))
+        .Where(c => string.IsNullOrWhiteSpace(SearchText)
+            || c.DisplayName.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
+            || c.PhoneNumber.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    public ComposeViewModel(ISmsService smsService, IContactService contactService)
     {
         _smsService = smsService;
-        Recipients.CollectionChanged += (_, _) => OnPropertyChanged(nameof(IsGroupSend));
+        _contactService = contactService;
+        Recipients.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(IsGroupSend));
+            OnPropertyChanged(nameof(FilteredContacts));
+        };
+    }
+
+    [RelayCommand]
+    private async Task LoadContacts()
+    {
+        _allContacts.Clear();
+        _allContacts.AddRange(await _contactService.GetAllContactsAsync());
+        OnPropertyChanged(nameof(FilteredContacts));
+    }
+
+    [RelayCommand]
+    private void SelectContact(ContactInfo contact)
+    {
+        AddRecipient(contact.PhoneNumber);
+        SearchText = string.Empty;
+    }
+
+    [RelayCommand]
+    private void BeginMultiSelect(ContactInfo contact)
+    {
+        IsMultiSelecting = true;
+        ToggleContactSelection(contact);
+    }
+
+    [RelayCommand]
+    private void ToggleContactSelection(ContactInfo contact)
+    {
+        var digits = PhoneNumberFormatter.ToComparableDigits(contact.PhoneNumber);
+        if (!_selectedForGroup.Remove(digits))
+        {
+            _selectedForGroup.Add(digits);
+        }
+        OnPropertyChanged(nameof(SelectedCount));
+    }
+
+    [RelayCommand]
+    private void ConfirmMultiSelect()
+    {
+        foreach (var digits in _selectedForGroup)
+        {
+            if (!Recipients.Contains(digits))
+            {
+                Recipients.Add(digits);
+            }
+        }
+        _selectedForGroup.Clear();
+        IsMultiSelecting = false;
+        SearchText = string.Empty;
+        OnPropertyChanged(nameof(SelectedCount));
+    }
+
+    [RelayCommand]
+    private void CancelMultiSelect()
+    {
+        _selectedForGroup.Clear();
+        IsMultiSelecting = false;
+        OnPropertyChanged(nameof(SelectedCount));
     }
 
     [RelayCommand]
@@ -31,6 +117,7 @@ public partial class ComposeViewModel : ObservableObject
         {
             return; // not a valid US-style number; reject silently, UI shows its own validation message
         }
+        digits = PhoneNumberFormatter.ToComparableDigits(digits);
         if (!Recipients.Contains(digits))
         {
             Recipients.Add(digits);
@@ -39,6 +126,9 @@ public partial class ComposeViewModel : ObservableObject
 
     [RelayCommand]
     private void RemoveRecipient(string number) => Recipients.Remove(number);
+
+    public ContactInfo? FindContact(string phoneNumberDigits) =>
+        _allContacts.FirstOrDefault(c => PhoneNumberFormatter.ToComparableDigits(c.PhoneNumber) == phoneNumberDigits);
 
     [RelayCommand]
     private async Task Send()

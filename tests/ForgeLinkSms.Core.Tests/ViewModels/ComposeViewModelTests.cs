@@ -1,4 +1,5 @@
 using Moq;
+using ForgeLinkSms.Core.Models;
 using ForgeLinkSms.Core.Services;
 using ForgeLinkSms.Core.ViewModels;
 
@@ -6,11 +7,20 @@ namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class ComposeViewModelTests
 {
+    private static ComposeViewModel CreateViewModel(Mock<ISmsService>? sms = null, Mock<IContactService>? contacts = null)
+    {
+        if (contacts is null)
+        {
+            contacts = new Mock<IContactService>();
+            contacts.Setup(c => c.GetAllContactsAsync()).ReturnsAsync(Array.Empty<ContactInfo>());
+        }
+        return new ComposeViewModel((sms ?? new Mock<ISmsService>()).Object, contacts.Object);
+    }
+
     [Fact]
     public void AddRecipientCommand_rejects_invalid_numbers()
     {
-        var sms = new Mock<ISmsService>();
-        var viewModel = new ComposeViewModel(sms.Object);
+        var viewModel = CreateViewModel();
 
         viewModel.AddRecipientCommand.Execute("abc");
 
@@ -20,8 +30,7 @@ public class ComposeViewModelTests
     [Fact]
     public void AddRecipientCommand_accepts_valid_numbers_and_dedupes()
     {
-        var sms = new Mock<ISmsService>();
-        var viewModel = new ComposeViewModel(sms.Object);
+        var viewModel = CreateViewModel();
 
         viewModel.AddRecipientCommand.Execute("5550148890");
         viewModel.AddRecipientCommand.Execute("5550148890");
@@ -32,8 +41,7 @@ public class ComposeViewModelTests
     [Fact]
     public void IsGroupSend_is_true_only_with_more_than_one_recipient()
     {
-        var sms = new Mock<ISmsService>();
-        var viewModel = new ComposeViewModel(sms.Object);
+        var viewModel = CreateViewModel();
 
         Assert.False(viewModel.IsGroupSend);
         viewModel.AddRecipientCommand.Execute("5550148890");
@@ -46,7 +54,8 @@ public class ComposeViewModelTests
     public async Task SendCommand_sends_individually_to_every_recipient()
     {
         var sms = new Mock<ISmsService>();
-        var viewModel = new ComposeViewModel(sms.Object) { MessageBody = "hello everyone" };
+        var viewModel = CreateViewModel(sms);
+        viewModel.MessageBody = "hello everyone";
         viewModel.AddRecipientCommand.Execute("5550148890");
         viewModel.AddRecipientCommand.Execute("5550142231");
 
@@ -54,5 +63,178 @@ public class ComposeViewModelTests
 
         sms.Verify(s => s.SendAsync("5550148890", "hello everyone"), Times.Once);
         sms.Verify(s => s.SendAsync("5550142231", "hello everyone"), Times.Once);
+    }
+
+    private static ContactInfo Contact(string name, string phone) => new() { DisplayName = name, PhoneNumber = phone };
+
+    [Fact]
+    public async Task FilteredContacts_matches_by_name_case_insensitive()
+    {
+        var contacts = new Mock<IContactService>();
+        contacts.Setup(c => c.GetAllContactsAsync()).ReturnsAsync(new[]
+        {
+            Contact("Alice Smith", "5550148890"),
+            Contact("Bob Jones", "5550142231")
+        });
+        var viewModel = CreateViewModel(contacts: contacts);
+        await viewModel.LoadContactsCommand.ExecuteAsync(null);
+
+        viewModel.SearchText = "alice";
+
+        Assert.Single(viewModel.FilteredContacts);
+        Assert.Equal("Alice Smith", viewModel.FilteredContacts[0].DisplayName);
+    }
+
+    [Fact]
+    public async Task FilteredContacts_matches_by_phone_number_substring()
+    {
+        var contacts = new Mock<IContactService>();
+        contacts.Setup(c => c.GetAllContactsAsync()).ReturnsAsync(new[]
+        {
+            Contact("Alice Smith", "5550148890"),
+            Contact("Bob Jones", "5550142231")
+        });
+        var viewModel = CreateViewModel(contacts: contacts);
+        await viewModel.LoadContactsCommand.ExecuteAsync(null);
+
+        viewModel.SearchText = "4223";
+
+        Assert.Single(viewModel.FilteredContacts);
+        Assert.Equal("Bob Jones", viewModel.FilteredContacts[0].DisplayName);
+    }
+
+    [Fact]
+    public async Task FilteredContacts_excludes_already_added_recipients()
+    {
+        var contacts = new Mock<IContactService>();
+        contacts.Setup(c => c.GetAllContactsAsync()).ReturnsAsync(new[]
+        {
+            Contact("Alice Smith", "5550148890"),
+            Contact("Bob Jones", "5550142231")
+        });
+        var viewModel = CreateViewModel(contacts: contacts);
+        await viewModel.LoadContactsCommand.ExecuteAsync(null);
+
+        viewModel.AddRecipientCommand.Execute("5550148890");
+
+        Assert.Single(viewModel.FilteredContacts);
+        Assert.Equal("Bob Jones", viewModel.FilteredContacts[0].DisplayName);
+    }
+
+    [Fact]
+    public async Task SelectContactCommand_adds_recipient_and_clears_search()
+    {
+        var contacts = new Mock<IContactService>();
+        contacts.Setup(c => c.GetAllContactsAsync()).ReturnsAsync(new[]
+        {
+            Contact("Alice Smith", "5550148890")
+        });
+        var viewModel = CreateViewModel(contacts: contacts);
+        await viewModel.LoadContactsCommand.ExecuteAsync(null);
+        viewModel.SearchText = "alice";
+
+        viewModel.SelectContactCommand.Execute(viewModel.FilteredContacts[0]);
+
+        Assert.Equal(new[] { "5550148890" }, viewModel.Recipients);
+        Assert.Equal(string.Empty, viewModel.SearchText);
+    }
+
+    [Fact]
+    public async Task FindContact_returns_the_matching_contact_even_after_it_is_added_as_a_recipient()
+    {
+        var contacts = new Mock<IContactService>();
+        contacts.Setup(c => c.GetAllContactsAsync()).ReturnsAsync(new[]
+        {
+            Contact("Alice Smith", "5550148890")
+        });
+        var viewModel = CreateViewModel(contacts: contacts);
+        await viewModel.LoadContactsCommand.ExecuteAsync(null);
+        viewModel.AddRecipientCommand.Execute("5550148890");
+
+        var found = viewModel.FindContact("5550148890");
+
+        Assert.Equal("Alice Smith", found?.DisplayName);
+    }
+
+    [Fact]
+    public void FindContact_returns_null_for_a_number_with_no_matching_contact()
+    {
+        var viewModel = CreateViewModel();
+
+        Assert.Null(viewModel.FindContact("5550148890"));
+    }
+
+    [Fact]
+    public async Task BeginMultiSelectCommand_enters_multi_select_mode_with_that_contact_checked()
+    {
+        var contacts = new Mock<IContactService>();
+        contacts.Setup(c => c.GetAllContactsAsync()).ReturnsAsync(new[] { Contact("Alice Smith", "5550148890") });
+        var viewModel = CreateViewModel(contacts: contacts);
+        await viewModel.LoadContactsCommand.ExecuteAsync(null);
+        var alice = viewModel.FilteredContacts[0];
+
+        viewModel.BeginMultiSelectCommand.Execute(alice);
+
+        Assert.True(viewModel.IsMultiSelecting);
+        Assert.True(viewModel.IsContactSelected(alice));
+        Assert.Equal(1, viewModel.SelectedCount);
+        Assert.Empty(viewModel.Recipients);
+    }
+
+    [Fact]
+    public async Task ToggleContactSelectionCommand_checks_and_unchecks_a_contact()
+    {
+        var contacts = new Mock<IContactService>();
+        contacts.Setup(c => c.GetAllContactsAsync()).ReturnsAsync(new[] { Contact("Alice Smith", "5550148890") });
+        var viewModel = CreateViewModel(contacts: contacts);
+        await viewModel.LoadContactsCommand.ExecuteAsync(null);
+        var alice = viewModel.FilteredContacts[0];
+        viewModel.BeginMultiSelectCommand.Execute(alice);
+
+        viewModel.ToggleContactSelectionCommand.Execute(alice);
+
+        Assert.False(viewModel.IsContactSelected(alice));
+        Assert.Equal(0, viewModel.SelectedCount);
+    }
+
+    [Fact]
+    public async Task ConfirmMultiSelectCommand_adds_every_checked_contact_as_a_recipient_and_exits_selection_mode()
+    {
+        var contacts = new Mock<IContactService>();
+        contacts.Setup(c => c.GetAllContactsAsync()).ReturnsAsync(new[]
+        {
+            Contact("Alice Smith", "5550148890"),
+            Contact("Bob Jones", "5550142231")
+        });
+        var viewModel = CreateViewModel(contacts: contacts);
+        await viewModel.LoadContactsCommand.ExecuteAsync(null);
+        var alice = viewModel.FilteredContacts[0];
+        var bob = viewModel.FilteredContacts[1];
+        viewModel.BeginMultiSelectCommand.Execute(alice);
+        viewModel.ToggleContactSelectionCommand.Execute(bob);
+
+        viewModel.ConfirmMultiSelectCommand.Execute(null);
+
+        Assert.Equal(new[] { "5550148890", "5550142231" }, viewModel.Recipients);
+        Assert.True(viewModel.IsGroupSend);
+        Assert.False(viewModel.IsMultiSelecting);
+        Assert.Equal(0, viewModel.SelectedCount);
+    }
+
+    [Fact]
+    public async Task CancelMultiSelectCommand_discards_the_selection_without_adding_recipients()
+    {
+        var contacts = new Mock<IContactService>();
+        contacts.Setup(c => c.GetAllContactsAsync()).ReturnsAsync(new[] { Contact("Alice Smith", "5550148890") });
+        var viewModel = CreateViewModel(contacts: contacts);
+        await viewModel.LoadContactsCommand.ExecuteAsync(null);
+        var alice = viewModel.FilteredContacts[0];
+        viewModel.BeginMultiSelectCommand.Execute(alice);
+
+        viewModel.CancelMultiSelectCommand.Execute(null);
+
+        Assert.False(viewModel.IsMultiSelecting);
+        Assert.Equal(0, viewModel.SelectedCount);
+        Assert.Empty(viewModel.Recipients);
     }
 }
