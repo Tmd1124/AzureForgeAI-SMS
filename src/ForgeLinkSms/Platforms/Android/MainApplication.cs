@@ -9,6 +9,8 @@ using Android.Runtime;
 [assembly: UsesPermission(Android.Manifest.Permission.ReadPhoneState)]
 [assembly: UsesPermission(Android.Manifest.Permission.ReceiveWapPush)]
 [assembly: UsesPermission("android.permission.POST_NOTIFICATIONS")]
+[assembly: UsesPermission(Android.Manifest.Permission.AccessFineLocation)]
+[assembly: UsesPermission(Android.Manifest.Permission.AccessCoarseLocation)]
 
 namespace ForgeLinkSms;
 

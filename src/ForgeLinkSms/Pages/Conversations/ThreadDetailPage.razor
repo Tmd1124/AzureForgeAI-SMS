@@ -2,6 +2,7 @@
 @inject IServiceProvider Services
 @inject ForgeLinkSms.Core.Services.ICalendarService CalendarService
 @using Microsoft.Extensions.DependencyInjection
+@using ForgeLinkSms.Components
 @using ForgeLinkSms.Core.Services
 @using ForgeLinkSms.Core.Utils
 @using ForgeLinkSms.Core.ViewModels
@@ -89,6 +90,10 @@
             }
         </div>
         <div style="display:flex;align-items:flex-end;padding:8px;">
+            <button @onclick="() => _drawer?.Open()"
+                    style="width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);font-size:1.4em;margin-right:8px;flex-shrink:0;">
+                +
+            </button>
             <div class="compose-grow-wrap" data-replicated-value="@ViewModel.ComposeText" style="flex:1;">
                 <textarea placeholder="Text message" rows="1" spellcheck="true" autocorrect="on" autocapitalize="sentences"
                           @bind="ViewModel.ComposeText" @bind:event="oninput"></textarea>
@@ -103,6 +108,8 @@
         </div>
     </div>
 }
+
+<AttachmentDrawer @ref="_drawer" OnInsertText="InsertIntoCompose" />
 
 @if (_reactionTargetMessage is not null)
 {
@@ -128,6 +135,12 @@
     private static readonly string[] ReactionEmojis = { "👍", "❤️", "😂", "😮", "😢", "🙏" };
     private ForgeLinkSms.Core.Models.SmsMessage? _reactionTargetMessage;
     private CancellationTokenSource? _messageLongPressCts;
+    private ForgeLinkSms.Components.AttachmentDrawer? _drawer;
+
+    private void InsertIntoCompose(string text)
+    {
+        ViewModel!.ComposeText = string.IsNullOrEmpty(ViewModel.ComposeText) ? text : $"{ViewModel.ComposeText}\n{text}";
+    }
 
     protected override async Task OnInitializedAsync()
     {

@@ -1,6 +1,7 @@
 @page "/compose"
 @inject ForgeLinkSms.Core.ViewModels.ComposeViewModel ViewModel
 @inject Microsoft.AspNetCore.Components.NavigationManager Nav
+@using ForgeLinkSms.Components
 @using ForgeLinkSms.Core.Models
 @using ForgeLinkSms.Core.Utils
 
@@ -163,6 +164,10 @@
     }
 
     <div style="display:flex;align-items:flex-end;padding:8px;border-top:1px solid #eee;">
+        <button @onclick="() => _drawer?.Open()"
+                style="width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);font-size:1.4em;margin-right:8px;flex-shrink:0;">
+            +
+        </button>
         <div class="compose-grow-wrap" data-replicated-value="@ViewModel.MessageBody" style="flex:1;">
             <textarea placeholder="Text message" rows="1" spellcheck="true" autocorrect="on" autocapitalize="sentences"
                       @bind="ViewModel.MessageBody" @bind:event="oninput"></textarea>
@@ -177,6 +182,8 @@
     </div>
 </div>
 
+<AttachmentDrawer @ref="_drawer" OnInsertText="InsertIntoMessage" />
+
 @code {
     [SupplyParameterFromQuery(Name = "add")]
     public string? AddParam { get; set; }
@@ -185,6 +192,12 @@
 
     private bool _longPressTriggered;
     private CancellationTokenSource? _longPressCts;
+    private ForgeLinkSms.Components.AttachmentDrawer? _drawer;
+
+    private void InsertIntoMessage(string text)
+    {
+        ViewModel.MessageBody = string.IsNullOrEmpty(ViewModel.MessageBody) ? text : $"{ViewModel.MessageBody}\n{text}";
+    }
 
     protected override async Task OnInitializedAsync()
     {

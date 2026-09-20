@@ -1,0 +1,228 @@
+@inject ForgeLinkSms.Core.Services.IContactService ContactService
+@inject ForgeLinkSms.Core.Services.ILocationService LocationService
+@using ForgeLinkSms.Core.Models
+@using ForgeLinkSms.Core.Utils
+
+<style>
+    .drawer-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: flex-end;
+        z-index: 20;
+    }
+
+    .drawer-sheet {
+        background: var(--card-color);
+        width: 100%;
+        padding: 16px;
+        border-radius: 16px 16px 0 0;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+    .drawer-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+
+    .drawer-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8em;
+        color: var(--text-color);
+        cursor: pointer;
+    }
+
+    .drawer-item .icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--surface-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4em;
+    }
+
+    .drawer-item.disabled {
+        opacity: 0.45;
+    }
+
+    .drawer-back {
+        cursor: pointer;
+        padding-bottom: 10px;
+        color: var(--accent-color);
+        font-weight: 600;
+    }
+
+    .drawer-contact-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+    }
+
+    .drawer-toast {
+        position: fixed;
+        left: 50%;
+        bottom: 90px;
+        transform: translateX(-50%);
+        background: #111827;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        z-index: 30;
+    }
+</style>
+
+@if (_isOpen)
+{
+    <div class="drawer-overlay" @onclick="Close">
+        <div class="drawer-sheet" @onclick:stopPropagation="true">
+            @if (_mode == DrawerMode.Grid)
+            {
+                <div class="drawer-grid">
+                    <div class="drawer-item disabled" @onclick="ShowComingSoon">
+                        <span class="icon">🖼️</span>
+                        <span>Gallery</span>
+                    </div>
+                    <div class="drawer-item disabled" @onclick="ShowComingSoon">
+                        <span class="icon">🎬</span>
+                        <span>GIFs</span>
+                    </div>
+                    <div class="drawer-item disabled" @onclick="ShowComingSoon">
+                        <span class="icon">📁</span>
+                        <span>Files</span>
+                    </div>
+                    <div class="drawer-item" @onclick="ShareLocation">
+                        <span class="icon">📍</span>
+                        <span>Location</span>
+                    </div>
+                    <div class="drawer-item" @onclick="OpenContactPicker">
+                        <span class="icon">👤</span>
+                        <span>Contact</span>
+                    </div>
+                    <div class="drawer-item disabled" @onclick="ShowComingSoon">
+                        <span class="icon">⏰</span>
+                        <span>Schedule</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="drawer-back" @onclick="() => _mode = DrawerMode.Grid">‹ Back</div>
+                @if (_contacts is { Count: 0 })
+                {
+                    <p style="text-align:center;color:#94a3b8;">No contacts found.</p>
+                }
+                else
+                {
+                    @foreach (var contact in _contacts ?? Enumerable.Empty<ContactInfo>())
+                    {
+                        <div class="drawer-contact-row" @onclick="() => ShareContact(contact)">
+                            @if (!string.IsNullOrEmpty(contact.PhotoUri))
+                            {
+                                <img src="@contact.PhotoUri" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" />
+                            }
+                            else
+                            {
+                                <div style="width:36px;height:36px;border-radius:50%;background:var(--accent-color);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;">@contact.Initials</div>
+                            }
+                            <div>
+                                <div>@contact.DisplayName</div>
+                                <div style="font-size:0.8em;color:#94a3b8;">@PhoneNumberFormatter.ToDisplayFormat(contact.PhoneNumber)</div>
+                            </div>
+                        </div>
+                    }
+                }
+            }
+        </div>
+    </div>
+}
+
+@if (_toastMessage is not null)
+{
+    <div class="drawer-toast">@_toastMessage</div>
+}
+
+@code {
+    private enum DrawerMode { Grid, ContactList }
+
+    private bool _isOpen;
+    private DrawerMode _mode = DrawerMode.Grid;
+    private string? _toastMessage;
+    private List<ContactInfo>? _contacts;
+    private CancellationTokenSource? _toastCts;
+
+    [Parameter]
+    public EventCallback<string> OnInsertText { get; set; }
+
+    public void Open()
+    {
+        _isOpen = true;
+        _mode = DrawerMode.Grid;
+        StateHasChanged();
+    }
+
+    private void Close()
+    {
+        _isOpen = false;
+        StateHasChanged();
+    }
+
+    private async Task OpenContactPicker()
+    {
+        _contacts ??= (await ContactService.GetAllContactsAsync()).ToList();
+        _mode = DrawerMode.ContactList;
+    }
+
+    private async Task ShareLocation()
+    {
+        var location = await LocationService.GetCurrentLocationAsync();
+        if (location is null)
+        {
+            await ShowToast("Couldn't get your location");
+            return;
+        }
+
+        Close();
+        await OnInsertText.InvokeAsync(AttachmentTextFormatter.FormatLocationLink(location.Value.Latitude, location.Value.Longitude));
+    }
+
+    private async Task ShareContact(ContactInfo contact)
+    {
+        Close();
+        await OnInsertText.InvokeAsync(AttachmentTextFormatter.FormatContactShare(contact));
+    }
+
+    private Task ShowComingSoon() => ShowToast("Coming soon");
+
+    private async Task ShowToast(string message)
+    {
+        _toastCts?.Cancel();
+        _toastCts = new CancellationTokenSource();
+        var token = _toastCts.Token;
+
+        _toastMessage = message;
+        StateHasChanged();
+
+        try
+        {
+            await Task.Delay(1800, token);
+            _toastMessage = null;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (TaskCanceledException)
+        {
+            // superseded by a newer toast
+        }
+    }
+}
