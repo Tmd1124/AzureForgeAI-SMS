@@ -1,0 +1,31 @@
+@page "/trash"
+@inject ForgeLinkSms.Core.ViewModels.TrashViewModel ViewModel
+
+<div style="padding:12px;">
+    <h3>Trash</h3>
+
+    @if (ViewModel.TrashedThreads.Count == 0)
+    {
+        <p>No trashed conversations.</p>
+    }
+    else
+    {
+        @foreach (var thread in ViewModel.TrashedThreads)
+        {
+            <div style="padding:10px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <strong>@thread.DisplayNameOrAddress</strong>
+                    <div style="color:#94a3b8;font-size:0.85em;">@thread.PreviewText</div>
+                </div>
+                <button @onclick="() => ViewModel.RestoreCommand.ExecuteAsync(thread.Id)">Restore</button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ViewModel.LoadCommand.ExecuteAsync(null);
+    }
+}

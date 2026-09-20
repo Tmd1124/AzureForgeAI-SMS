@@ -34,8 +34,8 @@ not individual messages within a thread.
 
 ### New SQLite database
 
-A new `SmsMessenger.db` (via the `sqlite-net-pcl` package), opened from
-`SmsMessenger.Core` through a small `IAppDatabase`-style service, holding
+A new `ForgeLinkSms.db` (via the `sqlite-net-pcl` package), opened from
+`ForgeLinkSms.Core` through a small `IAppDatabase`-style service, holding
 exactly two tables — the only new state that is genuinely a queryable
 collection rather than a single scalar:
 
@@ -79,7 +79,7 @@ choice entries:
 ### Undo stack
 
 In-memory only, per the user's explicit call — cleared on app restart. A
-`IUndoStack` singleton in `SmsMessenger.Core` holds a `Stack<IUndoableAction>`
+`IUndoStack` singleton in `ForgeLinkSms.Core` holds a `Stack<IUndoableAction>`
 (or an equivalent record + delegate pair). `IUndoableAction` exposes a
 human-readable `Description` (for the "Undid: …" confirmation) and an
 `UndoAsync()` method. Exactly three action types push onto it: trashing a
@@ -173,19 +173,19 @@ disabled or shows "Nothing to undo."
 
 ## Testing
 
-- `SmsMessenger.Core.Tests` gets new unit tests for: `IUndoStack` push/pop
+- `ForgeLinkSms.Core.Tests` gets new unit tests for: `IUndoStack` push/pop
   ordering and multi-undo behavior: each `*ViewModel` that needs the new
   trash/blocked filtering (`ConversationsViewModel`, a new
   `TrashViewModel`/`BlockedViewModel`) against mocked services, exactly like
   every existing view model in this codebase.
 - The SQLite-backed service implementations (`ITrashRepository` for
   `TrashedThread`, `IBlockedNumberRepository` for `BlockedNumber`) live in
-  `SmsMessenger.Core` behind an interface each, following the same one
+  `ForgeLinkSms.Core` behind an interface each, following the same one
   interface per concern convention as `IContactService`/`IThreadService`/
   `ISmsService`. Unlike the `Platforms/Android/` services, `sqlite-net-pcl`
   is plain, platform-agnostic .NET, so these two are unit-tested directly
   against a real temp-file SQLite database rather than mocked — the
-  original plan kept `SmsMessenger.Core` Android-free for exactly this kind
+  original plan kept `ForgeLinkSms.Core` Android-free for exactly this kind
   of testability, and this stays consistent with it.
 - Manual, on-device verification (per this project's established pattern —
   no working emulator on this machine) for: `BlockedNumberContract`

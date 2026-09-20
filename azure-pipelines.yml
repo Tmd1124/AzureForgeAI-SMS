@@ -6,7 +6,7 @@ pool:
 
 variables:
   buildConfiguration: Release
-  testProject: tests/SmsMessenger.Core.Tests/SmsMessenger.Core.Tests.csproj
+  testProject: tests/ForgeLinkSms.Core.Tests/ForgeLinkSms.Core.Tests.csproj
 
 steps:
   - task: UseDotNet@2

@@ -1,4 +1,4 @@
-# SMS Messenger
+# ForgeLink SMS
 
 A native Android app that sends and receives real SMS text messages through
 the phone's own cellular connection — not a chat app, no backend, no cloud
@@ -18,26 +18,26 @@ the implementation plan this was built from.
 
 ## Build
 
-    dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+    dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 
-(`dotnet build SmsMessenger.sln -f net9.0-android` — building the whole
+(`dotnet build ForgeLinkSms.sln -f net9.0-android` — building the whole
 solution with an Android target filter — does not work, since
-`SmsMessenger.Core`/`SmsMessenger.Core.Tests` are plain `net9.0` projects
+`ForgeLinkSms.Core`/`ForgeLinkSms.Core.Tests` are plain `net9.0` projects
 that don't target Android; build the app project directly, or build the
 solution with no `-f` filter.)
 
 ## Run on a device
 
-    dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+    dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 
 ## Run the unit tests
 
-    dotnet test tests/SmsMessenger.Core.Tests
+    dotnet test tests/ForgeLinkSms.Core.Tests
 
-Unit tests cover every model and view model in `SmsMessenger.Core` — none
+Unit tests cover every model and view model in `ForgeLinkSms.Core` — none
 of them touch the Android runtime, so they run on any machine with the .NET
 SDK. The Android-specific service implementations under
-`src/SmsMessenger/Platforms/Android/` call real platform APIs
+`src/ForgeLinkSms/Platforms/Android/` call real platform APIs
 (`SmsManager`, content providers, `ContactsContract`, `RoleManager`) and are
 verified by hand on a physical device, per the manual verification steps in
 each task of the implementation plan.

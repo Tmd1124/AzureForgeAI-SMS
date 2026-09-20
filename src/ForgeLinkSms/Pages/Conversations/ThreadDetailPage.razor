@@ -1,0 +1,184 @@
+@page "/conversations/thread"
+@inject IServiceProvider Services
+@using Microsoft.Extensions.DependencyInjection
+@using ForgeLinkSms.Core.Services
+@using ForgeLinkSms.Core.ViewModels
+
+<style>
+    .compose-grow-wrap {
+        display: inline-grid;
+        vertical-align: bottom;
+    }
+    .compose-grow-wrap::after {
+        content: attr(data-replicated-value) " ";
+        white-space: pre-wrap;
+        visibility: hidden;
+    }
+    .compose-grow-wrap > textarea {
+        resize: none;
+        overflow-y: auto;
+    }
+    .compose-grow-wrap > textarea,
+    .compose-grow-wrap::after {
+        font: inherit;
+        padding: 8px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 16px;
+        grid-area: 1 / 1 / 2 / 2;
+        max-height: 150px;
+        line-height: 1.3;
+    }
+</style>
+
+@if (ViewModel is not null)
+{
+    <div style="display:flex;flex-direction:column;height:100vh;">
+        <div style="padding:10px;background:var(--card-color);border-bottom:1px solid #eee;">@DisplayName</div>
+        <div style="flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column-reverse;">
+            @* Rendered newest-first: paired with column-reverse, the browser's default scroll
+               position lands on the newest message (bottom) without any JS interop, and stays
+               pinned there as new messages arrive — same trick every chat UI uses.
+               Date separators are emitted right after the message that starts a new day: since
+               column-reverse fully flips DOM order into visual order, "after in this DOM loop"
+               is "above it" on screen — i.e. exactly where a separator for that day belongs. *@
+            @foreach (var (message, showDateSeparator) in MessagesWithDateSeparators().Reverse())
+            {
+                <div style="display:flex;flex-direction:column;align-items:@(message.IsOutgoing ? "flex-end" : "flex-start");margin:4px 4px;">
+                    <div @onpointerdown="() => OnMessagePointerDown(message)"
+                         @onpointerup="CancelMessageLongPress"
+                         @onpointerleave="CancelMessageLongPress"
+                         style="max-width:75%;padding:8px 12px;border-radius:16px;user-select:none;-webkit-user-select:none;background:@(message.IsOutgoing ? "var(--accent-color)" : "var(--card-color)");color:@(message.IsOutgoing ? "white" : "var(--text-color)");">
+                        @message.Body
+                    </div>
+                    <div style="font-size:0.75em;color:#94a3b8;margin-top:2px;">
+                        @message.Timestamp.LocalDateTime.ToString("h:mm tt")
+                        @if (!string.IsNullOrEmpty(message.StatusDisplay))
+                        {
+                            <span> · @message.StatusDisplay</span>
+                        }
+                    </div>
+                </div>
+                @if (showDateSeparator)
+                {
+                    <div style="text-align:center;color:#94a3b8;font-size:0.8em;margin:12px 0 4px;">
+                        @FormatDateSeparator(DateOnly.FromDateTime(message.Timestamp.LocalDateTime))
+                    </div>
+                }
+            }
+        </div>
+        <div style="display:flex;align-items:flex-end;padding:8px;">
+            <div class="compose-grow-wrap" data-replicated-value="@ViewModel.ComposeText" style="flex:1;">
+                <textarea placeholder="Text message" rows="1" spellcheck="true" autocorrect="on" autocapitalize="sentences"
+                          @bind="ViewModel.ComposeText" @bind:event="oninput"></textarea>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(ViewModel.ComposeText))
+            {
+                <button @onclick="() => ViewModel.SendCommand.ExecuteAsync(null)"
+                        style="width:40px;height:40px;border-radius:50%;border:none;background:#22c55e;color:white;font-size:1.2em;margin-left:8px;flex-shrink:0;">
+                    ➤
+                </button>
+            }
+        </div>
+    </div>
+}
+
+@if (_reactionTargetMessage is not null)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;" @onclick="CloseReactionBar">
+        <div style="background:var(--card-color);width:100%;padding:16px;border-radius:16px 16px 0 0;display:flex;justify-content:space-around;" @onclick:stopPropagation="true">
+            @foreach (var emoji in ReactionEmojis)
+            {
+                <button @onclick="() => SendReaction(emoji)" style="border:none;background:transparent;font-size:2em;">@emoji</button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "id")]
+    public long ThreadId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "address")]
+    public string Address { get; set; } = string.Empty;
+
+    private ThreadDetailViewModel? ViewModel;
+    private string DisplayName = string.Empty;
+    private static readonly string[] ReactionEmojis = { "👍", "❤️", "😂", "😮", "😢", "🙏" };
+    private ForgeLinkSms.Core.Models.SmsMessage? _reactionTargetMessage;
+    private CancellationTokenSource? _messageLongPressCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        DisplayName = Address;
+        var contactService = Services.GetRequiredService<IContactService>();
+        var contact = await contactService.LookupAsync(Address);
+        if (contact is not null)
+        {
+            DisplayName = contact.DisplayName;
+        }
+
+        var smsService = Services.GetRequiredService<ISmsService>();
+        ViewModel = new ThreadDetailViewModel(smsService, ThreadId, Address);
+        await ViewModel.LoadCommand.ExecuteAsync(null);
+    }
+
+    private IEnumerable<(ForgeLinkSms.Core.Models.SmsMessage Message, bool ShowDateSeparator)> MessagesWithDateSeparators()
+    {
+        DateOnly? lastDate = null;
+        foreach (var message in ViewModel!.Messages)
+        {
+            var date = DateOnly.FromDateTime(message.Timestamp.LocalDateTime);
+            yield return (message, date != lastDate);
+            lastDate = date;
+        }
+    }
+
+    private static string FormatDateSeparator(DateOnly date)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        if (date == today)
+        {
+            return "Today";
+        }
+        if (date == today.AddDays(-1))
+        {
+            return "Yesterday";
+        }
+        return date.ToString("MMMM d, yyyy");
+    }
+
+    private void OnMessagePointerDown(ForgeLinkSms.Core.Models.SmsMessage message)
+    {
+        _messageLongPressCts = new CancellationTokenSource();
+        var token = _messageLongPressCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(500, token);
+                await InvokeAsync(() =>
+                {
+                    _reactionTargetMessage = message;
+                    StateHasChanged();
+                });
+            }
+            catch (TaskCanceledException)
+            {
+                // pointer released or left before the long-press threshold — a normal tap, not a long-press
+            }
+        });
+    }
+
+    private void CancelMessageLongPress() => _messageLongPressCts?.Cancel();
+
+    private void CloseReactionBar() => _reactionTargetMessage = null;
+
+    private async Task SendReaction(string emoji)
+    {
+        if (_reactionTargetMessage is not null)
+        {
+            await ViewModel!.SendReactionCommand.ExecuteAsync((emoji, _reactionTargetMessage.Body));
+        }
+        CloseReactionBar();
+    }
+}

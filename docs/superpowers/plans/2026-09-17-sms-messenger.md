@@ -4,7 +4,7 @@
 
 **Goal:** Build a native Android app that becomes the user's default SMS app and lets them send/receive real text messages with any phone number over the carrier network — no backend, no cloud database, no push service.
 
-**Architecture:** A .NET MAUI Blazor Hybrid app targeting Android only. All app logic (models, view models, service *interfaces*) lives in a plain `net9.0` class library (`SmsMessenger.Core`) so it can be unit-tested without any Android/MAUI runtime. The MAUI app project (`SmsMessenger`, `net9.0-android` only) supplies the Android-specific service *implementations* (`Platforms/Android/`) that call `SmsManager`, the SMS/MMS content providers, `ContactsContract`, and `RoleManager` directly — there is no server anywhere in this system. Android itself is the source of truth for message storage; the app reads and writes through its content provider rather than keeping its own database.
+**Architecture:** A .NET MAUI Blazor Hybrid app targeting Android only. All app logic (models, view models, service *interfaces*) lives in a plain `net9.0` class library (`ForgeLinkSms.Core`) so it can be unit-tested without any Android/MAUI runtime. The MAUI app project (`ForgeLinkSms`, `net9.0-android` only) supplies the Android-specific service *implementations* (`Platforms/Android/`) that call `SmsManager`, the SMS/MMS content providers, `ContactsContract`, and `RoleManager` directly — there is no server anywhere in this system. Android itself is the source of truth for message storage; the app reads and writes through its content provider rather than keeping its own database.
 
 **Tech Stack:** .NET 9, .NET MAUI (Blazor Hybrid), CommunityToolkit.Mvvm, xUnit + Moq for tests, Android SDK (API 34/35 platforms already installed locally), git.
 
@@ -42,8 +42,8 @@ Not yet present (Task 1 sets these up):
 **Files:**
 - Create: `.gitignore`
 - Create: `Directory.Build.props`
-- Create: `SmsMessenger.sln`
-- Create: `src/SmsMessenger/SmsMessenger.csproj` (+ template-generated files)
+- Create: `ForgeLinkSms.sln`
+- Create: `src/ForgeLinkSms/ForgeLinkSms.csproj` (+ template-generated files)
 
 **Interfaces:**
 - Produces: a solution that builds for `net9.0-android` from the CLI, and an emulator AVD named `sms_test` that can run it. Later tasks assume both exist.
@@ -110,10 +110,10 @@ Expected: `sms_test` appears in the AVD list.
 - [ ] **Step 5: Scaffold the MAUI Blazor Hybrid app, Android-only**
 
 ```bash
-dotnet new maui-blazor -n SmsMessenger -o src/SmsMessenger
+dotnet new maui-blazor -n ForgeLinkSms -o src/ForgeLinkSms
 ```
 
-Open `src/SmsMessenger/SmsMessenger.csproj` and reduce `<TargetFrameworks>` to Android only:
+Open `src/ForgeLinkSms/ForgeLinkSms.csproj` and reduce `<TargetFrameworks>` to Android only:
 
 ```xml
 <TargetFrameworks>net9.0-android</TargetFrameworks>
@@ -124,14 +124,14 @@ Remove any `<TargetFrameworks Condition="...">` blocks for iOS/MacCatalyst/Windo
 - [ ] **Step 6: Create the solution file and add the app project**
 
 ```bash
-dotnet new sln -n SmsMessenger
-dotnet sln SmsMessenger.sln add src/SmsMessenger/SmsMessenger.csproj
+dotnet new sln -n ForgeLinkSms
+dotnet sln ForgeLinkSms.sln add src/ForgeLinkSms/ForgeLinkSms.csproj
 ```
 
 - [ ] **Step 7: Verify a clean Android build from the CLI**
 
 ```bash
-dotnet build SmsMessenger.sln -f net9.0-android
+dotnet build ForgeLinkSms.sln -f net9.0-android
 ```
 
 Expected: `Build succeeded.` If it fails on an SDK-path error, re-check `Directory.Build.props` matches the exact path found above.
@@ -142,7 +142,7 @@ Expected: `Build succeeded.` If it fails on an SDK-path error, re-check `Directo
 SDK="/c/Program Files (x86)/Android/android-sdk"
 "$SDK/emulator/emulator.exe" -avd sms_test -no-snapshot &
 # wait for boot, then:
-dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 ```
 
 Expected: the emulator boots, and the default MAUI Blazor template screen ("Hello, World!" counter page) appears on it. Leave the emulator running for the rest of this plan — every later manual-test step assumes it's up.
@@ -150,7 +150,7 @@ Expected: the emulator boots, and the default MAUI Blazor template screen ("Hell
 - [ ] **Step 9: Commit**
 
 ```bash
-git add .gitignore Directory.Build.props SmsMessenger.sln src/SmsMessenger
+git add .gitignore Directory.Build.props ForgeLinkSms.sln src/ForgeLinkSms
 git commit -m "chore: scaffold Android-only MAUI app and emulator environment"
 ```
 
@@ -159,39 +159,39 @@ git commit -m "chore: scaffold Android-only MAUI app and emulator environment"
 ### Task 2: Core class library and test project
 
 **Files:**
-- Create: `src/SmsMessenger.Core/SmsMessenger.Core.csproj`
-- Create: `tests/SmsMessenger.Core.Tests/SmsMessenger.Core.Tests.csproj`
-- Create: `tests/SmsMessenger.Core.Tests/SmokeTests.cs`
+- Create: `src/ForgeLinkSms.Core/ForgeLinkSms.Core.csproj`
+- Create: `tests/ForgeLinkSms.Core.Tests/ForgeLinkSms.Core.Tests.csproj`
+- Create: `tests/ForgeLinkSms.Core.Tests/SmokeTests.cs`
 
 **Interfaces:**
-- Produces: `SmsMessenger.Core` (net9.0 library) referenced by both the MAUI app and the test project — this is where every model, view model, and service interface in this plan lives, so they're all unit-testable without an Android runtime.
+- Produces: `ForgeLinkSms.Core` (net9.0 library) referenced by both the MAUI app and the test project — this is where every model, view model, and service interface in this plan lives, so they're all unit-testable without an Android runtime.
 
 - [ ] **Step 1: Create the Core library and reference it from the app**
 
 ```bash
-dotnet new classlib -n SmsMessenger.Core -o src/SmsMessenger.Core -f net9.0
-dotnet sln SmsMessenger.sln add src/SmsMessenger.Core/SmsMessenger.Core.csproj
-dotnet add src/SmsMessenger/SmsMessenger.csproj reference src/SmsMessenger.Core/SmsMessenger.Core.csproj
-dotnet add src/SmsMessenger.Core/SmsMessenger.Core.csproj package CommunityToolkit.Mvvm
+dotnet new classlib -n ForgeLinkSms.Core -o src/ForgeLinkSms.Core -f net9.0
+dotnet sln ForgeLinkSms.sln add src/ForgeLinkSms.Core/ForgeLinkSms.Core.csproj
+dotnet add src/ForgeLinkSms/ForgeLinkSms.csproj reference src/ForgeLinkSms.Core/ForgeLinkSms.Core.csproj
+dotnet add src/ForgeLinkSms.Core/ForgeLinkSms.Core.csproj package CommunityToolkit.Mvvm
 ```
 
-Delete the template-generated `Class1.cs` from `SmsMessenger.Core`.
+Delete the template-generated `Class1.cs` from `ForgeLinkSms.Core`.
 
 - [ ] **Step 2: Create the test project**
 
 ```bash
-dotnet new xunit -n SmsMessenger.Core.Tests -o tests/SmsMessenger.Core.Tests
-dotnet sln SmsMessenger.sln add tests/SmsMessenger.Core.Tests/SmsMessenger.Core.Tests.csproj
-dotnet add tests/SmsMessenger.Core.Tests/SmsMessenger.Core.Tests.csproj reference src/SmsMessenger.Core/SmsMessenger.Core.csproj
-dotnet add tests/SmsMessenger.Core.Tests/SmsMessenger.Core.Tests.csproj package Moq
+dotnet new xunit -n ForgeLinkSms.Core.Tests -o tests/ForgeLinkSms.Core.Tests
+dotnet sln ForgeLinkSms.sln add tests/ForgeLinkSms.Core.Tests/ForgeLinkSms.Core.Tests.csproj
+dotnet add tests/ForgeLinkSms.Core.Tests/ForgeLinkSms.Core.Tests.csproj reference src/ForgeLinkSms.Core/ForgeLinkSms.Core.csproj
+dotnet add tests/ForgeLinkSms.Core.Tests/ForgeLinkSms.Core.Tests.csproj package Moq
 ```
 
 - [ ] **Step 3: Write a smoke test to prove the harness works**
 
-`tests/SmsMessenger.Core.Tests/SmokeTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/SmokeTests.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Tests;
+namespace ForgeLinkSms.Core.Tests;
 
 public class SmokeTests
 {
@@ -206,7 +206,7 @@ public class SmokeTests
 - [ ] **Step 4: Run it**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests/SmsMessenger.Core.Tests.csproj
+dotnet test tests/ForgeLinkSms.Core.Tests/ForgeLinkSms.Core.Tests.csproj
 ```
 
 Expected: `Passed! - Failed: 0, Passed: 1`.
@@ -214,7 +214,7 @@ Expected: `Passed! - Failed: 0, Passed: 1`.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/SmsMessenger.Core tests/SmsMessenger.Core.Tests SmsMessenger.sln src/SmsMessenger/SmsMessenger.csproj
+git add src/ForgeLinkSms.Core tests/ForgeLinkSms.Core.Tests ForgeLinkSms.sln src/ForgeLinkSms/ForgeLinkSms.csproj
 git commit -m "chore: add Core library and xUnit test project"
 ```
 
@@ -223,23 +223,23 @@ git commit -m "chore: add Core library and xUnit test project"
 ### Task 3: Domain models
 
 **Files:**
-- Create: `src/SmsMessenger.Core/Models/SmsMessage.cs`
-- Create: `src/SmsMessenger.Core/Models/SmsThread.cs`
-- Create: `src/SmsMessenger.Core/Models/ContactInfo.cs`
-- Test: `tests/SmsMessenger.Core.Tests/Models/SmsMessageTests.cs`
-- Test: `tests/SmsMessenger.Core.Tests/Models/SmsThreadTests.cs`
+- Create: `src/ForgeLinkSms.Core/Models/SmsMessage.cs`
+- Create: `src/ForgeLinkSms.Core/Models/SmsThread.cs`
+- Create: `src/ForgeLinkSms.Core/Models/ContactInfo.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/Models/SmsMessageTests.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/Models/SmsThreadTests.cs`
 
 **Interfaces:**
 - Produces: `SmsMessageStatus` enum (`Sending, Sent, Delivered, Failed`), `SmsMessage` (with `Id: long`, `ThreadId: long`, `Address: string`, `Body: string`, `Timestamp: DateTimeOffset`, `IsOutgoing: bool`, `Status: SmsMessageStatus`, computed `StatusDisplay: string`), `SmsThread` (`Id: long`, `Address: string`, `DisplayName: string?`, `LastMessageBody: string`, `LastMessageTimestamp: DateTimeOffset`, `UnreadCount: int`, computed `PreviewText: string`), `ContactInfo` (`DisplayName: string`, `PhoneNumber: string`, `PhotoUri: string?`). Every later task's service layer and view models consume these exact shapes.
 
 - [ ] **Step 1: Write the failing tests for `SmsMessage.StatusDisplay`**
 
-`tests/SmsMessenger.Core.Tests/Models/SmsMessageTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/Models/SmsMessageTests.cs`:
 
 ```csharp
-using SmsMessenger.Core.Models;
+using ForgeLinkSms.Core.Models;
 
-namespace SmsMessenger.Core.Tests.Models;
+namespace ForgeLinkSms.Core.Tests.Models;
 
 public class SmsMessageTests
 {
@@ -286,17 +286,17 @@ public class SmsMessageTests
 - [ ] **Step 2: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter SmsMessageTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter SmsMessageTests
 ```
 
-Expected: FAIL — `SmsMessenger.Core.Models` namespace / `SmsMessage` type does not exist yet.
+Expected: FAIL — `ForgeLinkSms.Core.Models` namespace / `SmsMessage` type does not exist yet.
 
 - [ ] **Step 3: Implement `SmsMessage`**
 
-`src/SmsMessenger.Core/Models/SmsMessage.cs`:
+`src/ForgeLinkSms.Core/Models/SmsMessage.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Models;
+namespace ForgeLinkSms.Core.Models;
 
 public enum SmsMessageStatus
 {
@@ -333,19 +333,19 @@ public class SmsMessage
 - [ ] **Step 4: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter SmsMessageTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter SmsMessageTests
 ```
 
 Expected: PASS (5 tests).
 
 - [ ] **Step 5: Write the failing test for `SmsThread.PreviewText`**
 
-`tests/SmsMessenger.Core.Tests/Models/SmsThreadTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/Models/SmsThreadTests.cs`:
 
 ```csharp
-using SmsMessenger.Core.Models;
+using ForgeLinkSms.Core.Models;
 
-namespace SmsMessenger.Core.Tests.Models;
+namespace ForgeLinkSms.Core.Tests.Models;
 
 public class SmsThreadTests
 {
@@ -419,17 +419,17 @@ public class SmsThreadTests
 - [ ] **Step 6: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter SmsThreadTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter SmsThreadTests
 ```
 
 Expected: FAIL — `SmsThread` does not exist yet.
 
 - [ ] **Step 7: Implement `SmsThread` and `ContactInfo`**
 
-`src/SmsMessenger.Core/Models/SmsThread.cs`:
+`src/ForgeLinkSms.Core/Models/SmsThread.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Models;
+namespace ForgeLinkSms.Core.Models;
 
 public class SmsThread
 {
@@ -448,10 +448,10 @@ public class SmsThread
 }
 ```
 
-`src/SmsMessenger.Core/Models/ContactInfo.cs`:
+`src/ForgeLinkSms.Core/Models/ContactInfo.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Models;
+namespace ForgeLinkSms.Core.Models;
 
 public class ContactInfo
 {
@@ -464,7 +464,7 @@ public class ContactInfo
 - [ ] **Step 8: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests
+dotnet test tests/ForgeLinkSms.Core.Tests
 ```
 
 Expected: PASS, all tests (Task 2's smoke test + Task 3's model tests).
@@ -472,7 +472,7 @@ Expected: PASS, all tests (Task 2's smoke test + Task 3's model tests).
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/Models tests/SmsMessenger.Core.Tests/Models
+git add src/ForgeLinkSms.Core/Models tests/ForgeLinkSms.Core.Tests/Models
 git commit -m "feat: add SmsMessage, SmsThread, and ContactInfo models"
 ```
 
@@ -481,11 +481,11 @@ git commit -m "feat: add SmsMessage, SmsThread, and ContactInfo models"
 ### Task 4: Default-SMS-app manifest components (skeletons)
 
 **Files:**
-- Create: `src/SmsMessenger/Platforms/Android/SmsDeliverReceiver.cs`
-- Create: `src/SmsMessenger/Platforms/Android/WapPushDeliverReceiver.cs`
-- Create: `src/SmsMessenger/Platforms/Android/ComposeSmsActivity.cs`
-- Create: `src/SmsMessenger/Platforms/Android/HeadlessSmsSendService.cs`
-- Modify: `src/SmsMessenger/Platforms/Android/MainApplication.cs` (permission declarations)
+- Create: `src/ForgeLinkSms/Platforms/Android/SmsDeliverReceiver.cs`
+- Create: `src/ForgeLinkSms/Platforms/Android/WapPushDeliverReceiver.cs`
+- Create: `src/ForgeLinkSms/Platforms/Android/ComposeSmsActivity.cs`
+- Create: `src/ForgeLinkSms/Platforms/Android/HeadlessSmsSendService.cs`
+- Modify: `src/ForgeLinkSms/Platforms/Android/MainApplication.cs` (permission declarations)
 
 **Interfaces:**
 - Produces: the four Android components required for this app to be *eligible* to become the user's default SMS app (per AOSP's `RoleManager` SMS-role eligibility check: an `ACTION_SENDTO`/`ACTION_SEND` activity, an `SMS_DELIVER` receiver, a `WAP_PUSH_DELIVER` receiver, and a `RESPOND_VIA_MESSAGE` service — all four, not three; Android's manifest permission model requires the WAP_PUSH_DELIVER receiver to be a *separate* component from the SMS_DELIVER receiver because each needs a different `android:permission` value declared on its `<receiver>` element, and a single receiver element can only declare one). Their bodies are stubbed here (logged, no-op) — Task 9 fills in `SmsDeliverReceiver`'s real behavior; `WapPushDeliverReceiver` stays a permanent no-op stub through v1, since MMS is out of scope — it exists solely to satisfy the eligibility check. This task's whole purpose is to get Android to recognize the app as a valid default-SMS-app candidate, which is a prerequisite for every later manual test.
@@ -494,7 +494,7 @@ git commit -m "feat: add SmsMessage, SmsThread, and ContactInfo models"
 
 - [ ] **Step 1: Declare the required permissions**
 
-Open `src/SmsMessenger/Platforms/Android/MainApplication.cs` and add assembly-level permission attributes above the namespace declaration:
+Open `src/ForgeLinkSms/Platforms/Android/MainApplication.cs` and add assembly-level permission attributes above the namespace declaration:
 
 ```csharp
 using Android.App;
@@ -509,7 +509,7 @@ using Android.Runtime;
 [assembly: UsesPermission("android.permission.POST_NOTIFICATIONS")]
 [assembly: UsesPermission(Android.Manifest.Permission.ReceiveWapPush)]
 
-namespace SmsMessenger;
+namespace ForgeLinkSms;
 
 [Application]
 public class MainApplication : MauiApplication
@@ -523,13 +523,13 @@ public class MainApplication : MauiApplication
 
 - [ ] **Step 2: Stub the incoming-SMS broadcast receiver**
 
-`src/SmsMessenger/Platforms/Android/SmsDeliverReceiver.cs`:
+`src/ForgeLinkSms/Platforms/Android/SmsDeliverReceiver.cs`:
 
 ```csharp
 using Android.App;
 using Android.Content;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 [BroadcastReceiver(Enabled = true, Exported = true, Permission = "android.permission.BROADCAST_SMS")]
 [IntentFilter(new[] { "android.provider.Telephony.SMS_DELIVER" })]
@@ -540,20 +540,20 @@ public class SmsDeliverReceiver : BroadcastReceiver
         // Task 9 replaces this body with: parse PDUs via
         // Telephony.Sms.Intents.GetMessagesFromIntent(intent), write each
         // message into the Sms.Inbox content provider, then notify.
-        Android.Util.Log.Debug("SmsMessenger", "SMS_DELIVER received (stub — Task 9 implements this)");
+        Android.Util.Log.Debug("ForgeLinkSms", "SMS_DELIVER received (stub — Task 9 implements this)");
     }
 }
 ```
 
 - [ ] **Step 3: Stub the WAP push receiver (required for default-SMS-app eligibility)**
 
-`src/SmsMessenger/Platforms/Android/WapPushDeliverReceiver.cs`:
+`src/ForgeLinkSms/Platforms/Android/WapPushDeliverReceiver.cs`:
 
 ```csharp
 using Android.App;
 using Android.Content;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 [BroadcastReceiver(Enabled = true, Exported = true, Permission = "android.permission.BROADCAST_WAP_PUSH")]
 [IntentFilter(new[] { "android.provider.Telephony.WAP_PUSH_DELIVER" }, DataMimeType = "application/vnd.wap.mms-message")]
@@ -567,21 +567,21 @@ public class WapPushDeliverReceiver : BroadcastReceiver
         // default-SMS-app role, which requires handling WAP_PUSH_DELIVER
         // alongside SMS_DELIVER. If MMS is ever added in a later phase,
         // this is where that work starts.
-        global::Android.Util.Log.Debug("SmsMessenger", "WAP_PUSH_DELIVER received (stub — MMS not in v1 scope)");
+        global::Android.Util.Log.Debug("ForgeLinkSms", "WAP_PUSH_DELIVER received (stub — MMS not in v1 scope)");
     }
 }
 ```
 
 - [ ] **Step 4: Stub the compose-hand-off activity**
 
-`src/SmsMessenger/Platforms/Android/ComposeSmsActivity.cs`:
+`src/ForgeLinkSms/Platforms/Android/ComposeSmsActivity.cs`:
 
 ```csharp
 using Android.App;
 using Android.Content;
 using Android.OS;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 [Activity(Exported = true)]
 [IntentFilter(new[] { Intent.ActionSendto }, Categories = new[] { Intent.CategoryDefault }, DataSchemes = new[] { "sms", "smsto" })]
@@ -602,14 +602,14 @@ public class ComposeSmsActivity : Activity
 
 - [ ] **Step 5: Stub the headless quick-reply service**
 
-`src/SmsMessenger/Platforms/Android/HeadlessSmsSendService.cs`:
+`src/ForgeLinkSms/Platforms/Android/HeadlessSmsSendService.cs`:
 
 ```csharp
 using Android.App;
 using Android.Content;
 using Android.OS;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 [Service(Exported = true, Permission = "android.permission.SEND_RESPOND_VIA_MESSAGE")]
 [IntentFilter(new[] { "android.intent.action.RESPOND_VIA_MESSAGE" }, Categories = new[] { Intent.CategoryDefault }, DataSchemes = new[] { "sms", "smsto" })]
@@ -622,7 +622,7 @@ public class HeadlessSmsSendService : IntentService
         // Task 10 replaces this body with: extract the recipient + reply
         // text from the intent and send it via ISmsService, without
         // opening any UI.
-        Android.Util.Log.Debug("SmsMessenger", "RESPOND_VIA_MESSAGE received (stub — Task 10 implements this)");
+        Android.Util.Log.Debug("ForgeLinkSms", "RESPOND_VIA_MESSAGE received (stub — Task 10 implements this)");
     }
 }
 ```
@@ -630,7 +630,7 @@ public class HeadlessSmsSendService : IntentService
 - [ ] **Step 6: Build to verify the manifest merges cleanly**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
@@ -640,15 +640,15 @@ Expected: `Build succeeded.`
 This machine cannot run the Android emulator (ARM64 Windows host; no native Windows-ARM64 emulator exists, and the x86_64-under-software-emulation fallback stalls rather than boots — confirmed during Task 1). Use a physical Android device connected over USB with debugging enabled instead:
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 ```
 
-On the device: open **Settings → Apps → Default apps → SMS app** (or send yourself a text and watch for the "set default SMS app" prompt). Confirm **SmsMessenger now appears in the list of selectable default SMS apps.** This is the concrete, observable proof that Task 4's component/permission wiring is correct — if it doesn't appear, one of the four components or a permission is misconfigured.
+On the device: open **Settings → Apps → Default apps → SMS app** (or send yourself a text and watch for the "set default SMS app" prompt). Confirm **ForgeLinkSms now appears in the list of selectable default SMS apps.** This is the concrete, observable proof that Task 4's component/permission wiring is correct — if it doesn't appear, one of the four components or a permission is misconfigured.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/SmsMessenger/Platforms/Android
+git add src/ForgeLinkSms/Platforms/Android
 git commit -m "feat: add default-SMS-app component skeletons and permissions"
 ```
 
@@ -657,13 +657,13 @@ git commit -m "feat: add default-SMS-app component skeletons and permissions"
 ### Task 5: Default-app role service, SplashViewModel, and Splash page
 
 **Files:**
-- Create: `src/SmsMessenger.Core/Services/IDefaultAppRoleService.cs`
-- Create: `src/SmsMessenger.Core/Services/INavigationService.cs`
-- Create: `src/SmsMessenger.Core/ViewModels/SplashViewModel.cs`
-- Create: `src/SmsMessenger/Platforms/Android/DefaultAppRoleService.cs`
-- Create: `src/SmsMessenger/Services/NavigationService.cs`
-- Create: `src/SmsMessenger/Pages/SplashPage.razor`
-- Test: `tests/SmsMessenger.Core.Tests/ViewModels/SplashViewModelTests.cs`
+- Create: `src/ForgeLinkSms.Core/Services/IDefaultAppRoleService.cs`
+- Create: `src/ForgeLinkSms.Core/Services/INavigationService.cs`
+- Create: `src/ForgeLinkSms.Core/ViewModels/SplashViewModel.cs`
+- Create: `src/ForgeLinkSms/Platforms/Android/DefaultAppRoleService.cs`
+- Create: `src/ForgeLinkSms/Services/NavigationService.cs`
+- Create: `src/ForgeLinkSms/Pages/SplashPage.razor`
+- Test: `tests/ForgeLinkSms.Core.Tests/ViewModels/SplashViewModelTests.cs`
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks besides the project scaffold.
@@ -671,10 +671,10 @@ git commit -m "feat: add default-SMS-app component skeletons and permissions"
 
 - [ ] **Step 1: Define the two service interfaces in Core**
 
-`src/SmsMessenger.Core/Services/IDefaultAppRoleService.cs`:
+`src/ForgeLinkSms.Core/Services/IDefaultAppRoleService.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface IDefaultAppRoleService
 {
@@ -683,10 +683,10 @@ public interface IDefaultAppRoleService
 }
 ```
 
-`src/SmsMessenger.Core/Services/INavigationService.cs`:
+`src/ForgeLinkSms.Core/Services/INavigationService.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface INavigationService
 {
@@ -696,14 +696,14 @@ public interface INavigationService
 
 - [ ] **Step 2: Write the failing test for `SplashViewModel`**
 
-`tests/SmsMessenger.Core.Tests/ViewModels/SplashViewModelTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/ViewModels/SplashViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class SplashViewModelTests
 {
@@ -738,19 +738,19 @@ public class SplashViewModelTests
 - [ ] **Step 3: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter SplashViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter SplashViewModelTests
 ```
 
 Expected: FAIL — `SplashViewModel` does not exist yet.
 
 - [ ] **Step 4: Implement `SplashViewModel`**
 
-`src/SmsMessenger.Core/ViewModels/SplashViewModel.cs`:
+`src/ForgeLinkSms.Core/ViewModels/SplashViewModel.cs`:
 
 ```csharp
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public class SplashViewModel
 {
@@ -774,24 +774,24 @@ public class SplashViewModel
 - [ ] **Step 5: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter SplashViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter SplashViewModelTests
 ```
 
 Expected: PASS (2 tests).
 
 - [ ] **Step 6: Implement the Android `DefaultAppRoleService`**
 
-`src/SmsMessenger/Platforms/Android/DefaultAppRoleService.cs`:
+`src/ForgeLinkSms/Platforms/Android/DefaultAppRoleService.cs`:
 
 ```csharp
 using Android.App.Role;
 using Android.Content;
 using Android.OS;
 using Android.Provider;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 using AndroidApp = Android.App.Application;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 public class DefaultAppRoleService : IDefaultAppRoleService
 {
@@ -834,13 +834,13 @@ public class DefaultAppRoleService : IDefaultAppRoleService
 
 - [ ] **Step 7: Implement `NavigationService` and register DI**
 
-`src/SmsMessenger/Services/NavigationService.cs`:
+`src/ForgeLinkSms/Services/NavigationService.cs`:
 
 ```csharp
 using Microsoft.AspNetCore.Components;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Services;
+namespace ForgeLinkSms.Services;
 
 public class NavigationService : INavigationService
 {
@@ -859,13 +859,13 @@ public class NavigationService : INavigationService
 }
 ```
 
-Open `src/SmsMessenger/MauiProgram.cs` and register the services and view model:
+Open `src/ForgeLinkSms/MauiProgram.cs` and register the services and view model:
 
 ```csharp
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
-using SmsMessenger.Platforms.Android;
-using SmsMessenger.Services;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
+using ForgeLinkSms.Platforms.Android;
+using ForgeLinkSms.Services;
 
 // inside CreateMauiApp(), before builder.Build():
 builder.Services.AddSingleton<IDefaultAppRoleService, DefaultAppRoleService>();
@@ -875,11 +875,11 @@ builder.Services.AddTransient<SplashViewModel>();
 
 - [ ] **Step 8: Create `SplashPage.razor`**
 
-`src/SmsMessenger/Pages/SplashPage.razor`:
+`src/ForgeLinkSms/Pages/SplashPage.razor`:
 
 ```razor
 @page "/"
-@inject SmsMessenger.Core.ViewModels.SplashViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.SplashViewModel ViewModel
 
 <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#25D366;">
     <h1 style="color:white;">SMS Messenger</h1>
@@ -898,15 +898,15 @@ builder.Services.AddTransient<SplashViewModel>();
 - [ ] **Step 9: Build to verify it compiles**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 ```
 
-Expected: `Build succeeded.` (`/conversations` and `/onboarding` routes don't exist yet — that's fine, they're Tasks 6 and 8; this step only proves the Splash wiring compiles. Note: `dotnet build SmsMessenger.sln -f net9.0-android` — building the whole solution with an Android target filter — fails from Task 2 onward, since `SmsMessenger.Core`/`SmsMessenger.Core.Tests` don't target Android; build the app project directly as shown, or build the solution with no `-f` filter.)
+Expected: `Build succeeded.` (`/conversations` and `/onboarding` routes don't exist yet — that's fine, they're Tasks 6 and 8; this step only proves the Splash wiring compiles. Note: `dotnet build ForgeLinkSms.sln -f net9.0-android` — building the whole solution with an Android target filter — fails from Task 2 onward, since `ForgeLinkSms.Core`/`ForgeLinkSms.Core.Tests` don't target Android; build the app project directly as shown, or build the solution with no `-f` filter.)
 
 - [ ] **Step 10: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/Services src/SmsMessenger.Core/ViewModels src/SmsMessenger/Platforms/Android/DefaultAppRoleService.cs src/SmsMessenger/Services src/SmsMessenger/Pages/SplashPage.razor src/SmsMessenger/MauiProgram.cs tests/SmsMessenger.Core.Tests/ViewModels
+git add src/ForgeLinkSms.Core/Services src/ForgeLinkSms.Core/ViewModels src/ForgeLinkSms/Platforms/Android/DefaultAppRoleService.cs src/ForgeLinkSms/Services src/ForgeLinkSms/Pages/SplashPage.razor src/ForgeLinkSms/MauiProgram.cs tests/ForgeLinkSms.Core.Tests/ViewModels
 git commit -m "feat: add default-app role check and Splash screen routing"
 ```
 
@@ -915,11 +915,11 @@ git commit -m "feat: add default-app role check and Splash screen routing"
 ### Task 6: Onboarding flow (permission requests + role request)
 
 **Files:**
-- Create: `src/SmsMessenger.Core/Services/IPermissionService.cs`
-- Create: `src/SmsMessenger.Core/ViewModels/OnboardingViewModel.cs`
-- Create: `src/SmsMessenger/Platforms/Android/PermissionService.cs`
-- Create: `src/SmsMessenger/Pages/OnboardingPage.razor`
-- Test: `tests/SmsMessenger.Core.Tests/ViewModels/OnboardingViewModelTests.cs`
+- Create: `src/ForgeLinkSms.Core/Services/IPermissionService.cs`
+- Create: `src/ForgeLinkSms.Core/ViewModels/OnboardingViewModel.cs`
+- Create: `src/ForgeLinkSms/Platforms/Android/PermissionService.cs`
+- Create: `src/ForgeLinkSms/Pages/OnboardingPage.razor`
+- Test: `tests/ForgeLinkSms.Core.Tests/ViewModels/OnboardingViewModelTests.cs`
 
 **Interfaces:**
 - Consumes: `IDefaultAppRoleService`, `INavigationService` (Task 5).
@@ -927,10 +927,10 @@ git commit -m "feat: add default-app role check and Splash screen routing"
 
 - [ ] **Step 1: Define `IPermissionService`**
 
-`src/SmsMessenger.Core/Services/IPermissionService.cs`:
+`src/ForgeLinkSms.Core/Services/IPermissionService.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface IPermissionService
 {
@@ -940,14 +940,14 @@ public interface IPermissionService
 
 - [ ] **Step 2: Write the failing test for `OnboardingViewModel`**
 
-`tests/SmsMessenger.Core.Tests/ViewModels/OnboardingViewModelTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/ViewModels/OnboardingViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class OnboardingViewModelTests
 {
@@ -998,21 +998,21 @@ public class OnboardingViewModelTests
 - [ ] **Step 3: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter OnboardingViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter OnboardingViewModelTests
 ```
 
 Expected: FAIL — `OnboardingViewModel` does not exist yet.
 
 - [ ] **Step 4: Implement `OnboardingViewModel`**
 
-`src/SmsMessenger.Core/ViewModels/OnboardingViewModel.cs`:
+`src/ForgeLinkSms.Core/ViewModels/OnboardingViewModel.cs`:
 
 ```csharp
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class OnboardingViewModel : ObservableObject
 {
@@ -1064,19 +1064,19 @@ public partial class OnboardingViewModel : ObservableObject
 - [ ] **Step 5: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter OnboardingViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter OnboardingViewModelTests
 ```
 
 Expected: PASS (3 tests). Note: the "both granted" test calls `RequestRoleCommand` first, but `DefaultAppRoleService.IsDefaultSmsApp()` is mocked to `true` from the start — this models the real flow where the user returns from the system dialog and the app re-checks state, which Step 6 wires up for real on Android.
 
 - [ ] **Step 6: Implement the Android `PermissionService`**
 
-`src/SmsMessenger/Platforms/Android/PermissionService.cs`:
+`src/ForgeLinkSms/Platforms/Android/PermissionService.cs`:
 
 ```csharp
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 public class PermissionService : IPermissionService
 {
@@ -1115,11 +1115,11 @@ builder.Services.AddSingleton<IPermissionService, PermissionService>();
 builder.Services.AddTransient<OnboardingViewModel>();
 ```
 
-`src/SmsMessenger/Pages/OnboardingPage.razor`:
+`src/ForgeLinkSms/Pages/OnboardingPage.razor`:
 
 ```razor
 @page "/onboarding"
-@inject SmsMessenger.Core.ViewModels.OnboardingViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.OnboardingViewModel ViewModel
 
 <div style="padding:24px;">
     <h2>Set up SMS Messenger</h2>
@@ -1142,7 +1142,7 @@ builder.Services.AddTransient<OnboardingViewModel>();
 - [ ] **Step 8: Build to verify it compiles**
 
 ```bash
-dotnet build SmsMessenger.sln -f net9.0-android
+dotnet build ForgeLinkSms.sln -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
@@ -1150,7 +1150,7 @@ Expected: `Build succeeded.`
 - [ ] **Step 9: Manual verification on the emulator**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 ```
 
 On the emulator: tap "Make this my default SMS app," accept the system dialog, confirm the button shows ✓ on return to the app. Tap "Grant permissions," accept each system prompt, confirm ✓ appears. Confirm "Continue" is disabled until both are checked, then enabled.
@@ -1158,7 +1158,7 @@ On the emulator: tap "Make this my default SMS app," accept the system dialog, c
 - [ ] **Step 10: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/Services/IPermissionService.cs src/SmsMessenger.Core/ViewModels/OnboardingViewModel.cs src/SmsMessenger/Platforms/Android/PermissionService.cs src/SmsMessenger/Pages/OnboardingPage.razor src/SmsMessenger/MauiProgram.cs tests/SmsMessenger.Core.Tests/ViewModels/OnboardingViewModelTests.cs
+git add src/ForgeLinkSms.Core/Services/IPermissionService.cs src/ForgeLinkSms.Core/ViewModels/OnboardingViewModel.cs src/ForgeLinkSms/Platforms/Android/PermissionService.cs src/ForgeLinkSms/Pages/OnboardingPage.razor src/ForgeLinkSms/MauiProgram.cs tests/ForgeLinkSms.Core.Tests/ViewModels/OnboardingViewModelTests.cs
 git commit -m "feat: add onboarding flow for default-app role and permissions"
 ```
 
@@ -1167,22 +1167,22 @@ git commit -m "feat: add onboarding flow for default-app role and permissions"
 ### Task 7: Contact resolution
 
 **Files:**
-- Create: `src/SmsMessenger.Core/Services/IContactService.cs`
-- Create: `src/SmsMessenger.Core/Utils/PhoneNumberFormatter.cs`
-- Create: `src/SmsMessenger/Platforms/Android/ContactService.cs`
-- Test: `tests/SmsMessenger.Core.Tests/Utils/PhoneNumberFormatterTests.cs`
+- Create: `src/ForgeLinkSms.Core/Services/IContactService.cs`
+- Create: `src/ForgeLinkSms.Core/Utils/PhoneNumberFormatter.cs`
+- Create: `src/ForgeLinkSms/Platforms/Android/ContactService.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/Utils/PhoneNumberFormatterTests.cs`
 
 **Interfaces:**
 - Produces: `IContactService` with `Task<ContactInfo?> LookupAsync(string phoneNumber)` and `Task<IReadOnlyList<ContactInfo>> GetAllContactsAsync()`; `PhoneNumberFormatter.ToDisplayFormat(string raw)` (a pure, unit-tested helper used everywhere a raw number needs to look like `(555) 014-2231` instead of `5550142231`). Task 8's `ConversationsViewModel` and Task 10's `ContactPickerViewModel` both consume `IContactService`.
 
 - [ ] **Step 1: Define `IContactService`**
 
-`src/SmsMessenger.Core/Services/IContactService.cs`:
+`src/ForgeLinkSms.Core/Services/IContactService.cs`:
 
 ```csharp
-using SmsMessenger.Core.Models;
+using ForgeLinkSms.Core.Models;
 
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface IContactService
 {
@@ -1193,12 +1193,12 @@ public interface IContactService
 
 - [ ] **Step 2: Write the failing tests for `PhoneNumberFormatter`**
 
-`tests/SmsMessenger.Core.Tests/Utils/PhoneNumberFormatterTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/Utils/PhoneNumberFormatterTests.cs`:
 
 ```csharp
-using SmsMessenger.Core.Utils;
+using ForgeLinkSms.Core.Utils;
 
-namespace SmsMessenger.Core.Tests.Utils;
+namespace ForgeLinkSms.Core.Tests.Utils;
 
 public class PhoneNumberFormatterTests
 {
@@ -1224,19 +1224,19 @@ public class PhoneNumberFormatterTests
 - [ ] **Step 3: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter PhoneNumberFormatterTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter PhoneNumberFormatterTests
 ```
 
 Expected: FAIL — `PhoneNumberFormatter` does not exist yet.
 
 - [ ] **Step 4: Implement `PhoneNumberFormatter`**
 
-`src/SmsMessenger.Core/Utils/PhoneNumberFormatter.cs`:
+`src/ForgeLinkSms.Core/Utils/PhoneNumberFormatter.cs`:
 
 ```csharp
 using System.Text.RegularExpressions;
 
-namespace SmsMessenger.Core.Utils;
+namespace ForgeLinkSms.Core.Utils;
 
 public static partial class PhoneNumberFormatter
 {
@@ -1260,23 +1260,23 @@ public static partial class PhoneNumberFormatter
 - [ ] **Step 5: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter PhoneNumberFormatterTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter PhoneNumberFormatterTests
 ```
 
 Expected: PASS (5 tests).
 
 - [ ] **Step 6: Implement the Android `ContactService`**
 
-`src/SmsMessenger/Platforms/Android/ContactService.cs`:
+`src/ForgeLinkSms/Platforms/Android/ContactService.cs`:
 
 ```csharp
 using Android.Content;
 using Android.Provider;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
 using AndroidApp = Android.App.Application;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 public class ContactService : IContactService
 {
@@ -1349,7 +1349,7 @@ builder.Services.AddSingleton<IContactService, ContactService>();
 - [ ] **Step 8: Build to verify it compiles**
 
 ```bash
-dotnet build SmsMessenger.sln -f net9.0-android
+dotnet build ForgeLinkSms.sln -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
@@ -1361,7 +1361,7 @@ On the emulator, open the **Contacts** app and add a contact named "Alice Smith"
 - [ ] **Step 10: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/Services/IContactService.cs src/SmsMessenger.Core/Utils tests/SmsMessenger.Core.Tests/Utils src/SmsMessenger/Platforms/Android/ContactService.cs src/SmsMessenger/MauiProgram.cs
+git add src/ForgeLinkSms.Core/Services/IContactService.cs src/ForgeLinkSms.Core/Utils tests/ForgeLinkSms.Core.Tests/Utils src/ForgeLinkSms/Platforms/Android/ContactService.cs src/ForgeLinkSms/MauiProgram.cs
 git commit -m "feat: add contact lookup and phone number display formatting"
 ```
 
@@ -1370,11 +1370,11 @@ git commit -m "feat: add contact lookup and phone number display formatting"
 ### Task 8: Thread list (read path) and Conversations screen
 
 **Files:**
-- Create: `src/SmsMessenger.Core/Services/IThreadService.cs`
-- Create: `src/SmsMessenger.Core/ViewModels/ConversationsViewModel.cs`
-- Create: `src/SmsMessenger/Platforms/Android/ThreadService.cs`
-- Create: `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor`
-- Test: `tests/SmsMessenger.Core.Tests/ViewModels/ConversationsViewModelTests.cs`
+- Create: `src/ForgeLinkSms.Core/Services/IThreadService.cs`
+- Create: `src/ForgeLinkSms.Core/ViewModels/ConversationsViewModel.cs`
+- Create: `src/ForgeLinkSms/Platforms/Android/ThreadService.cs`
+- Create: `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor`
+- Test: `tests/ForgeLinkSms.Core.Tests/ViewModels/ConversationsViewModelTests.cs`
 
 **Interfaces:**
 - Consumes: `SmsThread` (Task 3), `IContactService` (Task 7).
@@ -1382,12 +1382,12 @@ git commit -m "feat: add contact lookup and phone number display formatting"
 
 - [ ] **Step 1: Define `IThreadService`**
 
-`src/SmsMessenger.Core/Services/IThreadService.cs`:
+`src/ForgeLinkSms.Core/Services/IThreadService.cs`:
 
 ```csharp
-using SmsMessenger.Core.Models;
+using ForgeLinkSms.Core.Models;
 
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface IThreadService
 {
@@ -1397,15 +1397,15 @@ public interface IThreadService
 
 - [ ] **Step 2: Write the failing tests for `ConversationsViewModel`'s search filter**
 
-`tests/SmsMessenger.Core.Tests/ViewModels/ConversationsViewModelTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/ViewModels/ConversationsViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class ConversationsViewModelTests
 {
@@ -1494,23 +1494,23 @@ public class ConversationsViewModelTests
 - [ ] **Step 3: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ConversationsViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ConversationsViewModelTests
 ```
 
 Expected: FAIL — `ConversationsViewModel` does not exist yet.
 
 - [ ] **Step 4: Implement `ConversationsViewModel`**
 
-`src/SmsMessenger.Core/ViewModels/ConversationsViewModel.cs`:
+`src/ForgeLinkSms.Core/ViewModels/ConversationsViewModel.cs`:
 
 ```csharp
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class ConversationsViewModel : ObservableObject
 {
@@ -1558,22 +1558,22 @@ public partial class ConversationsViewModel : ObservableObject
 - [ ] **Step 5: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ConversationsViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ConversationsViewModelTests
 ```
 
 Expected: PASS (4 tests).
 
 - [ ] **Step 6: Implement the Android `ThreadService`**
 
-`src/SmsMessenger/Platforms/Android/ThreadService.cs`:
+`src/ForgeLinkSms/Platforms/Android/ThreadService.cs`:
 
 ```csharp
 using Android.Provider;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
 using AndroidApp = Android.App.Application;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 public class ThreadService : IThreadService
 {
@@ -1645,12 +1645,12 @@ builder.Services.AddSingleton<IThreadService, ThreadService>();
 builder.Services.AddTransient<ConversationsViewModel>();
 ```
 
-`src/SmsMessenger/Pages/Conversations/ConversationsPage.razor`:
+`src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor`:
 
 ```razor
 @page "/conversations"
 @using Microsoft.AspNetCore.Components
-@inject SmsMessenger.Core.ViewModels.ConversationsViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.ConversationsViewModel ViewModel
 @inject NavigationManager Nav
 
 <div style="padding:12px;">
@@ -1694,7 +1694,7 @@ builder.Services.AddTransient<ConversationsViewModel>();
 - [ ] **Step 8: Build to verify it compiles**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
@@ -1714,7 +1714,7 @@ Relaunch/foreground the app and open the Conversations screen. Confirm the threa
 - [ ] **Step 10: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/Services/IThreadService.cs src/SmsMessenger.Core/ViewModels/ConversationsViewModel.cs tests/SmsMessenger.Core.Tests/ViewModels/ConversationsViewModelTests.cs src/SmsMessenger/Platforms/Android/ThreadService.cs src/SmsMessenger/Pages/Conversations/ConversationsPage.razor src/SmsMessenger/MauiProgram.cs
+git add src/ForgeLinkSms.Core/Services/IThreadService.cs src/ForgeLinkSms.Core/ViewModels/ConversationsViewModel.cs tests/ForgeLinkSms.Core.Tests/ViewModels/ConversationsViewModelTests.cs src/ForgeLinkSms/Platforms/Android/ThreadService.cs src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor src/ForgeLinkSms/MauiProgram.cs
 git commit -m "feat: add thread list read path and Conversations screen"
 ```
 
@@ -1723,13 +1723,13 @@ git commit -m "feat: add thread list read path and Conversations screen"
 ### Task 9: Send/receive path, delivery status, and Thread Detail screen
 
 **Files:**
-- Create: `src/SmsMessenger.Core/Services/ISmsService.cs`
-- Create: `src/SmsMessenger.Core/ViewModels/ThreadDetailViewModel.cs`
-- Modify: `src/SmsMessenger/Platforms/Android/SmsDeliverReceiver.cs` (real implementation)
-- Create: `src/SmsMessenger/Platforms/Android/SmsService.cs`
-- Create: `src/SmsMessenger/Pages/Conversations/ThreadDetailPage.razor`
-- Modify: `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor` (`OpenThread` gains an `address` parameter)
-- Test: `tests/SmsMessenger.Core.Tests/ViewModels/ThreadDetailViewModelTests.cs`
+- Create: `src/ForgeLinkSms.Core/Services/ISmsService.cs`
+- Create: `src/ForgeLinkSms.Core/ViewModels/ThreadDetailViewModel.cs`
+- Modify: `src/ForgeLinkSms/Platforms/Android/SmsDeliverReceiver.cs` (real implementation)
+- Create: `src/ForgeLinkSms/Platforms/Android/SmsService.cs`
+- Create: `src/ForgeLinkSms/Pages/Conversations/ThreadDetailPage.razor`
+- Modify: `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor` (`OpenThread` gains an `address` parameter)
+- Test: `tests/ForgeLinkSms.Core.Tests/ViewModels/ThreadDetailViewModelTests.cs`
 
 **Interfaces:**
 - Consumes: `SmsMessage` (Task 3), `IContactService` (Task 7).
@@ -1737,12 +1737,12 @@ git commit -m "feat: add thread list read path and Conversations screen"
 
 - [ ] **Step 1: Define `ISmsService`**
 
-`src/SmsMessenger.Core/Services/ISmsService.cs`:
+`src/ForgeLinkSms.Core/Services/ISmsService.cs`:
 
 ```csharp
-using SmsMessenger.Core.Models;
+using ForgeLinkSms.Core.Models;
 
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface ISmsService
 {
@@ -1753,15 +1753,15 @@ public interface ISmsService
 
 - [ ] **Step 2: Write the failing tests for `ThreadDetailViewModel`**
 
-`tests/SmsMessenger.Core.Tests/ViewModels/ThreadDetailViewModelTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/ViewModels/ThreadDetailViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class ThreadDetailViewModelTests
 {
@@ -1817,22 +1817,22 @@ public class ThreadDetailViewModelTests
 - [ ] **Step 3: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ThreadDetailViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ThreadDetailViewModelTests
 ```
 
 Expected: FAIL — `ThreadDetailViewModel` does not exist yet.
 
 - [ ] **Step 4: Implement `ThreadDetailViewModel`**
 
-`src/SmsMessenger.Core/ViewModels/ThreadDetailViewModel.cs`:
+`src/ForgeLinkSms.Core/ViewModels/ThreadDetailViewModel.cs`:
 
 ```csharp
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class ThreadDetailViewModel : ObservableObject
 {
@@ -1882,30 +1882,30 @@ public partial class ThreadDetailViewModel : ObservableObject
 - [ ] **Step 5: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ThreadDetailViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ThreadDetailViewModelTests
 ```
 
 Expected: PASS (3 tests).
 
 - [ ] **Step 6: Implement the Android `SmsService`, including multi-part send with Sent/Delivered `PendingIntent`s**
 
-`src/SmsMessenger/Platforms/Android/SmsService.cs`:
+`src/ForgeLinkSms/Platforms/Android/SmsService.cs`:
 
 ```csharp
 using Android.App;
 using Android.Content;
 using Android.Provider;
 using Android.Telephony;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
 using AndroidApp = Android.App.Application;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 public class SmsService : ISmsService
 {
-    public const string SentAction = "SmsMessenger.SMS_SENT";
-    public const string DeliveredAction = "SmsMessenger.SMS_DELIVERED";
+    public const string SentAction = "ForgeLinkSms.SMS_SENT";
+    public const string DeliveredAction = "ForgeLinkSms.SMS_DELIVERED";
 
     public Task<IReadOnlyList<SmsMessage>> GetMessagesAsync(long threadId)
     {
@@ -1994,14 +1994,14 @@ public class SmsService : ISmsService
 
 - [ ] **Step 7: Implement the real `SmsDeliverReceiver`, plus a small Sent/Delivered status receiver**
 
-Replace the stub body from Task 4 in `src/SmsMessenger/Platforms/Android/SmsDeliverReceiver.cs`:
+Replace the stub body from Task 4 in `src/ForgeLinkSms/Platforms/Android/SmsDeliverReceiver.cs`:
 
 ```csharp
 using Android.App;
 using Android.Content;
 using Android.Provider;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 [BroadcastReceiver(Enabled = true, Exported = true, Permission = "android.permission.BROADCAST_SMS")]
 [IntentFilter(new[] { "android.provider.Telephony.SMS_DELIVER" })]
@@ -2036,14 +2036,14 @@ public class SmsDeliverReceiver : BroadcastReceiver
 }
 ```
 
-Add a small receiver for the Sent/Delivered `PendingIntent` callbacks, in a new file `src/SmsMessenger/Platforms/Android/DeliveryStatusReceiver.cs`:
+Add a small receiver for the Sent/Delivered `PendingIntent` callbacks, in a new file `src/ForgeLinkSms/Platforms/Android/DeliveryStatusReceiver.cs`:
 
 ```csharp
 using Android.App;
 using Android.Content;
 using Android.Provider;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 [BroadcastReceiver(Enabled = true, Exported = false)]
 [IntentFilter(new[] { SmsService.SentAction })]
@@ -2059,7 +2059,7 @@ public class DeliveryStatusReceiver : BroadcastReceiver
         // wiring this into a persisted per-message status column is a
         // straightforward extension of the ContentValues update pattern
         // already used in SmsService.SendAsync and SmsDeliverReceiver.
-        Android.Util.Log.Debug("SmsMessenger", $"Delivery status callback: {intent?.Action}, resultCode={ResultCode}");
+        Android.Util.Log.Debug("ForgeLinkSms", $"Delivery status callback: {intent?.Action}, resultCode={ResultCode}");
     }
 }
 ```
@@ -2074,13 +2074,13 @@ builder.Services.AddSingleton<ISmsService, SmsService>();
 
 `ThreadDetailViewModel` takes constructor arguments (`threadId`, `address`) that aren't known until navigation time, so it's created directly in the page's `OnInitializedAsync` rather than injected — resolve `ISmsService` via `[Inject] IServiceProvider` and construct it there:
 
-`src/SmsMessenger/Pages/Conversations/ThreadDetailPage.razor`:
+`src/ForgeLinkSms/Pages/Conversations/ThreadDetailPage.razor`:
 
 ```razor
 @page "/conversations/thread"
 @inject IServiceProvider Services
-@using SmsMessenger.Core.Services
-@using SmsMessenger.Core.ViewModels
+@using ForgeLinkSms.Core.Services
+@using ForgeLinkSms.Core.ViewModels
 
 @if (ViewModel is not null)
 {
@@ -2134,7 +2134,7 @@ private void OpenThread(long threadId, string address)
 - [ ] **Step 9: Build to verify it compiles**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
@@ -2147,7 +2147,7 @@ First, try texting the device's own number from itself (self-SMS) — many carri
 
 1. Find the device's own number (`Settings → About phone → Status → SIM status`, or ask the user).
 2. Set the app as the default SMS app if it isn't already (Task 6's onboarding flow, or `RoleManager`/Settings directly).
-3. Open a thread to the device's own number (or start one) and send "Yes! 10am works for me". Confirm the message appears immediately with **"✓ Sent"**, and — if self-SMS is supported by this carrier — updates to **"✓✓ Delivered"** and a second copy arrives as an inbound message (watch `adb logcat | grep SmsMessenger` for the `DeliveryStatusReceiver` and `SmsDeliverReceiver` debug lines firing).
+3. Open a thread to the device's own number (or start one) and send "Yes! 10am works for me". Confirm the message appears immediately with **"✓ Sent"**, and — if self-SMS is supported by this carrier — updates to **"✓✓ Delivered"** and a second copy arrives as an inbound message (watch `adb logcat | grep ForgeLinkSms` for the `DeliveryStatusReceiver` and `SmsDeliverReceiver` debug lines firing).
 4. If the carrier does not support self-SMS (delivery never happens, no inbound copy arrives), ask the user for a real second number to test with — their own second phone, another device they have access to, or a family member/friend willing to receive one test text — and repeat the send from this device to that number, and have that number text back a reply to test the receive path. This is a real, user-involving step; don't fabricate delivery evidence if the round trip can't be completed. Report NEEDS_CONTEXT and ask if no second number is available and self-SMS doesn't work — this task's manual verification genuinely can't be completed without SOME way to send and receive one real text.
 5. Type a message over 160 characters and send it; confirm it arrives as one continuous message in the thread (multi-part reassembly), not multiple separate bubbles.
 6. Confirm the received message (from step 3 or 4) shows no status text (incoming messages never show Sent/Delivered), and that the Conversations list's preview/unread badge updated for it.
@@ -2155,7 +2155,7 @@ First, try texting the device's own number from itself (self-SMS) — many carri
 - [ ] **Step 11: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/Services/ISmsService.cs src/SmsMessenger.Core/ViewModels/ThreadDetailViewModel.cs tests/SmsMessenger.Core.Tests/ViewModels/ThreadDetailViewModelTests.cs src/SmsMessenger/Platforms/Android/SmsService.cs src/SmsMessenger/Platforms/Android/SmsDeliverReceiver.cs src/SmsMessenger/Platforms/Android/DeliveryStatusReceiver.cs src/SmsMessenger/Pages/Conversations
+git add src/ForgeLinkSms.Core/Services/ISmsService.cs src/ForgeLinkSms.Core/ViewModels/ThreadDetailViewModel.cs tests/ForgeLinkSms.Core.Tests/ViewModels/ThreadDetailViewModelTests.cs src/ForgeLinkSms/Platforms/Android/SmsService.cs src/ForgeLinkSms/Platforms/Android/SmsDeliverReceiver.cs src/ForgeLinkSms/Platforms/Android/DeliveryStatusReceiver.cs src/ForgeLinkSms/Pages/Conversations
 git commit -m "feat: implement SMS send/receive path with Sent/Delivered status"
 ```
 
@@ -2164,13 +2164,13 @@ git commit -m "feat: implement SMS send/receive path with Sent/Delivered status"
 ### Task 10: Compose screen, contact picker, and individual group texting
 
 **Files:**
-- Create: `src/SmsMessenger.Core/ViewModels/ComposeViewModel.cs`
-- Create: `src/SmsMessenger.Core/ViewModels/ContactPickerViewModel.cs`
-- Create: `src/SmsMessenger/Pages/Compose/ComposePage.razor`
-- Create: `src/SmsMessenger/Pages/Compose/ContactPickerPage.razor`
-- Modify: `src/SmsMessenger/Platforms/Android/ComposeSmsActivity.cs` (real hand-off)
-- Modify: `src/SmsMessenger/Platforms/Android/HeadlessSmsSendService.cs` (real quick-reply)
-- Test: `tests/SmsMessenger.Core.Tests/ViewModels/ComposeViewModelTests.cs`
+- Create: `src/ForgeLinkSms.Core/ViewModels/ComposeViewModel.cs`
+- Create: `src/ForgeLinkSms.Core/ViewModels/ContactPickerViewModel.cs`
+- Create: `src/ForgeLinkSms/Pages/Compose/ComposePage.razor`
+- Create: `src/ForgeLinkSms/Pages/Compose/ContactPickerPage.razor`
+- Modify: `src/ForgeLinkSms/Platforms/Android/ComposeSmsActivity.cs` (real hand-off)
+- Modify: `src/ForgeLinkSms/Platforms/Android/HeadlessSmsSendService.cs` (real quick-reply)
+- Test: `tests/ForgeLinkSms.Core.Tests/ViewModels/ComposeViewModelTests.cs`
 
 **Interfaces:**
 - Consumes: `ISmsService` (Task 9), `IContactService` (Task 7), `PhoneNumberFormatter` (Task 7).
@@ -2178,14 +2178,14 @@ git commit -m "feat: implement SMS send/receive path with Sent/Delivered status"
 
 - [ ] **Step 1: Write the failing tests for `ComposeViewModel`**
 
-`tests/SmsMessenger.Core.Tests/ViewModels/ComposeViewModelTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/ViewModels/ComposeViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class ComposeViewModelTests
 {
@@ -2244,23 +2244,23 @@ public class ComposeViewModelTests
 - [ ] **Step 2: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ComposeViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ComposeViewModelTests
 ```
 
 Expected: FAIL — `ComposeViewModel` does not exist yet.
 
 - [ ] **Step 3: Implement `ComposeViewModel`**
 
-`src/SmsMessenger.Core/ViewModels/ComposeViewModel.cs`:
+`src/ForgeLinkSms.Core/ViewModels/ComposeViewModel.cs`:
 
 ```csharp
 using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class ComposeViewModel : ObservableObject
 {
@@ -2317,23 +2317,23 @@ public partial class ComposeViewModel : ObservableObject
 - [ ] **Step 4: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ComposeViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ComposeViewModelTests
 ```
 
 Expected: PASS (4 tests).
 
 - [ ] **Step 5: Implement `ContactPickerViewModel`**
 
-`src/SmsMessenger.Core/ViewModels/ContactPickerViewModel.cs`:
+`src/ForgeLinkSms.Core/ViewModels/ContactPickerViewModel.cs`:
 
 ```csharp
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class ContactPickerViewModel : ObservableObject
 {
@@ -2367,11 +2367,11 @@ builder.Services.AddTransient<ComposeViewModel>();
 builder.Services.AddTransient<ContactPickerViewModel>();
 ```
 
-`src/SmsMessenger/Pages/Compose/ComposePage.razor`:
+`src/ForgeLinkSms/Pages/Compose/ComposePage.razor`:
 
 ```razor
 @page "/compose"
-@inject SmsMessenger.Core.ViewModels.ComposeViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.ComposeViewModel ViewModel
 @inject Microsoft.AspNetCore.Components.NavigationManager Nav
 
 <div style="padding:12px;">
@@ -2410,11 +2410,11 @@ builder.Services.AddTransient<ContactPickerViewModel>();
 }
 ```
 
-`src/SmsMessenger/Pages/Compose/ContactPickerPage.razor`:
+`src/ForgeLinkSms/Pages/Compose/ContactPickerPage.razor`:
 
 ```razor
 @page "/compose/pick-contact"
-@inject SmsMessenger.Core.ViewModels.ContactPickerViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.ContactPickerViewModel ViewModel
 @inject Microsoft.AspNetCore.Components.NavigationManager Nav
 
 <div style="padding:12px;">
@@ -2459,7 +2459,7 @@ protected override void OnParametersSet()
 
 - [ ] **Step 7: Wire the real `ComposeSmsActivity` hand-off**
 
-Replace the stub body in `src/SmsMessenger/Platforms/Android/ComposeSmsActivity.cs`:
+Replace the stub body in `src/ForgeLinkSms/Platforms/Android/ComposeSmsActivity.cs`:
 
 ```csharp
 protected override void OnCreate(Bundle? savedInstanceState)
@@ -2482,7 +2482,7 @@ protected override void OnCreate(Bundle? savedInstanceState)
 
 - [ ] **Step 8: Wire the real `HeadlessSmsSendService`**
 
-Replace the stub body in `src/SmsMessenger/Platforms/Android/HeadlessSmsSendService.cs`:
+Replace the stub body in `src/ForgeLinkSms/Platforms/Android/HeadlessSmsSendService.cs`:
 
 ```csharp
 protected override void OnHandleIntent(Intent? intent)
@@ -2492,7 +2492,7 @@ protected override void OnHandleIntent(Intent? intent)
 
     if (!string.IsNullOrEmpty(address) && !string.IsNullOrEmpty(body))
     {
-        var smsService = MauiApplication.Current.Services.GetRequiredService<SmsMessenger.Core.Services.ISmsService>();
+        var smsService = MauiApplication.Current.Services.GetRequiredService<ForgeLinkSms.Core.Services.ISmsService>();
         smsService.SendAsync(address, body).GetAwaiter().GetResult();
     }
 }
@@ -2501,7 +2501,7 @@ protected override void OnHandleIntent(Intent? intent)
 - [ ] **Step 9: Build to verify it compiles**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
@@ -2517,7 +2517,7 @@ There is no emulator on this machine and fake `555`-prefixed numbers don't route
 - [ ] **Step 11: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/ViewModels/ComposeViewModel.cs src/SmsMessenger.Core/ViewModels/ContactPickerViewModel.cs tests/SmsMessenger.Core.Tests/ViewModels/ComposeViewModelTests.cs src/SmsMessenger/Pages/Compose src/SmsMessenger/Platforms/Android/ComposeSmsActivity.cs src/SmsMessenger/Platforms/Android/HeadlessSmsSendService.cs src/SmsMessenger/MauiProgram.cs
+git add src/ForgeLinkSms.Core/ViewModels/ComposeViewModel.cs src/ForgeLinkSms.Core/ViewModels/ContactPickerViewModel.cs tests/ForgeLinkSms.Core.Tests/ViewModels/ComposeViewModelTests.cs src/ForgeLinkSms/Pages/Compose src/ForgeLinkSms/Platforms/Android/ComposeSmsActivity.cs src/ForgeLinkSms/Platforms/Android/HeadlessSmsSendService.cs src/ForgeLinkSms/MauiProgram.cs
 git commit -m "feat: add Compose screen, contact picker, and individual group texting"
 ```
 
@@ -2526,12 +2526,12 @@ git commit -m "feat: add Compose screen, contact picker, and individual group te
 ### Task 11: Local notifications and Settings screen
 
 **Files:**
-- Create: `src/SmsMessenger.Core/Services/INotificationService.cs`
-- Create: `src/SmsMessenger.Core/ViewModels/SettingsViewModel.cs`
-- Create: `src/SmsMessenger/Platforms/Android/NotificationService.cs`
-- Create: `src/SmsMessenger/Pages/Settings/SettingsPage.razor`
-- Modify: `src/SmsMessenger/Platforms/Android/SmsDeliverReceiver.cs` (call notification service)
-- Test: `tests/SmsMessenger.Core.Tests/ViewModels/SettingsViewModelTests.cs`
+- Create: `src/ForgeLinkSms.Core/Services/INotificationService.cs`
+- Create: `src/ForgeLinkSms.Core/ViewModels/SettingsViewModel.cs`
+- Create: `src/ForgeLinkSms/Platforms/Android/NotificationService.cs`
+- Create: `src/ForgeLinkSms/Pages/Settings/SettingsPage.razor`
+- Modify: `src/ForgeLinkSms/Platforms/Android/SmsDeliverReceiver.cs` (call notification service)
+- Test: `tests/ForgeLinkSms.Core.Tests/ViewModels/SettingsViewModelTests.cs`
 
 **Interfaces:**
 - Consumes: `IDefaultAppRoleService` (Task 5).
@@ -2539,10 +2539,10 @@ git commit -m "feat: add Compose screen, contact picker, and individual group te
 
 - [ ] **Step 1: Define `INotificationService`**
 
-`src/SmsMessenger.Core/Services/INotificationService.cs`:
+`src/ForgeLinkSms.Core/Services/INotificationService.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface INotificationService
 {
@@ -2552,14 +2552,14 @@ public interface INotificationService
 
 - [ ] **Step 2: Write the failing tests for `SettingsViewModel`**
 
-`tests/SmsMessenger.Core.Tests/ViewModels/SettingsViewModelTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/ViewModels/SettingsViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class SettingsViewModelTests
 {
@@ -2589,21 +2589,21 @@ public class SettingsViewModelTests
 - [ ] **Step 3: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter SettingsViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter SettingsViewModelTests
 ```
 
 Expected: FAIL — `SettingsViewModel` does not exist yet.
 
 - [ ] **Step 4: Implement `SettingsViewModel`**
 
-`src/SmsMessenger.Core/ViewModels/SettingsViewModel.cs`:
+`src/ForgeLinkSms.Core/ViewModels/SettingsViewModel.cs`:
 
 ```csharp
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class SettingsViewModel : ObservableObject
 {
@@ -2632,23 +2632,23 @@ public partial class SettingsViewModel : ObservableObject
 - [ ] **Step 5: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter SettingsViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter SettingsViewModelTests
 ```
 
 Expected: PASS (2 tests).
 
 - [ ] **Step 6: Implement the Android `NotificationService`**
 
-`src/SmsMessenger/Platforms/Android/NotificationService.cs`:
+`src/ForgeLinkSms/Platforms/Android/NotificationService.cs`:
 
 ```csharp
 using Android.App;
 using Android.Content;
 using AndroidX.Core.App;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 using AndroidApp = Android.App.Application;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 public class NotificationService : INotificationService
 {
@@ -2689,10 +2689,10 @@ public class NotificationService : INotificationService
 
 - [ ] **Step 7: Call the notification service from `SmsDeliverReceiver`**
 
-In `src/SmsMessenger/Platforms/Android/SmsDeliverReceiver.cs`, replace the "Task 11 hooks in here" comment with a real call. Since `BroadcastReceiver` instances aren't DI-constructed by MAUI, resolve the service from the running app's service provider:
+In `src/ForgeLinkSms/Platforms/Android/SmsDeliverReceiver.cs`, replace the "Task 11 hooks in here" comment with a real call. Since `BroadcastReceiver` instances aren't DI-constructed by MAUI, resolve the service from the running app's service provider:
 
 ```csharp
-var notificationService = MauiApplication.Current.Services.GetRequiredService<SmsMessenger.Core.Services.INotificationService>();
+var notificationService = MauiApplication.Current.Services.GetRequiredService<ForgeLinkSms.Core.Services.INotificationService>();
 notificationService.NotifyIncomingMessage(address, body);
 ```
 
@@ -2707,11 +2707,11 @@ builder.Services.AddSingleton<INotificationService, NotificationService>();
 builder.Services.AddTransient<SettingsViewModel>();
 ```
 
-`src/SmsMessenger/Pages/Settings/SettingsPage.razor`:
+`src/ForgeLinkSms/Pages/Settings/SettingsPage.razor`:
 
 ```razor
 @page "/settings"
-@inject SmsMessenger.Core.ViewModels.SettingsViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.SettingsViewModel ViewModel
 
 <div style="padding:12px;">
     <h3>Settings</h3>
@@ -2733,7 +2733,7 @@ builder.Services.AddTransient<SettingsViewModel>();
 - [ ] **Step 9: Build to verify it compiles**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
@@ -2745,7 +2745,7 @@ Background the app (press Home), then have a real text sent to the device — se
 - [ ] **Step 11: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/Services/INotificationService.cs src/SmsMessenger.Core/ViewModels/SettingsViewModel.cs tests/SmsMessenger.Core.Tests/ViewModels/SettingsViewModelTests.cs src/SmsMessenger/Platforms/Android/NotificationService.cs src/SmsMessenger/Platforms/Android/SmsDeliverReceiver.cs src/SmsMessenger/Pages/Settings src/SmsMessenger/MauiProgram.cs
+git add src/ForgeLinkSms.Core/Services/INotificationService.cs src/ForgeLinkSms.Core/ViewModels/SettingsViewModel.cs tests/ForgeLinkSms.Core.Tests/ViewModels/SettingsViewModelTests.cs src/ForgeLinkSms/Platforms/Android/NotificationService.cs src/ForgeLinkSms/Platforms/Android/SmsDeliverReceiver.cs src/ForgeLinkSms/Pages/Settings src/ForgeLinkSms/MauiProgram.cs
 git commit -m "feat: add local incoming-message notifications and Settings screen"
 ```
 
@@ -2754,8 +2754,8 @@ git commit -m "feat: add local incoming-message notifications and Settings scree
 ### Task 12: Bottom navigation, end-to-end pass, and README
 
 **Files:**
-- Modify: `src/SmsMessenger/Components/Layout/MainLayout.razor` (bottom nav bar: Conversations / Settings)
-- Create: `src/SmsMessenger/Components/Layout/BottomNav.razor`
+- Modify: `src/ForgeLinkSms/Components/Layout/MainLayout.razor` (bottom nav bar: Conversations / Settings)
+- Create: `src/ForgeLinkSms/Components/Layout/BottomNav.razor`
 - Create: `README.md`
 
 **Interfaces:**
@@ -2766,7 +2766,7 @@ git commit -m "feat: add local incoming-message notifications and Settings scree
 
 There is no MAUI Shell in this app (see the plan's Global Constraints navigation-architecture note) — bottom navigation is an ordinary Razor component using Blazor's `NavLink`, shown only on the two tab-equivalent pages (Conversations, Settings), not on Splash/Onboarding/ThreadDetail/Compose/ContactPicker.
 
-`src/SmsMessenger/Components/Layout/BottomNav.razor`:
+`src/ForgeLinkSms/Components/Layout/BottomNav.razor`:
 
 ```razor
 <div style="display:flex;border-top:1px solid #eee;position:fixed;bottom:0;left:0;right:0;background:white;">
@@ -2775,14 +2775,14 @@ There is no MAUI Shell in this app (see the plan's Global Constraints navigation
 </div>
 ```
 
-Add it to `ConversationsPage.razor` (Task 8) and `SettingsPage.razor` (Task 11) — each page includes `<BottomNav />` once near the end of its markup (a `@using SmsMessenger.Components.Layout` in `Components/_Imports.razor`, already present from the template, makes it available with no extra import needed). Splash, Onboarding, ThreadDetail, Compose, and ContactPicker do not include it — those aren't tab-equivalent screens.
+Add it to `ConversationsPage.razor` (Task 8) and `SettingsPage.razor` (Task 11) — each page includes `<BottomNav />` once near the end of its markup (a `@using ForgeLinkSms.Components.Layout` in `Components/_Imports.razor`, already present from the template, makes it available with no extra import needed). Splash, Onboarding, ThreadDetail, Compose, and ContactPicker do not include it — those aren't tab-equivalent screens.
 
-Check `src/SmsMessenger/Components/Layout/MainLayout.razor` renders `@Body` without a leftover `NavMenu` reference (Task 5 already asked to simplify this file when the demo pages were removed) — if it still references the deleted `NavMenu.razor`, strip that reference now.
+Check `src/ForgeLinkSms/Components/Layout/MainLayout.razor` renders `@Body` without a leftover `NavMenu` reference (Task 5 already asked to simplify this file when the demo pages were removed) — if it still references the deleted `NavMenu.razor`, strip that reference now.
 
 - [ ] **Step 2: Build and do a full manual walkthrough**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 ```
 
 This machine cannot run the Android emulator (see Task 1/4's notes — ARM64 Windows host, no working emulator path found). Do this walkthrough on the physical Android device connected over USB, same as every other manual verification in this plan.
@@ -2814,26 +2814,26 @@ the implementation plan this was built from.
 
 ## Build
 
-    dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+    dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 
-(`dotnet build SmsMessenger.sln -f net9.0-android` — building the whole
+(`dotnet build ForgeLinkSms.sln -f net9.0-android` — building the whole
 solution with an Android target filter — does not work, since
-`SmsMessenger.Core`/`SmsMessenger.Core.Tests` are plain `net9.0` projects
+`ForgeLinkSms.Core`/`ForgeLinkSms.Core.Tests` are plain `net9.0` projects
 that don't target Android; build the app project directly, or build the
 solution with no `-f` filter.)
 
 ## Run on a device
 
-    dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+    dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 
 ## Run the unit tests
 
-    dotnet test tests/SmsMessenger.Core.Tests
+    dotnet test tests/ForgeLinkSms.Core.Tests
 
-Unit tests cover every model and view model in `SmsMessenger.Core` — none
+Unit tests cover every model and view model in `ForgeLinkSms.Core` — none
 of them touch the Android runtime, so they run on any machine with the .NET
 SDK. The Android-specific service implementations under
-`src/SmsMessenger/Platforms/Android/` call real platform APIs
+`src/ForgeLinkSms/Platforms/Android/` call real platform APIs
 (`SmsManager`, content providers, `ContactsContract`, `RoleManager`) and are
 verified by hand on a physical device, per the manual verification steps in
 each task of the implementation plan.
@@ -2850,7 +2850,7 @@ protocol.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/SmsMessenger/Components/Layout README.md
+git add src/ForgeLinkSms/Components/Layout README.md
 git commit -m "feat: wire up bottom navigation and add project README"
 ```
 
@@ -2858,6 +2858,6 @@ git commit -m "feat: wire up bottom navigation and add project README"
 
 ## Plan Self-Review
 
-- **Spec coverage:** Executive Summary/platform choice → Task 1 (Android-only TFM). "What SMS Can/Can't Do" → encoded as Global Constraints and directly reflected in `SmsMessage.StatusDisplay` (Task 3) and the group-send warning (Task 10) — no task implements typing indicators, reactions, edit, delete-for-everyone, or true group threads, by design. Feature Overview → Tasks 5–11 cover every v1 feature cell (messaging, contacts/compose, system integration); the "Not in v1" cell has no corresponding task, correctly. UI mockups (Splash/Conversations/Thread Detail) → Tasks 5, 8, 9 pages. Android SMS Integration Architecture (4.1–4.8) → Task 4 (contract + components + permissions), Task 5 (role request), Task 9 (send/receive + content provider read/write), Task 7 (contacts), dual-SIM explicitly deferred as "optional nicety" per spec, not built in any task (consistent with spec calling it optional). MAUI Architecture (5.1–5.4) → the Core/App project split across all tasks; folder structure matches the spec's `Platforms/Android/` layout with the addition of the `SmsMessenger.Core` library, which is a testability-driven deviation noted in the plan's Architecture section, not a silent one. Data Model → Task 3 models + the "no app database" constraint stated in Global Constraints and never violated by any task. Notifications → Task 11. Permissions & Privacy → Task 4 + Task 6. Cost Summary → nothing to implement, it's a statement about infrastructure, correctly has no task. Phase 2/3 Roadmap → correctly out of scope for every task in this plan.
+- **Spec coverage:** Executive Summary/platform choice → Task 1 (Android-only TFM). "What SMS Can/Can't Do" → encoded as Global Constraints and directly reflected in `SmsMessage.StatusDisplay` (Task 3) and the group-send warning (Task 10) — no task implements typing indicators, reactions, edit, delete-for-everyone, or true group threads, by design. Feature Overview → Tasks 5–11 cover every v1 feature cell (messaging, contacts/compose, system integration); the "Not in v1" cell has no corresponding task, correctly. UI mockups (Splash/Conversations/Thread Detail) → Tasks 5, 8, 9 pages. Android SMS Integration Architecture (4.1–4.8) → Task 4 (contract + components + permissions), Task 5 (role request), Task 9 (send/receive + content provider read/write), Task 7 (contacts), dual-SIM explicitly deferred as "optional nicety" per spec, not built in any task (consistent with spec calling it optional). MAUI Architecture (5.1–5.4) → the Core/App project split across all tasks; folder structure matches the spec's `Platforms/Android/` layout with the addition of the `ForgeLinkSms.Core` library, which is a testability-driven deviation noted in the plan's Architecture section, not a silent one. Data Model → Task 3 models + the "no app database" constraint stated in Global Constraints and never violated by any task. Notifications → Task 11. Permissions & Privacy → Task 4 + Task 6. Cost Summary → nothing to implement, it's a statement about infrastructure, correctly has no task. Phase 2/3 Roadmap → correctly out of scope for every task in this plan.
 - **Placeholder scan:** No "TBD"/"handle appropriately" phrasing found; every step has real code or a concrete, literal manual-test action.
 - **Type consistency:** Verified `ISmsService.SendAsync(string, string)` signature matches every caller (`ThreadDetailViewModel.Send`, `ComposeViewModel.Send`, `HeadlessSmsSendService`). `IThreadService.GetThreadsAsync()` and `IContactService.LookupAsync`/`GetAllContactsAsync` signatures match their Task 8/9/10 consumers. `SmsMessageStatus` enum values (`Sending, Sent, Delivered, Failed`) used consistently between Task 3's model and Task 9's `SmsService` (which only ever produces `Sent`/`Delivered`, correctly never `Failed` or `Sending` from a provider read, since those are transient client-side states not persisted by the OS provider).

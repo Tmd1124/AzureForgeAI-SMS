@@ -1,0 +1,19 @@
+@page "/onboarding"
+@inject ForgeLinkSms.Core.ViewModels.OnboardingViewModel ViewModel
+
+<div style="padding:24px;">
+    <h2>Set up ForgeLink SMS</h2>
+    <p>To send and receive real text messages, this app needs to become your default SMS app and needs a few permissions.</p>
+
+    <button @onclick="() => ViewModel.RequestRoleCommand.ExecuteAsync(null)">
+        1. Make this my default SMS app @(ViewModel.RoleGranted ? "✓" : "")
+    </button>
+
+    <button @onclick="() => ViewModel.RequestPermissionsCommand.ExecuteAsync(null)">
+        2. Grant permissions @(ViewModel.PermissionsGranted ? "✓" : "")
+    </button>
+
+    <button disabled="@(!ViewModel.CanContinue)" @onclick="() => ViewModel.ContinueCommand.ExecuteAsync(null)">
+        Continue
+    </button>
+</div>

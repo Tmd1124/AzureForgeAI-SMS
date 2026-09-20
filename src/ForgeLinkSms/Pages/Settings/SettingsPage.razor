@@ -1,0 +1,18 @@
+@page "/settings"
+@inject ForgeLinkSms.Core.ViewModels.SettingsViewModel ViewModel
+
+<div style="padding:12px;">
+    <h3>Settings</h3>
+    <p>Default SMS app: @(ViewModel.IsDefaultSmsApp ? "Yes ✓" : "No — open Onboarding to fix this")</p>
+    <label>
+        <input type="checkbox" @bind="ViewModel.NotificationsEnabled" />
+        Notify me about incoming texts
+    </label>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ViewModel.RefreshCommand.ExecuteAsync(null);
+    }
+}

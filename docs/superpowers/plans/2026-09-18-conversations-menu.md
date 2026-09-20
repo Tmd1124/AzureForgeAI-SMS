@@ -4,7 +4,7 @@
 
 **Goal:** Replace the app's bottom Messages/Settings nav bar with a Google-Messages-style top-right menu on Conversations, and add the six destinations behind it: Message Settings (existing), Theme, Your Profile, Trash, Blocked, Mark as Read, and Undo.
 
-**Architecture:** Two new SQLite tables (`TrashedThread`, `BlockedNumber`, via `sqlite-net-pcl`) live directly in `SmsMessenger.Core` since sqlite-net is portable .NET with no Android dependency — the first genuinely persisted, queryable app state this project has needed, alongside Android's SMS provider which remains the source of truth for message content. Everything else new (theme mode/accent, profile name/photo path) is a single scalar and stays in `Preferences`, matching the existing pattern. An in-memory `IUndoStack` in Core records the last few destructive actions (trash, block, mark-as-read) as small `IUndoableAction` objects. Blocking a number additionally writes to Android's `BlockedNumberContract` so the OS itself stops delivering future texts.
+**Architecture:** Two new SQLite tables (`TrashedThread`, `BlockedNumber`, via `sqlite-net-pcl`) live directly in `ForgeLinkSms.Core` since sqlite-net is portable .NET with no Android dependency — the first genuinely persisted, queryable app state this project has needed, alongside Android's SMS provider which remains the source of truth for message content. Everything else new (theme mode/accent, profile name/photo path) is a single scalar and stays in `Preferences`, matching the existing pattern. An in-memory `IUndoStack` in Core records the last few destructive actions (trash, block, mark-as-read) as small `IUndoableAction` objects. Blocking a number additionally writes to Android's `BlockedNumberContract` so the OS itself stops delivering future texts.
 
 **Tech Stack:** .NET 9, .NET MAUI (Blazor Hybrid), CommunityToolkit.Mvvm, sqlite-net-pcl, xUnit + Moq, Android SDK, git.
 
@@ -18,41 +18,41 @@
 - The undo stack is in-memory only and resets when the app restarts (confirmed with the user during design).
 - Undo covers exactly three action types: trashing a thread, blocking a number, and the global mark-all-as-read. Sending/receiving messages is never undoable.
 - No new abstraction is introduced for the existing single-value Preferences entries — theme mode/accent and profile name/photo path are read/written directly via `Microsoft.Maui.Storage.Preferences` inside each feature's Android service, exactly like the original plan never introduced an `IPreferencesService` wrapper either.
-- Every new Core interface gets exactly one Android implementation in `Platforms/Android/`, following the codebase's existing one-interface-per-concern convention (`IContactService`, `IThreadService`, `ISmsService`, etc.) — except the two SQLite repositories, which are portable and implemented directly in `SmsMessenger.Core/Data/`.
+- Every new Core interface gets exactly one Android implementation in `Platforms/Android/`, following the codebase's existing one-interface-per-concern convention (`IContactService`, `IThreadService`, `ISmsService`, etc.) — except the two SQLite repositories, which are portable and implemented directly in `ForgeLinkSms.Core/Data/`.
 
 ---
 
 ### Task 1: SQLite data layer for Trash and Blocked numbers
 
 **Files:**
-- Modify: `src/SmsMessenger.Core/SmsMessenger.Core.csproj` (add `sqlite-net-pcl` package)
-- Create: `src/SmsMessenger.Core/Models/TrashedThread.cs`
-- Create: `src/SmsMessenger.Core/Models/BlockedNumber.cs`
-- Create: `src/SmsMessenger.Core/Data/ITrashRepository.cs`
-- Create: `src/SmsMessenger.Core/Data/TrashRepository.cs`
-- Create: `src/SmsMessenger.Core/Data/IBlockedNumberRepository.cs`
-- Create: `src/SmsMessenger.Core/Data/BlockedNumberRepository.cs`
-- Test: `tests/SmsMessenger.Core.Tests/Data/TrashRepositoryTests.cs`
-- Test: `tests/SmsMessenger.Core.Tests/Data/BlockedNumberRepositoryTests.cs`
+- Modify: `src/ForgeLinkSms.Core/ForgeLinkSms.Core.csproj` (add `sqlite-net-pcl` package)
+- Create: `src/ForgeLinkSms.Core/Models/TrashedThread.cs`
+- Create: `src/ForgeLinkSms.Core/Models/BlockedNumber.cs`
+- Create: `src/ForgeLinkSms.Core/Data/ITrashRepository.cs`
+- Create: `src/ForgeLinkSms.Core/Data/TrashRepository.cs`
+- Create: `src/ForgeLinkSms.Core/Data/IBlockedNumberRepository.cs`
+- Create: `src/ForgeLinkSms.Core/Data/BlockedNumberRepository.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/Data/TrashRepositoryTests.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/Data/BlockedNumberRepositoryTests.cs`
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
-- Produces: `ITrashRepository` (`InitializeAsync()`, `TrashThreadAsync(long)`, `RestoreThreadAsync(long)`, `IsTrashedAsync(long)`, `GetTrashedThreadIdsAsync()`) and `IBlockedNumberRepository` (`InitializeAsync()`, `BlockAsync(string)`, `UnblockAsync(string)`, `IsBlockedAsync(string)`, `GetBlockedNumbersAsync()` returning `IReadOnlyList<BlockedNumber>`) — every later task in this plan that touches Trash or Blocked builds on these exact signatures. Both implementations take a raw `string databasePath` constructor parameter so tests can point them at a temp file and the app can point them at `FileSystem.AppDataDirectory` without `SmsMessenger.Core` ever referencing a MAUI-specific API.
+- Produces: `ITrashRepository` (`InitializeAsync()`, `TrashThreadAsync(long)`, `RestoreThreadAsync(long)`, `IsTrashedAsync(long)`, `GetTrashedThreadIdsAsync()`) and `IBlockedNumberRepository` (`InitializeAsync()`, `BlockAsync(string)`, `UnblockAsync(string)`, `IsBlockedAsync(string)`, `GetBlockedNumbersAsync()` returning `IReadOnlyList<BlockedNumber>`) — every later task in this plan that touches Trash or Blocked builds on these exact signatures. Both implementations take a raw `string databasePath` constructor parameter so tests can point them at a temp file and the app can point them at `FileSystem.AppDataDirectory` without `ForgeLinkSms.Core` ever referencing a MAUI-specific API.
 
 - [ ] **Step 1: Add the sqlite-net-pcl package**
 
 ```bash
-dotnet add src/SmsMessenger.Core/SmsMessenger.Core.csproj package sqlite-net-pcl
+dotnet add src/ForgeLinkSms.Core/ForgeLinkSms.Core.csproj package sqlite-net-pcl
 ```
 
 - [ ] **Step 2: Write the failing tests for `TrashRepository`**
 
-`tests/SmsMessenger.Core.Tests/Data/TrashRepositoryTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/Data/TrashRepositoryTests.cs`:
 
 ```csharp
-using SmsMessenger.Core.Data;
+using ForgeLinkSms.Core.Data;
 
-namespace SmsMessenger.Core.Tests.Data;
+namespace ForgeLinkSms.Core.Tests.Data;
 
 public class TrashRepositoryTests : IDisposable
 {
@@ -118,19 +118,19 @@ public class TrashRepositoryTests : IDisposable
 - [ ] **Step 3: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter TrashRepositoryTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter TrashRepositoryTests
 ```
 
 Expected: FAIL — `TrashRepository` does not exist yet.
 
 - [ ] **Step 4: Implement `TrashedThread`, `ITrashRepository`, and `TrashRepository`**
 
-`src/SmsMessenger.Core/Models/TrashedThread.cs`:
+`src/ForgeLinkSms.Core/Models/TrashedThread.cs`:
 
 ```csharp
 using SQLite;
 
-namespace SmsMessenger.Core.Models;
+namespace ForgeLinkSms.Core.Models;
 
 public class TrashedThread
 {
@@ -141,10 +141,10 @@ public class TrashedThread
 }
 ```
 
-`src/SmsMessenger.Core/Data/ITrashRepository.cs`:
+`src/ForgeLinkSms.Core/Data/ITrashRepository.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Data;
+namespace ForgeLinkSms.Core.Data;
 
 public interface ITrashRepository
 {
@@ -156,13 +156,13 @@ public interface ITrashRepository
 }
 ```
 
-`src/SmsMessenger.Core/Data/TrashRepository.cs`:
+`src/ForgeLinkSms.Core/Data/TrashRepository.cs`:
 
 ```csharp
 using SQLite;
-using SmsMessenger.Core.Models;
+using ForgeLinkSms.Core.Models;
 
-namespace SmsMessenger.Core.Data;
+namespace ForgeLinkSms.Core.Data;
 
 public class TrashRepository : ITrashRepository, IDisposable
 {
@@ -198,19 +198,19 @@ public class TrashRepository : ITrashRepository, IDisposable
 - [ ] **Step 5: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter TrashRepositoryTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter TrashRepositoryTests
 ```
 
 Expected: PASS (4 tests).
 
 - [ ] **Step 6: Write the failing tests for `BlockedNumberRepository`**
 
-`tests/SmsMessenger.Core.Tests/Data/BlockedNumberRepositoryTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/Data/BlockedNumberRepositoryTests.cs`:
 
 ```csharp
-using SmsMessenger.Core.Data;
+using ForgeLinkSms.Core.Data;
 
-namespace SmsMessenger.Core.Tests.Data;
+namespace ForgeLinkSms.Core.Tests.Data;
 
 public class BlockedNumberRepositoryTests : IDisposable
 {
@@ -277,19 +277,19 @@ public class BlockedNumberRepositoryTests : IDisposable
 - [ ] **Step 7: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter BlockedNumberRepositoryTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter BlockedNumberRepositoryTests
 ```
 
 Expected: FAIL — `BlockedNumberRepository` does not exist yet.
 
 - [ ] **Step 8: Implement `BlockedNumber`, `IBlockedNumberRepository`, and `BlockedNumberRepository`**
 
-`src/SmsMessenger.Core/Models/BlockedNumber.cs`:
+`src/ForgeLinkSms.Core/Models/BlockedNumber.cs`:
 
 ```csharp
 using SQLite;
 
-namespace SmsMessenger.Core.Models;
+namespace ForgeLinkSms.Core.Models;
 
 public class BlockedNumber
 {
@@ -300,12 +300,12 @@ public class BlockedNumber
 }
 ```
 
-`src/SmsMessenger.Core/Data/IBlockedNumberRepository.cs`:
+`src/ForgeLinkSms.Core/Data/IBlockedNumberRepository.cs`:
 
 ```csharp
-using SmsMessenger.Core.Models;
+using ForgeLinkSms.Core.Models;
 
-namespace SmsMessenger.Core.Data;
+namespace ForgeLinkSms.Core.Data;
 
 public interface IBlockedNumberRepository
 {
@@ -317,13 +317,13 @@ public interface IBlockedNumberRepository
 }
 ```
 
-`src/SmsMessenger.Core/Data/BlockedNumberRepository.cs`:
+`src/ForgeLinkSms.Core/Data/BlockedNumberRepository.cs`:
 
 ```csharp
 using SQLite;
-using SmsMessenger.Core.Models;
+using ForgeLinkSms.Core.Models;
 
-namespace SmsMessenger.Core.Data;
+namespace ForgeLinkSms.Core.Data;
 
 public class BlockedNumberRepository : IBlockedNumberRepository, IDisposable
 {
@@ -359,7 +359,7 @@ Same reasoning as `TrashRepository` above: without closing the pooled native con
 - [ ] **Step 9: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter BlockedNumberRepositoryTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter BlockedNumberRepositoryTests
 ```
 
 Expected: PASS (4 tests).
@@ -367,7 +367,7 @@ Expected: PASS (4 tests).
 - [ ] **Step 10: Run the full suite to confirm nothing else broke**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests
+dotnet test tests/ForgeLinkSms.Core.Tests
 ```
 
 Expected: PASS, all tests (36 from the original plan + 8 new).
@@ -375,7 +375,7 @@ Expected: PASS, all tests (36 from the original plan + 8 new).
 - [ ] **Step 11: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/SmsMessenger.Core.csproj src/SmsMessenger.Core/Models/TrashedThread.cs src/SmsMessenger.Core/Models/BlockedNumber.cs src/SmsMessenger.Core/Data tests/SmsMessenger.Core.Tests/Data
+git add src/ForgeLinkSms.Core/ForgeLinkSms.Core.csproj src/ForgeLinkSms.Core/Models/TrashedThread.cs src/ForgeLinkSms.Core/Models/BlockedNumber.cs src/ForgeLinkSms.Core/Data tests/ForgeLinkSms.Core.Tests/Data
 git commit -m "feat: add SQLite-backed Trash and Blocked number repositories"
 ```
 
@@ -384,10 +384,10 @@ git commit -m "feat: add SQLite-backed Trash and Blocked number repositories"
 ### Task 2: Undo stack
 
 **Files:**
-- Create: `src/SmsMessenger.Core/Services/IUndoableAction.cs`
-- Create: `src/SmsMessenger.Core/Services/IUndoStack.cs`
-- Create: `src/SmsMessenger.Core/Services/UndoStack.cs`
-- Test: `tests/SmsMessenger.Core.Tests/Services/UndoStackTests.cs`
+- Create: `src/ForgeLinkSms.Core/Services/IUndoableAction.cs`
+- Create: `src/ForgeLinkSms.Core/Services/IUndoStack.cs`
+- Create: `src/ForgeLinkSms.Core/Services/UndoStack.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/Services/UndoStackTests.cs`
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
@@ -395,13 +395,13 @@ git commit -m "feat: add SQLite-backed Trash and Blocked number repositories"
 
 - [ ] **Step 1: Write the failing tests**
 
-`tests/SmsMessenger.Core.Tests/Services/UndoStackTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/Services/UndoStackTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.Tests.Services;
+namespace ForgeLinkSms.Core.Tests.Services;
 
 public class UndoStackTests
 {
@@ -464,17 +464,17 @@ public class UndoStackTests
 - [ ] **Step 2: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter UndoStackTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter UndoStackTests
 ```
 
 Expected: FAIL — `UndoStack` does not exist yet.
 
 - [ ] **Step 3: Implement `IUndoableAction`, `IUndoStack`, and `UndoStack`**
 
-`src/SmsMessenger.Core/Services/IUndoableAction.cs`:
+`src/ForgeLinkSms.Core/Services/IUndoableAction.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface IUndoableAction
 {
@@ -483,10 +483,10 @@ public interface IUndoableAction
 }
 ```
 
-`src/SmsMessenger.Core/Services/IUndoStack.cs`:
+`src/ForgeLinkSms.Core/Services/IUndoStack.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface IUndoStack
 {
@@ -496,10 +496,10 @@ public interface IUndoStack
 }
 ```
 
-`src/SmsMessenger.Core/Services/UndoStack.cs`:
+`src/ForgeLinkSms.Core/Services/UndoStack.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public class UndoStack : IUndoStack
 {
@@ -526,7 +526,7 @@ public class UndoStack : IUndoStack
 - [ ] **Step 4: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter UndoStackTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter UndoStackTests
 ```
 
 Expected: PASS (4 tests).
@@ -534,7 +534,7 @@ Expected: PASS (4 tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/Services/IUndoableAction.cs src/SmsMessenger.Core/Services/IUndoStack.cs src/SmsMessenger.Core/Services/UndoStack.cs tests/SmsMessenger.Core.Tests/Services/UndoStackTests.cs
+git add src/ForgeLinkSms.Core/Services/IUndoableAction.cs src/ForgeLinkSms.Core/Services/IUndoStack.cs src/ForgeLinkSms.Core/Services/UndoStack.cs tests/ForgeLinkSms.Core.Tests/Services/UndoStackTests.cs
 git commit -m "feat: add in-memory undo stack"
 ```
 
@@ -543,10 +543,10 @@ git commit -m "feat: add in-memory undo stack"
 ### Task 3: Navigation shell — top-right menu replaces the bottom nav
 
 **Files:**
-- Delete: `src/SmsMessenger/Components/Layout/BottomNav.razor`
-- Modify: `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor` (remove `<BottomNav />`, add a top-right gear icon, move the FAB back down now the bottom nav is gone)
-- Modify: `src/SmsMessenger/Pages/Settings/SettingsPage.razor` (remove `<BottomNav />`)
-- Create: `src/SmsMessenger/Pages/Menu/MenuPage.razor`
+- Delete: `src/ForgeLinkSms/Components/Layout/BottomNav.razor`
+- Modify: `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor` (remove `<BottomNav />`, add a top-right gear icon, move the FAB back down now the bottom nav is gone)
+- Modify: `src/ForgeLinkSms/Pages/Settings/SettingsPage.razor` (remove `<BottomNav />`)
+- Create: `src/ForgeLinkSms/Pages/Menu/MenuPage.razor`
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks besides routing conventions already established (`NavigationManager.NavigateTo`).
@@ -555,19 +555,19 @@ git commit -m "feat: add in-memory undo stack"
 - [ ] **Step 1: Delete `BottomNav.razor` and its usages**
 
 ```bash
-rm src/SmsMessenger/Components/Layout/BottomNav.razor
+rm src/ForgeLinkSms/Components/Layout/BottomNav.razor
 ```
 
-Remove the `<BottomNav />` line from `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor` and from `src/SmsMessenger/Pages/Settings/SettingsPage.razor` (both currently have it as the last line before their `@code` block, added in the original plan's Task 12).
+Remove the `<BottomNav />` line from `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor` and from `src/ForgeLinkSms/Pages/Settings/SettingsPage.razor` (both currently have it as the last line before their `@code` block, added in the original plan's Task 12).
 
 - [ ] **Step 2: Add the top-right menu icon to Conversations, and drop the FAB back down**
 
-Replace the full contents of `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor` with:
+Replace the full contents of `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor` with:
 
 ```razor
 @page "/conversations"
 @using Microsoft.AspNetCore.Components
-@inject SmsMessenger.Core.ViewModels.ConversationsViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.ConversationsViewModel ViewModel
 @inject NavigationManager Nav
 
 <div style="padding:12px;">
@@ -622,11 +622,11 @@ Replace the full contents of `src/SmsMessenger/Pages/Conversations/Conversations
 
 - [ ] **Step 3: Remove `<BottomNav />` from Settings**
 
-`src/SmsMessenger/Pages/Settings/SettingsPage.razor` becomes:
+`src/ForgeLinkSms/Pages/Settings/SettingsPage.razor` becomes:
 
 ```razor
 @page "/settings"
-@inject SmsMessenger.Core.ViewModels.SettingsViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.SettingsViewModel ViewModel
 
 <div style="padding:12px;">
     <h3>Settings</h3>
@@ -647,7 +647,7 @@ Replace the full contents of `src/SmsMessenger/Pages/Conversations/Conversations
 
 - [ ] **Step 4: Create the Menu page**
 
-`src/SmsMessenger/Pages/Menu/MenuPage.razor`:
+`src/ForgeLinkSms/Pages/Menu/MenuPage.razor`:
 
 ```razor
 @page "/menu"
@@ -665,7 +665,7 @@ Replace the full contents of `src/SmsMessenger/Pages/Conversations/Conversations
 - [ ] **Step 5: Build to verify it compiles**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
@@ -673,7 +673,7 @@ Expected: `Build succeeded.`
 - [ ] **Step 6: Manual verification on the physical device**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 ```
 
 On the device: open Conversations, confirm the bottom Messages/Settings bar is gone and a gear icon appears top-right. Tap it — confirm `/menu` opens with a "Message Settings" row. Tap that row — confirm it opens the real Settings screen (with no bottom nav there either). Confirm the Compose FAB still sits correctly at the bottom-right with nothing overlapping it.
@@ -681,7 +681,7 @@ On the device: open Conversations, confirm the bottom Messages/Settings bar is g
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/SmsMessenger/Components/Layout/BottomNav.razor src/SmsMessenger/Pages/Conversations/ConversationsPage.razor src/SmsMessenger/Pages/Settings/SettingsPage.razor src/SmsMessenger/Pages/Menu
+git add src/ForgeLinkSms/Components/Layout/BottomNav.razor src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor src/ForgeLinkSms/Pages/Settings/SettingsPage.razor src/ForgeLinkSms/Pages/Menu
 git commit -m "feat: replace bottom nav with a top-right menu"
 ```
 
@@ -690,16 +690,16 @@ git commit -m "feat: replace bottom nav with a top-right menu"
 ### Task 4: Trash feature
 
 **Files:**
-- Modify: `src/SmsMessenger.Core/ViewModels/ConversationsViewModel.cs` (exclude trashed threads, add `TrashThreadCommand`)
-- Modify: `tests/SmsMessenger.Core.Tests/ViewModels/ConversationsViewModelTests.cs`
-- Create: `src/SmsMessenger.Core/Services/TrashUndoAction.cs`
-- Create: `src/SmsMessenger.Core/ViewModels/TrashViewModel.cs`
-- Test: `tests/SmsMessenger.Core.Tests/Services/TrashUndoActionTests.cs`
-- Test: `tests/SmsMessenger.Core.Tests/ViewModels/TrashViewModelTests.cs`
-- Create: `src/SmsMessenger/Pages/Trash/TrashPage.razor`
-- Modify: `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor` (long-press action sheet with a "Trash" option)
-- Modify: `src/SmsMessenger/Pages/Menu/MenuPage.razor` (add the "Trash" row)
-- Modify: `src/SmsMessenger/MauiProgram.cs` (register `ITrashRepository`, `IUndoStack`, `TrashViewModel`; initialize the database)
+- Modify: `src/ForgeLinkSms.Core/ViewModels/ConversationsViewModel.cs` (exclude trashed threads, add `TrashThreadCommand`)
+- Modify: `tests/ForgeLinkSms.Core.Tests/ViewModels/ConversationsViewModelTests.cs`
+- Create: `src/ForgeLinkSms.Core/Services/TrashUndoAction.cs`
+- Create: `src/ForgeLinkSms.Core/ViewModels/TrashViewModel.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/Services/TrashUndoActionTests.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/ViewModels/TrashViewModelTests.cs`
+- Create: `src/ForgeLinkSms/Pages/Trash/TrashPage.razor`
+- Modify: `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor` (long-press action sheet with a "Trash" option)
+- Modify: `src/ForgeLinkSms/Pages/Menu/MenuPage.razor` (add the "Trash" row)
+- Modify: `src/ForgeLinkSms/MauiProgram.cs` (register `ITrashRepository`, `IUndoStack`, `TrashViewModel`; initialize the database)
 
 **Interfaces:**
 - Consumes: `ITrashRepository`, `IUndoStack` (Task 1, Task 2).
@@ -707,14 +707,14 @@ git commit -m "feat: replace bottom nav with a top-right menu"
 
 - [ ] **Step 1: Write the failing tests for `TrashUndoAction`**
 
-`tests/SmsMessenger.Core.Tests/Services/TrashUndoActionTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/Services/TrashUndoActionTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Data;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Data;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.Tests.Services;
+namespace ForgeLinkSms.Core.Tests.Services;
 
 public class TrashUndoActionTests
 {
@@ -743,19 +743,19 @@ public class TrashUndoActionTests
 - [ ] **Step 2: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter TrashUndoActionTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter TrashUndoActionTests
 ```
 
 Expected: FAIL — `TrashUndoAction` does not exist yet.
 
 - [ ] **Step 3: Implement `TrashUndoAction`**
 
-`src/SmsMessenger.Core/Services/TrashUndoAction.cs`:
+`src/ForgeLinkSms.Core/Services/TrashUndoAction.cs`:
 
 ```csharp
-using SmsMessenger.Core.Data;
+using ForgeLinkSms.Core.Data;
 
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public class TrashUndoAction : IUndoableAction
 {
@@ -777,23 +777,23 @@ public class TrashUndoAction : IUndoableAction
 - [ ] **Step 4: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter TrashUndoActionTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter TrashUndoActionTests
 ```
 
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Update `ConversationsViewModel`'s tests for the new constructor and behavior**
 
-Replace the full contents of `tests/SmsMessenger.Core.Tests/ViewModels/ConversationsViewModelTests.cs`:
+Replace the full contents of `tests/ForgeLinkSms.Core.Tests/ViewModels/ConversationsViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Data;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Data;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class ConversationsViewModelTests
 {
@@ -927,24 +927,24 @@ public class ConversationsViewModelTests
 - [ ] **Step 6: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ConversationsViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ConversationsViewModelTests
 ```
 
 Expected: FAIL — the current `ConversationsViewModel` constructor only takes one argument, and `TrashThreadCommand` doesn't exist.
 
 - [ ] **Step 7: Update `ConversationsViewModel`**
 
-Replace the full contents of `src/SmsMessenger.Core/ViewModels/ConversationsViewModel.cs`:
+Replace the full contents of `src/ForgeLinkSms.Core/ViewModels/ConversationsViewModel.cs`:
 
 ```csharp
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Data;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Data;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class ConversationsViewModel : ObservableObject
 {
@@ -1006,23 +1006,23 @@ public partial class ConversationsViewModel : ObservableObject
 - [ ] **Step 8: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ConversationsViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ConversationsViewModelTests
 ```
 
 Expected: PASS (6 tests).
 
 - [ ] **Step 9: Write the failing tests for `TrashViewModel`**
 
-`tests/SmsMessenger.Core.Tests/ViewModels/TrashViewModelTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/ViewModels/TrashViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Data;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Data;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class TrashViewModelTests
 {
@@ -1078,24 +1078,24 @@ public class TrashViewModelTests
 - [ ] **Step 10: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter TrashViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter TrashViewModelTests
 ```
 
 Expected: FAIL — `TrashViewModel` does not exist yet.
 
 - [ ] **Step 11: Implement `TrashViewModel`**
 
-`src/SmsMessenger.Core/ViewModels/TrashViewModel.cs`:
+`src/ForgeLinkSms.Core/ViewModels/TrashViewModel.cs`:
 
 ```csharp
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Data;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Data;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class TrashViewModel : ObservableObject
 {
@@ -1139,19 +1139,19 @@ public partial class TrashViewModel : ObservableObject
 - [ ] **Step 12: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter TrashViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter TrashViewModelTests
 ```
 
 Expected: PASS (2 tests).
 
 - [ ] **Step 13: Add the long-press action sheet to Conversations**
 
-Replace the full contents of `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor`:
+Replace the full contents of `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor`:
 
 ```razor
 @page "/conversations"
 @using Microsoft.AspNetCore.Components
-@inject SmsMessenger.Core.ViewModels.ConversationsViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.ConversationsViewModel ViewModel
 @inject NavigationManager Nav
 
 <div style="padding:12px;">
@@ -1270,11 +1270,11 @@ Note the row no longer has a bare `@onclick="() => OpenThread(...)"` — tapping
 
 - [ ] **Step 14: Create the Trash page**
 
-`src/SmsMessenger/Pages/Trash/TrashPage.razor`:
+`src/ForgeLinkSms/Pages/Trash/TrashPage.razor`:
 
 ```razor
 @page "/trash"
-@inject SmsMessenger.Core.ViewModels.TrashViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.TrashViewModel ViewModel
 
 <div style="padding:12px;">
     <h3>Trash</h3>
@@ -1308,7 +1308,7 @@ Note the row no longer has a bare `@onclick="() => OpenThread(...)"` — tapping
 
 - [ ] **Step 15: Add the "Trash" row to the Menu page**
 
-`src/SmsMessenger/Pages/Menu/MenuPage.razor` becomes:
+`src/ForgeLinkSms/Pages/Menu/MenuPage.razor` becomes:
 
 ```razor
 @page "/menu"
@@ -1328,10 +1328,10 @@ Note the row no longer has a bare `@onclick="() => OpenThread(...)"` — tapping
 
 - [ ] **Step 16: Register DI and initialize the database**
 
-In `src/SmsMessenger/MauiProgram.cs`, add `using SmsMessenger.Core.Data;` to the usings at the top, and inside `CreateMauiApp()` before `builder.Services.AddTransient<SettingsViewModel>();` add:
+In `src/ForgeLinkSms/MauiProgram.cs`, add `using ForgeLinkSms.Core.Data;` to the usings at the top, and inside `CreateMauiApp()` before `builder.Services.AddTransient<SettingsViewModel>();` add:
 
 ```csharp
-var trashRepository = new TrashRepository(Path.Combine(FileSystem.AppDataDirectory, "SmsMessenger.db"));
+var trashRepository = new TrashRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
 trashRepository.InitializeAsync().GetAwaiter().GetResult();
 builder.Services.AddSingleton<ITrashRepository>(trashRepository);
 builder.Services.AddSingleton<IUndoStack, UndoStack>();
@@ -1341,7 +1341,7 @@ builder.Services.AddTransient<TrashViewModel>();
 - [ ] **Step 17: Build to verify it compiles**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
@@ -1349,7 +1349,7 @@ Expected: `Build succeeded.`
 - [ ] **Step 18: Manual verification on the physical device**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 ```
 
 On the device: long-press a conversation row (press and hold roughly half a second) — confirm an action sheet slides up from the bottom with "Trash". Tap it, confirm the thread disappears from Conversations immediately. Open the menu → Trash, confirm the thread appears there with a "Restore" button. Tap Restore, confirm it reappears back in Conversations. Confirm a normal (short) tap on a row still opens the thread as before.
@@ -1357,7 +1357,7 @@ On the device: long-press a conversation row (press and hold roughly half a seco
 - [ ] **Step 19: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/ViewModels/ConversationsViewModel.cs tests/SmsMessenger.Core.Tests/ViewModels/ConversationsViewModelTests.cs src/SmsMessenger.Core/Services/TrashUndoAction.cs tests/SmsMessenger.Core.Tests/Services/TrashUndoActionTests.cs src/SmsMessenger.Core/ViewModels/TrashViewModel.cs tests/SmsMessenger.Core.Tests/ViewModels/TrashViewModelTests.cs src/SmsMessenger/Pages/Trash src/SmsMessenger/Pages/Conversations/ConversationsPage.razor src/SmsMessenger/Pages/Menu/MenuPage.razor src/SmsMessenger/MauiProgram.cs
+git add src/ForgeLinkSms.Core/ViewModels/ConversationsViewModel.cs tests/ForgeLinkSms.Core.Tests/ViewModels/ConversationsViewModelTests.cs src/ForgeLinkSms.Core/Services/TrashUndoAction.cs tests/ForgeLinkSms.Core.Tests/Services/TrashUndoActionTests.cs src/ForgeLinkSms.Core/ViewModels/TrashViewModel.cs tests/ForgeLinkSms.Core.Tests/ViewModels/TrashViewModelTests.cs src/ForgeLinkSms/Pages/Trash src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor src/ForgeLinkSms/Pages/Menu/MenuPage.razor src/ForgeLinkSms/MauiProgram.cs
 git commit -m "feat: add Trash — long-press a conversation to trash it, view and restore from the menu"
 ```
 
@@ -1366,18 +1366,18 @@ git commit -m "feat: add Trash — long-press a conversation to trash it, view a
 ### Task 5: Blocked feature
 
 **Files:**
-- Create: `src/SmsMessenger.Core/Services/IContactBlockService.cs`
-- Create: `src/SmsMessenger/Platforms/Android/ContactBlockService.cs`
-- Create: `src/SmsMessenger.Core/Services/BlockUndoAction.cs`
-- Test: `tests/SmsMessenger.Core.Tests/Services/BlockUndoActionTests.cs`
-- Modify: `src/SmsMessenger.Core/ViewModels/ConversationsViewModel.cs` (exclude blocked threads, add `BlockThreadCommand`)
-- Modify: `tests/SmsMessenger.Core.Tests/ViewModels/ConversationsViewModelTests.cs`
-- Create: `src/SmsMessenger.Core/ViewModels/BlockedViewModel.cs`
-- Test: `tests/SmsMessenger.Core.Tests/ViewModels/BlockedViewModelTests.cs`
-- Create: `src/SmsMessenger/Pages/Blocked/BlockedPage.razor`
-- Modify: `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor` (add a "Block" option to the action sheet)
-- Modify: `src/SmsMessenger/Pages/Menu/MenuPage.razor` (add the "Blocked" row)
-- Modify: `src/SmsMessenger/MauiProgram.cs` (register `IBlockedNumberRepository`, `IContactBlockService`, `BlockedViewModel`)
+- Create: `src/ForgeLinkSms.Core/Services/IContactBlockService.cs`
+- Create: `src/ForgeLinkSms/Platforms/Android/ContactBlockService.cs`
+- Create: `src/ForgeLinkSms.Core/Services/BlockUndoAction.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/Services/BlockUndoActionTests.cs`
+- Modify: `src/ForgeLinkSms.Core/ViewModels/ConversationsViewModel.cs` (exclude blocked threads, add `BlockThreadCommand`)
+- Modify: `tests/ForgeLinkSms.Core.Tests/ViewModels/ConversationsViewModelTests.cs`
+- Create: `src/ForgeLinkSms.Core/ViewModels/BlockedViewModel.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/ViewModels/BlockedViewModelTests.cs`
+- Create: `src/ForgeLinkSms/Pages/Blocked/BlockedPage.razor`
+- Modify: `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor` (add a "Block" option to the action sheet)
+- Modify: `src/ForgeLinkSms/Pages/Menu/MenuPage.razor` (add the "Blocked" row)
+- Modify: `src/ForgeLinkSms/MauiProgram.cs` (register `IBlockedNumberRepository`, `IContactBlockService`, `BlockedViewModel`)
 
 **Interfaces:**
 - Consumes: `IBlockedNumberRepository` (Task 1), `IUndoStack` (Task 2), `PhoneNumberFormatter.ToDisplayFormat` (original plan's Task 7).
@@ -1385,13 +1385,13 @@ git commit -m "feat: add Trash — long-press a conversation to trash it, view a
 
 - [ ] **Step 1: Write the failing tests for `BlockUndoAction`**
 
-`tests/SmsMessenger.Core.Tests/Services/BlockUndoActionTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/Services/BlockUndoActionTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.Tests.Services;
+namespace ForgeLinkSms.Core.Tests.Services;
 
 public class BlockUndoActionTests
 {
@@ -1420,17 +1420,17 @@ public class BlockUndoActionTests
 - [ ] **Step 2: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter BlockUndoActionTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter BlockUndoActionTests
 ```
 
 Expected: FAIL — `IContactBlockService` and `BlockUndoAction` don't exist yet.
 
 - [ ] **Step 3: Implement `IContactBlockService` and `BlockUndoAction`**
 
-`src/SmsMessenger.Core/Services/IContactBlockService.cs`:
+`src/ForgeLinkSms.Core/Services/IContactBlockService.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface IContactBlockService
 {
@@ -1441,10 +1441,10 @@ public interface IContactBlockService
 }
 ```
 
-`src/SmsMessenger.Core/Services/BlockUndoAction.cs`:
+`src/ForgeLinkSms.Core/Services/BlockUndoAction.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public class BlockUndoAction : IUndoableAction
 {
@@ -1466,24 +1466,24 @@ public class BlockUndoAction : IUndoableAction
 - [ ] **Step 4: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter BlockUndoActionTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter BlockUndoActionTests
 ```
 
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Implement the Android `ContactBlockService`**
 
-`src/SmsMessenger/Platforms/Android/ContactBlockService.cs`:
+`src/ForgeLinkSms/Platforms/Android/ContactBlockService.cs`:
 
 ```csharp
 using Android.Content;
-using SmsMessenger.Core.Data;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Data;
+using ForgeLinkSms.Core.Services;
 using AndroidApp = global::Android.App.Application;
 using AndroidBlockedNumberContract = global::Android.Provider.BlockedNumberContract;
 using AndroidContentValues = global::Android.Content.ContentValues;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 public class ContactBlockService : IContactBlockService
 {
@@ -1512,7 +1512,7 @@ public class ContactBlockService : IContactBlockService
             // above already makes the number filtered out of this app's UI — that's a fully
             // functional fallback on its own, so a failure here must not leave the caller's
             // undo-stack push / Load() from running.
-            global::Android.Util.Log.Warn("SmsMessenger", $"BlockedNumberContract insert failed, falling back to local-only block: {ex.Message}");
+            global::Android.Util.Log.Warn("ForgeLinkSms", $"BlockedNumberContract insert failed, falling back to local-only block: {ex.Message}");
         }
     }
 
@@ -1526,7 +1526,7 @@ public class ContactBlockService : IContactBlockService
         }
         catch (Exception ex)
         {
-            global::Android.Util.Log.Warn("SmsMessenger", $"BlockedNumberContract unblock failed: {ex.Message}");
+            global::Android.Util.Log.Warn("ForgeLinkSms", $"BlockedNumberContract unblock failed: {ex.Message}");
         }
     }
 
@@ -1544,16 +1544,16 @@ public class ContactBlockService : IContactBlockService
 
 - [ ] **Step 6: Update `ConversationsViewModel`'s tests for the new constructor and blocked-filtering behavior**
 
-Replace the full contents of `tests/SmsMessenger.Core.Tests/ViewModels/ConversationsViewModelTests.cs`:
+Replace the full contents of `tests/ForgeLinkSms.Core.Tests/ViewModels/ConversationsViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Data;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Data;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class ConversationsViewModelTests
 {
@@ -1732,24 +1732,24 @@ public class ConversationsViewModelTests
 - [ ] **Step 7: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ConversationsViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ConversationsViewModelTests
 ```
 
 Expected: FAIL — the constructor doesn't take an `IContactBlockService` yet, and `BlockThreadCommand` doesn't exist.
 
 - [ ] **Step 8: Update `ConversationsViewModel`**
 
-Replace the full contents of `src/SmsMessenger.Core/ViewModels/ConversationsViewModel.cs`:
+Replace the full contents of `src/ForgeLinkSms.Core/ViewModels/ConversationsViewModel.cs`:
 
 ```csharp
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Data;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Data;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class ConversationsViewModel : ObservableObject
 {
@@ -1828,21 +1828,21 @@ public partial class ConversationsViewModel : ObservableObject
 - [ ] **Step 9: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ConversationsViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ConversationsViewModelTests
 ```
 
 Expected: PASS (8 tests).
 
 - [ ] **Step 10: Write the failing tests for `BlockedViewModel`**
 
-`tests/SmsMessenger.Core.Tests/ViewModels/BlockedViewModelTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/ViewModels/BlockedViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class BlockedViewModelTests
 {
@@ -1880,22 +1880,22 @@ public class BlockedViewModelTests
 - [ ] **Step 11: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter BlockedViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter BlockedViewModelTests
 ```
 
 Expected: FAIL — `BlockedViewModel` does not exist yet.
 
 - [ ] **Step 12: Implement `BlockedViewModel`**
 
-`src/SmsMessenger.Core/ViewModels/BlockedViewModel.cs`:
+`src/ForgeLinkSms.Core/ViewModels/BlockedViewModel.cs`:
 
 ```csharp
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class BlockedViewModel : ObservableObject
 {
@@ -1930,14 +1930,14 @@ public partial class BlockedViewModel : ObservableObject
 - [ ] **Step 13: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter BlockedViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter BlockedViewModelTests
 ```
 
 Expected: PASS (2 tests).
 
 - [ ] **Step 14: Add "Block" to the Conversations action sheet**
 
-In `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor`, add a second row inside the action sheet `<div>` (right after the "🗑 Trash" row):
+In `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor`, add a second row inside the action sheet `<div>` (right after the "🗑 Trash" row):
 
 ```razor
 <div @onclick="BlockSelectedThread" style="padding:12px;">🚫 Block</div>
@@ -1958,11 +1958,11 @@ private async Task BlockSelectedThread()
 
 - [ ] **Step 15: Create the Blocked page**
 
-`src/SmsMessenger/Pages/Blocked/BlockedPage.razor`:
+`src/ForgeLinkSms/Pages/Blocked/BlockedPage.razor`:
 
 ```razor
 @page "/blocked"
-@inject SmsMessenger.Core.ViewModels.BlockedViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.BlockedViewModel ViewModel
 
 <div style="padding:12px;">
     <h3>Blocked</h3>
@@ -1976,7 +1976,7 @@ private async Task BlockSelectedThread()
         @foreach (var number in ViewModel.BlockedNumbers)
         {
             <div style="padding:10px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
-                <span>@SmsMessenger.Core.Utils.PhoneNumberFormatter.ToDisplayFormat(number)</span>
+                <span>@ForgeLinkSms.Core.Utils.PhoneNumberFormatter.ToDisplayFormat(number)</span>
                 <button @onclick="() => ViewModel.UnblockCommand.ExecuteAsync(number)">Unblock</button>
             </div>
         }
@@ -1993,7 +1993,7 @@ private async Task BlockSelectedThread()
 
 - [ ] **Step 16: Add the "Blocked" row to the Menu page**
 
-`src/SmsMessenger/Pages/Menu/MenuPage.razor` becomes:
+`src/ForgeLinkSms/Pages/Menu/MenuPage.razor` becomes:
 
 ```razor
 @page "/menu"
@@ -2016,22 +2016,22 @@ private async Task BlockSelectedThread()
 
 - [ ] **Step 17: Register DI**
 
-In `src/SmsMessenger/MauiProgram.cs`, after the `trashRepository`/`ITrashRepository` block added in Task 4, add:
+In `src/ForgeLinkSms/MauiProgram.cs`, after the `trashRepository`/`ITrashRepository` block added in Task 4, add:
 
 ```csharp
-var blockedNumberRepository = new BlockedNumberRepository(Path.Combine(FileSystem.AppDataDirectory, "SmsMessenger.db"));
+var blockedNumberRepository = new BlockedNumberRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
 blockedNumberRepository.InitializeAsync().GetAwaiter().GetResult();
 builder.Services.AddSingleton<IBlockedNumberRepository>(blockedNumberRepository);
 builder.Services.AddSingleton<IContactBlockService, ContactBlockService>();
 builder.Services.AddTransient<BlockedViewModel>();
 ```
 
-(Both repositories point at the same `SmsMessenger.db` file — `sqlite-net-pcl` supports multiple `SQLiteAsyncConnection` instances safely sharing one file, so no shared-connection abstraction is needed for two small tables.)
+(Both repositories point at the same `ForgeLinkSms.db` file — `sqlite-net-pcl` supports multiple `SQLiteAsyncConnection` instances safely sharing one file, so no shared-connection abstraction is needed for two small tables.)
 
 - [ ] **Step 18: Build to verify it compiles**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.` If `BlockedNumberContract` member names need adjusting per Step 5's note, fix them now.
@@ -2039,7 +2039,7 @@ Expected: `Build succeeded.` If `BlockedNumberContract` member names need adjust
 - [ ] **Step 19: Manual verification on the physical device**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 ```
 
 On the device: long-press a conversation, tap "Block". Confirm the thread disappears from Conversations. Open the menu → Blocked, confirm the number is listed. Have that number text you again — confirm no new message/notification arrives at all (OS-level block working) or, if it does arrive but the thread stays hidden from Conversations, the local filtering fallback is working (note which happened). Tap Unblock, confirm the number can text you again and re-appears normally once it does.
@@ -2047,7 +2047,7 @@ On the device: long-press a conversation, tap "Block". Confirm the thread disapp
 - [ ] **Step 20: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/Services/IContactBlockService.cs src/SmsMessenger/Platforms/Android/ContactBlockService.cs src/SmsMessenger.Core/Services/BlockUndoAction.cs tests/SmsMessenger.Core.Tests/Services/BlockUndoActionTests.cs src/SmsMessenger.Core/ViewModels/ConversationsViewModel.cs tests/SmsMessenger.Core.Tests/ViewModels/ConversationsViewModelTests.cs src/SmsMessenger.Core/ViewModels/BlockedViewModel.cs tests/SmsMessenger.Core.Tests/ViewModels/BlockedViewModelTests.cs src/SmsMessenger/Pages/Blocked src/SmsMessenger/Pages/Conversations/ConversationsPage.razor src/SmsMessenger/Pages/Menu/MenuPage.razor src/SmsMessenger/MauiProgram.cs
+git add src/ForgeLinkSms.Core/Services/IContactBlockService.cs src/ForgeLinkSms/Platforms/Android/ContactBlockService.cs src/ForgeLinkSms.Core/Services/BlockUndoAction.cs tests/ForgeLinkSms.Core.Tests/Services/BlockUndoActionTests.cs src/ForgeLinkSms.Core/ViewModels/ConversationsViewModel.cs tests/ForgeLinkSms.Core.Tests/ViewModels/ConversationsViewModelTests.cs src/ForgeLinkSms.Core/ViewModels/BlockedViewModel.cs tests/ForgeLinkSms.Core.Tests/ViewModels/BlockedViewModelTests.cs src/ForgeLinkSms/Pages/Blocked src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor src/ForgeLinkSms/Pages/Menu/MenuPage.razor src/ForgeLinkSms/MauiProgram.cs
 git commit -m "feat: add Blocked — long-press a conversation to block it via BlockedNumberContract"
 ```
 
@@ -2056,14 +2056,14 @@ git commit -m "feat: add Blocked — long-press a conversation to block it via B
 ### Task 6: Mark as Read and Undo wiring
 
 **Files:**
-- Create: `src/SmsMessenger.Core/Services/IMarkAsReadService.cs`
-- Create: `src/SmsMessenger/Platforms/Android/MarkAsReadService.cs`
-- Create: `src/SmsMessenger.Core/Services/MarkAsReadUndoAction.cs`
-- Test: `tests/SmsMessenger.Core.Tests/Services/MarkAsReadUndoActionTests.cs`
-- Create: `src/SmsMessenger.Core/ViewModels/MenuViewModel.cs`
-- Test: `tests/SmsMessenger.Core.Tests/ViewModels/MenuViewModelTests.cs`
-- Modify: `src/SmsMessenger/Pages/Menu/MenuPage.razor` (inject `MenuViewModel`, add "Mark as Read" and "Undo" rows)
-- Modify: `src/SmsMessenger/MauiProgram.cs` (register `IMarkAsReadService`, `MenuViewModel`)
+- Create: `src/ForgeLinkSms.Core/Services/IMarkAsReadService.cs`
+- Create: `src/ForgeLinkSms/Platforms/Android/MarkAsReadService.cs`
+- Create: `src/ForgeLinkSms.Core/Services/MarkAsReadUndoAction.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/Services/MarkAsReadUndoActionTests.cs`
+- Create: `src/ForgeLinkSms.Core/ViewModels/MenuViewModel.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/ViewModels/MenuViewModelTests.cs`
+- Modify: `src/ForgeLinkSms/Pages/Menu/MenuPage.razor` (inject `MenuViewModel`, add "Mark as Read" and "Undo" rows)
+- Modify: `src/ForgeLinkSms/MauiProgram.cs` (register `IMarkAsReadService`, `MenuViewModel`)
 
 **Interfaces:**
 - Consumes: `IUndoStack` (Task 2), `IThreadService` (original plan's Task 8).
@@ -2071,13 +2071,13 @@ git commit -m "feat: add Blocked — long-press a conversation to block it via B
 
 - [ ] **Step 1: Write the failing tests for `MarkAsReadUndoAction`**
 
-`tests/SmsMessenger.Core.Tests/Services/MarkAsReadUndoActionTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/Services/MarkAsReadUndoActionTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.Tests.Services;
+namespace ForgeLinkSms.Core.Tests.Services;
 
 public class MarkAsReadUndoActionTests
 {
@@ -2106,17 +2106,17 @@ public class MarkAsReadUndoActionTests
 - [ ] **Step 2: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter MarkAsReadUndoActionTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter MarkAsReadUndoActionTests
 ```
 
 Expected: FAIL — `IMarkAsReadService` and `MarkAsReadUndoAction` don't exist yet.
 
 - [ ] **Step 3: Implement `IMarkAsReadService` and `MarkAsReadUndoAction`**
 
-`src/SmsMessenger.Core/Services/IMarkAsReadService.cs`:
+`src/ForgeLinkSms.Core/Services/IMarkAsReadService.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface IMarkAsReadService
 {
@@ -2125,10 +2125,10 @@ public interface IMarkAsReadService
 }
 ```
 
-`src/SmsMessenger.Core/Services/MarkAsReadUndoAction.cs`:
+`src/ForgeLinkSms.Core/Services/MarkAsReadUndoAction.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public class MarkAsReadUndoAction : IUndoableAction
 {
@@ -2150,22 +2150,22 @@ public class MarkAsReadUndoAction : IUndoableAction
 - [ ] **Step 4: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter MarkAsReadUndoActionTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter MarkAsReadUndoActionTests
 ```
 
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Implement the Android `MarkAsReadService`**
 
-`src/SmsMessenger/Platforms/Android/MarkAsReadService.cs`:
+`src/ForgeLinkSms/Platforms/Android/MarkAsReadService.cs`:
 
 ```csharp
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 using AndroidApp = global::Android.App.Application;
 using AndroidTelephony = global::Android.Provider.Telephony;
 using AndroidContentValues = global::Android.Content.ContentValues;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 public class MarkAsReadService : IMarkAsReadService
 {
@@ -2208,14 +2208,14 @@ public class MarkAsReadService : IMarkAsReadService
 
 - [ ] **Step 6: Write the failing tests for `MenuViewModel`**
 
-`tests/SmsMessenger.Core.Tests/ViewModels/MenuViewModelTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/ViewModels/MenuViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class MenuViewModelTests
 {
@@ -2264,21 +2264,21 @@ public class MenuViewModelTests
 - [ ] **Step 7: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter MenuViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter MenuViewModelTests
 ```
 
 Expected: FAIL — `MenuViewModel` does not exist yet.
 
 - [ ] **Step 8: Implement `MenuViewModel`**
 
-`src/SmsMessenger.Core/ViewModels/MenuViewModel.cs`:
+`src/ForgeLinkSms.Core/ViewModels/MenuViewModel.cs`:
 
 ```csharp
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class MenuViewModel : ObservableObject
 {
@@ -2314,18 +2314,18 @@ public partial class MenuViewModel : ObservableObject
 - [ ] **Step 9: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter MenuViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter MenuViewModelTests
 ```
 
 Expected: PASS (3 tests).
 
 - [ ] **Step 10: Wire `MenuViewModel` into the Menu page**
 
-`src/SmsMessenger/Pages/Menu/MenuPage.razor` becomes:
+`src/ForgeLinkSms/Pages/Menu/MenuPage.razor` becomes:
 
 ```razor
 @page "/menu"
-@inject SmsMessenger.Core.ViewModels.MenuViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.MenuViewModel ViewModel
 @inject Microsoft.AspNetCore.Components.NavigationManager Nav
 
 <div style="padding:12px;">
@@ -2356,7 +2356,7 @@ Expected: PASS (3 tests).
 
 - [ ] **Step 11: Register DI**
 
-In `src/SmsMessenger/MauiProgram.cs`, after the `IContactBlockService` line added in Task 5, add:
+In `src/ForgeLinkSms/MauiProgram.cs`, after the `IContactBlockService` line added in Task 5, add:
 
 ```csharp
 builder.Services.AddSingleton<IMarkAsReadService, MarkAsReadService>();
@@ -2366,7 +2366,7 @@ builder.Services.AddTransient<MenuViewModel>();
 - [ ] **Step 12: Build to verify it compiles**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
@@ -2374,7 +2374,7 @@ Expected: `Build succeeded.`
 - [ ] **Step 13: Manual verification on the physical device**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 ```
 
 On the device: with at least one unread conversation showing the unread dot, open the menu and tap "Mark as Read" — confirm a status line appears ("Marked N conversation(s) as read") and the unread dot disappears from Conversations. Tap "Undo" — confirm the status line changes to "Undid: Marked N conversation(s) as read" and the unread dot comes back. Trash a conversation, go to the menu, tap Undo — confirm it says "Undid: Trashed a conversation" and the thread reappears in Conversations. Tap Undo again with nothing left to undo — confirm it says "Nothing to undo".
@@ -2382,7 +2382,7 @@ On the device: with at least one unread conversation showing the unread dot, ope
 - [ ] **Step 14: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/Services/IMarkAsReadService.cs src/SmsMessenger/Platforms/Android/MarkAsReadService.cs src/SmsMessenger.Core/Services/MarkAsReadUndoAction.cs tests/SmsMessenger.Core.Tests/Services/MarkAsReadUndoActionTests.cs src/SmsMessenger.Core/ViewModels/MenuViewModel.cs tests/SmsMessenger.Core.Tests/ViewModels/MenuViewModelTests.cs src/SmsMessenger/Pages/Menu/MenuPage.razor src/SmsMessenger/MauiProgram.cs
+git add src/ForgeLinkSms.Core/Services/IMarkAsReadService.cs src/ForgeLinkSms/Platforms/Android/MarkAsReadService.cs src/ForgeLinkSms.Core/Services/MarkAsReadUndoAction.cs tests/ForgeLinkSms.Core.Tests/Services/MarkAsReadUndoActionTests.cs src/ForgeLinkSms.Core/ViewModels/MenuViewModel.cs tests/ForgeLinkSms.Core.Tests/ViewModels/MenuViewModelTests.cs src/ForgeLinkSms/Pages/Menu/MenuPage.razor src/ForgeLinkSms/MauiProgram.cs
 git commit -m "feat: add Mark as Read and wire Undo into the menu"
 ```
 
@@ -2391,19 +2391,19 @@ git commit -m "feat: add Mark as Read and wire Undo into the menu"
 ### Task 7: Theme
 
 **Files:**
-- Create: `src/SmsMessenger.Core/Models/ThemeMode.cs`
-- Create: `src/SmsMessenger.Core/Services/IThemeService.cs`
-- Create: `src/SmsMessenger/Platforms/Android/ThemeService.cs`
-- Create: `src/SmsMessenger.Core/ViewModels/ThemeViewModel.cs`
-- Test: `tests/SmsMessenger.Core.Tests/ViewModels/ThemeViewModelTests.cs`
-- Create: `src/SmsMessenger/wwwroot/js/theme.js`
-- Modify: `src/SmsMessenger/wwwroot/index.html` (reference `theme.js`)
-- Modify: `src/SmsMessenger/wwwroot/css/app.css` (append theme CSS variables)
-- Create: `src/SmsMessenger/Pages/Theme/ThemePage.razor`
-- Modify: `src/SmsMessenger/Pages/SplashPage.razor` (apply the saved theme on every cold start)
-- Modify: `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor` (FAB uses `var(--accent-color)` instead of a literal hex)
-- Modify: `src/SmsMessenger/Pages/Menu/MenuPage.razor` (add the "Theme" row, in its final spec-ordered position)
-- Modify: `src/SmsMessenger/MauiProgram.cs` (register `IThemeService`, `ThemeViewModel`)
+- Create: `src/ForgeLinkSms.Core/Models/ThemeMode.cs`
+- Create: `src/ForgeLinkSms.Core/Services/IThemeService.cs`
+- Create: `src/ForgeLinkSms/Platforms/Android/ThemeService.cs`
+- Create: `src/ForgeLinkSms.Core/ViewModels/ThemeViewModel.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/ViewModels/ThemeViewModelTests.cs`
+- Create: `src/ForgeLinkSms/wwwroot/js/theme.js`
+- Modify: `src/ForgeLinkSms/wwwroot/index.html` (reference `theme.js`)
+- Modify: `src/ForgeLinkSms/wwwroot/css/app.css` (append theme CSS variables)
+- Create: `src/ForgeLinkSms/Pages/Theme/ThemePage.razor`
+- Modify: `src/ForgeLinkSms/Pages/SplashPage.razor` (apply the saved theme on every cold start)
+- Modify: `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor` (FAB uses `var(--accent-color)` instead of a literal hex)
+- Modify: `src/ForgeLinkSms/Pages/Menu/MenuPage.razor` (add the "Theme" row, in its final spec-ordered position)
+- Modify: `src/ForgeLinkSms/MauiProgram.cs` (register `IThemeService`, `ThemeViewModel`)
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
@@ -2413,15 +2413,15 @@ This is a real, if mechanical, refactor: the app's colors have all been hardcode
 
 - [ ] **Step 1: Write the failing tests for `ThemeViewModel`**
 
-`tests/SmsMessenger.Core.Tests/ViewModels/ThemeViewModelTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/ViewModels/ThemeViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class ThemeViewModelTests
 {
@@ -2467,17 +2467,17 @@ public class ThemeViewModelTests
 - [ ] **Step 2: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ThemeViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ThemeViewModelTests
 ```
 
 Expected: FAIL — `ThemeMode`, `IThemeService`, and `ThemeViewModel` don't exist yet.
 
 - [ ] **Step 3: Implement `ThemeMode`, `IThemeService`, and `ThemeViewModel`**
 
-`src/SmsMessenger.Core/Models/ThemeMode.cs`:
+`src/ForgeLinkSms.Core/Models/ThemeMode.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Models;
+namespace ForgeLinkSms.Core.Models;
 
 public enum ThemeMode
 {
@@ -2487,12 +2487,12 @@ public enum ThemeMode
 }
 ```
 
-`src/SmsMessenger.Core/Services/IThemeService.cs`:
+`src/ForgeLinkSms.Core/Services/IThemeService.cs`:
 
 ```csharp
-using SmsMessenger.Core.Models;
+using ForgeLinkSms.Core.Models;
 
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface IThemeService
 {
@@ -2503,15 +2503,15 @@ public interface IThemeService
 }
 ```
 
-`src/SmsMessenger.Core/ViewModels/ThemeViewModel.cs`:
+`src/ForgeLinkSms.Core/ViewModels/ThemeViewModel.cs`:
 
 ```csharp
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class ThemeViewModel : ObservableObject
 {
@@ -2549,20 +2549,20 @@ public partial class ThemeViewModel : ObservableObject
 - [ ] **Step 4: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ThemeViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ThemeViewModelTests
 ```
 
 Expected: PASS (3 tests).
 
 - [ ] **Step 5: Implement the Android `ThemeService`**
 
-`src/SmsMessenger/Platforms/Android/ThemeService.cs`:
+`src/ForgeLinkSms/Platforms/Android/ThemeService.cs`:
 
 ```csharp
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 public class ThemeService : IThemeService
 {
@@ -2588,7 +2588,7 @@ public class ThemeService : IThemeService
 
 - [ ] **Step 6: Add the theme JS interop file**
 
-`src/SmsMessenger/wwwroot/js/theme.js`:
+`src/ForgeLinkSms/wwwroot/js/theme.js`:
 
 ```javascript
 window.applyTheme = function (mode, accentColor) {
@@ -2601,7 +2601,7 @@ window.applyTheme = function (mode, accentColor) {
 };
 ```
 
-In `src/SmsMessenger/wwwroot/index.html`, add a line right before `<script src="_framework/blazor.webview.js" autostart="false"></script>`:
+In `src/ForgeLinkSms/wwwroot/index.html`, add a line right before `<script src="_framework/blazor.webview.js" autostart="false"></script>`:
 
 ```html
 <script src="js/theme.js"></script>
@@ -2609,7 +2609,7 @@ In `src/SmsMessenger/wwwroot/index.html`, add a line right before `<script src="
 
 - [ ] **Step 7: Add the theme CSS variables**
 
-Append to the end of `src/SmsMessenger/wwwroot/css/app.css`:
+Append to the end of `src/ForgeLinkSms/wwwroot/css/app.css`:
 
 ```css
 
@@ -2632,13 +2632,13 @@ body {
 
 - [ ] **Step 8: Apply the saved theme on every cold start**
 
-Replace the full contents of `src/SmsMessenger/Pages/SplashPage.razor`:
+Replace the full contents of `src/ForgeLinkSms/Pages/SplashPage.razor`:
 
 ```razor
 @page "/"
-@inject SmsMessenger.Core.ViewModels.SplashViewModel ViewModel
-@inject SmsMessenger.Core.Services.PendingNavigationStore PendingNav
-@inject SmsMessenger.Core.Services.IThemeService ThemeService
+@inject ForgeLinkSms.Core.ViewModels.SplashViewModel ViewModel
+@inject ForgeLinkSms.Core.Services.PendingNavigationStore PendingNav
+@inject ForgeLinkSms.Core.Services.IThemeService ThemeService
 @inject Microsoft.AspNetCore.Components.NavigationManager Nav
 @inject Microsoft.JSInterop.IJSRuntime JS
 
@@ -2665,32 +2665,32 @@ Replace the full contents of `src/SmsMessenger/Pages/SplashPage.razor`:
 
 - [ ] **Step 9: Rewire the Conversations FAB to the accent variable**
 
-In `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor`, change the FAB button's style from `background:#25D366;` to `background:var(--accent-color);` (the single occurrence in that file — the search-bar and unread-dot colors are untouched by this task).
+In `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor`, change the FAB button's style from `background:#25D366;` to `background:var(--accent-color);` (the single occurrence in that file — the search-bar and unread-dot colors are untouched by this task).
 
 - [ ] **Step 10: Create the Theme page**
 
-`src/SmsMessenger/Pages/Theme/ThemePage.razor`:
+`src/ForgeLinkSms/Pages/Theme/ThemePage.razor`:
 
 ```razor
 @page "/theme"
-@inject SmsMessenger.Core.ViewModels.ThemeViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.ThemeViewModel ViewModel
 @inject Microsoft.JSInterop.IJSRuntime JS
 
 <div style="padding:12px;">
     <h3>Theme</h3>
 
     <label>
-        <input type="radio" name="mode" checked="@(ViewModel.SelectedMode == SmsMessenger.Core.Models.ThemeMode.Light)" @onchange="() => SelectMode(SmsMessenger.Core.Models.ThemeMode.Light)" />
+        <input type="radio" name="mode" checked="@(ViewModel.SelectedMode == ForgeLinkSms.Core.Models.ThemeMode.Light)" @onchange="() => SelectMode(ForgeLinkSms.Core.Models.ThemeMode.Light)" />
         Light
     </label>
     <br />
     <label>
-        <input type="radio" name="mode" checked="@(ViewModel.SelectedMode == SmsMessenger.Core.Models.ThemeMode.Dark)" @onchange="() => SelectMode(SmsMessenger.Core.Models.ThemeMode.Dark)" />
+        <input type="radio" name="mode" checked="@(ViewModel.SelectedMode == ForgeLinkSms.Core.Models.ThemeMode.Dark)" @onchange="() => SelectMode(ForgeLinkSms.Core.Models.ThemeMode.Dark)" />
         Dark
     </label>
     <br />
     <label>
-        <input type="radio" name="mode" checked="@(ViewModel.SelectedMode == SmsMessenger.Core.Models.ThemeMode.System)" @onchange="() => SelectMode(SmsMessenger.Core.Models.ThemeMode.System)" />
+        <input type="radio" name="mode" checked="@(ViewModel.SelectedMode == ForgeLinkSms.Core.Models.ThemeMode.System)" @onchange="() => SelectMode(ForgeLinkSms.Core.Models.ThemeMode.System)" />
         System
     </label>
 
@@ -2708,7 +2708,7 @@ In `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor`, change the FA
 @code {
     private readonly string[] _accentChoices = { "#25D366", "#3b82f6", "#a855f7", "#ef4444", "#f59e0b" };
 
-    private async Task SelectMode(SmsMessenger.Core.Models.ThemeMode mode)
+    private async Task SelectMode(ForgeLinkSms.Core.Models.ThemeMode mode)
     {
         ViewModel.SelectModeCommand.Execute(mode);
         await JS.InvokeVoidAsync("applyTheme", ViewModel.SelectedMode.ToString(), ViewModel.AccentColor);
@@ -2724,11 +2724,11 @@ In `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor`, change the FA
 
 - [ ] **Step 11: Add the "Theme" row to the Menu page, in final spec order**
 
-Replace the full contents of `src/SmsMessenger/Pages/Menu/MenuPage.razor`:
+Replace the full contents of `src/ForgeLinkSms/Pages/Menu/MenuPage.razor`:
 
 ```razor
 @page "/menu"
-@inject SmsMessenger.Core.ViewModels.MenuViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.MenuViewModel ViewModel
 @inject Microsoft.AspNetCore.Components.NavigationManager Nav
 
 <div style="padding:12px;">
@@ -2764,7 +2764,7 @@ Replace the full contents of `src/SmsMessenger/Pages/Menu/MenuPage.razor`:
 
 - [ ] **Step 12: Register DI**
 
-In `src/SmsMessenger/MauiProgram.cs`, after the `IMarkAsReadService` line added in Task 6, add:
+In `src/ForgeLinkSms/MauiProgram.cs`, after the `IMarkAsReadService` line added in Task 6, add:
 
 ```csharp
 builder.Services.AddSingleton<IThemeService, ThemeService>();
@@ -2774,7 +2774,7 @@ builder.Services.AddTransient<ThemeViewModel>();
 - [ ] **Step 13: Build to verify it compiles**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
@@ -2782,7 +2782,7 @@ Expected: `Build succeeded.`
 - [ ] **Step 14: Manual verification on the physical device**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 ```
 
 On the device: open the menu → Theme. Tap "Dark" — confirm the background of every screen turns dark and stays dark navigating around the app. Tap a different accent swatch — confirm the Splash screen and the Compose FAB both pick up the new color the next time they're visible. Fully close the app (swipe it away) and relaunch — confirm it comes back up in the theme/accent you left it in, not the default.
@@ -2790,7 +2790,7 @@ On the device: open the menu → Theme. Tap "Dark" — confirm the background of
 - [ ] **Step 15: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/Models/ThemeMode.cs src/SmsMessenger.Core/Services/IThemeService.cs src/SmsMessenger/Platforms/Android/ThemeService.cs src/SmsMessenger.Core/ViewModels/ThemeViewModel.cs tests/SmsMessenger.Core.Tests/ViewModels/ThemeViewModelTests.cs src/SmsMessenger/wwwroot/js/theme.js src/SmsMessenger/wwwroot/index.html src/SmsMessenger/wwwroot/css/app.css src/SmsMessenger/Pages/Theme src/SmsMessenger/Pages/SplashPage.razor src/SmsMessenger/Pages/Conversations/ConversationsPage.razor src/SmsMessenger/Pages/Menu/MenuPage.razor src/SmsMessenger/MauiProgram.cs
+git add src/ForgeLinkSms.Core/Models/ThemeMode.cs src/ForgeLinkSms.Core/Services/IThemeService.cs src/ForgeLinkSms/Platforms/Android/ThemeService.cs src/ForgeLinkSms.Core/ViewModels/ThemeViewModel.cs tests/ForgeLinkSms.Core.Tests/ViewModels/ThemeViewModelTests.cs src/ForgeLinkSms/wwwroot/js/theme.js src/ForgeLinkSms/wwwroot/index.html src/ForgeLinkSms/wwwroot/css/app.css src/ForgeLinkSms/Pages/Theme src/ForgeLinkSms/Pages/SplashPage.razor src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor src/ForgeLinkSms/Pages/Menu/MenuPage.razor src/ForgeLinkSms/MauiProgram.cs
 git commit -m "feat: add Theme (light/dark/system + accent color)"
 ```
 
@@ -2799,15 +2799,15 @@ git commit -m "feat: add Theme (light/dark/system + accent color)"
 ### Task 8: Your Profile
 
 **Files:**
-- Create: `src/SmsMessenger.Core/Models/UserProfile.cs`
-- Create: `src/SmsMessenger.Core/Services/IProfileService.cs`
-- Create: `src/SmsMessenger/Platforms/Android/ProfileService.cs`
-- Create: `src/SmsMessenger.Core/ViewModels/ProfileViewModel.cs`
-- Test: `tests/SmsMessenger.Core.Tests/ViewModels/ProfileViewModelTests.cs`
-- Create: `src/SmsMessenger/Pages/Profile/ProfilePage.razor`
-- Modify: `src/SmsMessenger/Pages/Menu/MenuPage.razor` (add the profile header card and the "Your Profile" row)
-- Modify: `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor` (top-right icon shows the profile photo when set, gear otherwise)
-- Modify: `src/SmsMessenger/MauiProgram.cs` (register `IProfileService`, `ProfileViewModel`)
+- Create: `src/ForgeLinkSms.Core/Models/UserProfile.cs`
+- Create: `src/ForgeLinkSms.Core/Services/IProfileService.cs`
+- Create: `src/ForgeLinkSms/Platforms/Android/ProfileService.cs`
+- Create: `src/ForgeLinkSms.Core/ViewModels/ProfileViewModel.cs`
+- Test: `tests/ForgeLinkSms.Core.Tests/ViewModels/ProfileViewModelTests.cs`
+- Create: `src/ForgeLinkSms/Pages/Profile/ProfilePage.razor`
+- Modify: `src/ForgeLinkSms/Pages/Menu/MenuPage.razor` (add the profile header card and the "Your Profile" row)
+- Modify: `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor` (top-right icon shows the profile photo when set, gear otherwise)
+- Modify: `src/ForgeLinkSms/MauiProgram.cs` (register `IProfileService`, `ProfileViewModel`)
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
@@ -2815,15 +2815,15 @@ git commit -m "feat: add Theme (light/dark/system + accent color)"
 
 - [ ] **Step 1: Write the failing tests for `ProfileViewModel`**
 
-`tests/SmsMessenger.Core.Tests/ViewModels/ProfileViewModelTests.cs`:
+`tests/ForgeLinkSms.Core.Tests/ViewModels/ProfileViewModelTests.cs`:
 
 ```csharp
 using Moq;
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
-using SmsMessenger.Core.ViewModels;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
+using ForgeLinkSms.Core.ViewModels;
 
-namespace SmsMessenger.Core.Tests.ViewModels;
+namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class ProfileViewModelTests
 {
@@ -2882,17 +2882,17 @@ public class ProfileViewModelTests
 - [ ] **Step 2: Run it to verify it fails**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ProfileViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ProfileViewModelTests
 ```
 
 Expected: FAIL — `UserProfile`, `IProfileService`, and `ProfileViewModel` don't exist yet.
 
 - [ ] **Step 3: Implement `UserProfile`, `IProfileService`, and `ProfileViewModel`**
 
-`src/SmsMessenger.Core/Models/UserProfile.cs`:
+`src/ForgeLinkSms.Core/Models/UserProfile.cs`:
 
 ```csharp
-namespace SmsMessenger.Core.Models;
+namespace ForgeLinkSms.Core.Models;
 
 public class UserProfile
 {
@@ -2901,12 +2901,12 @@ public class UserProfile
 }
 ```
 
-`src/SmsMessenger.Core/Services/IProfileService.cs`:
+`src/ForgeLinkSms.Core/Services/IProfileService.cs`:
 
 ```csharp
-using SmsMessenger.Core.Models;
+using ForgeLinkSms.Core.Models;
 
-namespace SmsMessenger.Core.Services;
+namespace ForgeLinkSms.Core.Services;
 
 public interface IProfileService
 {
@@ -2916,14 +2916,14 @@ public interface IProfileService
 }
 ```
 
-`src/SmsMessenger.Core/ViewModels/ProfileViewModel.cs`:
+`src/ForgeLinkSms.Core/ViewModels/ProfileViewModel.cs`:
 
 ```csharp
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Core.ViewModels;
+namespace ForgeLinkSms.Core.ViewModels;
 
 public partial class ProfileViewModel : ObservableObject
 {
@@ -2964,20 +2964,20 @@ public partial class ProfileViewModel : ObservableObject
 - [ ] **Step 4: Run it to verify it passes**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests --filter ProfileViewModelTests
+dotnet test tests/ForgeLinkSms.Core.Tests --filter ProfileViewModelTests
 ```
 
 Expected: PASS (4 tests).
 
 - [ ] **Step 5: Implement the Android `ProfileService`**
 
-`src/SmsMessenger/Platforms/Android/ProfileService.cs`:
+`src/ForgeLinkSms/Platforms/Android/ProfileService.cs`:
 
 ```csharp
-using SmsMessenger.Core.Models;
-using SmsMessenger.Core.Services;
+using ForgeLinkSms.Core.Models;
+using ForgeLinkSms.Core.Services;
 
-namespace SmsMessenger.Platforms.Android;
+namespace ForgeLinkSms.Platforms.Android;
 
 public class ProfileService : IProfileService
 {
@@ -3025,11 +3025,11 @@ public class ProfileService : IProfileService
 
 - [ ] **Step 6: Create the Profile page**
 
-`src/SmsMessenger/Pages/Profile/ProfilePage.razor`:
+`src/ForgeLinkSms/Pages/Profile/ProfilePage.razor`:
 
 ```razor
 @page "/profile"
-@inject SmsMessenger.Core.ViewModels.ProfileViewModel ViewModel
+@inject ForgeLinkSms.Core.ViewModels.ProfileViewModel ViewModel
 @inject Microsoft.AspNetCore.Components.NavigationManager Nav
 
 <div style="padding:12px;">
@@ -3067,12 +3067,12 @@ public class ProfileService : IProfileService
 
 - [ ] **Step 7: Add the profile header and "Your Profile" row to the Menu page**
 
-Replace the full contents of `src/SmsMessenger/Pages/Menu/MenuPage.razor`:
+Replace the full contents of `src/ForgeLinkSms/Pages/Menu/MenuPage.razor`:
 
 ```razor
 @page "/menu"
-@inject SmsMessenger.Core.ViewModels.MenuViewModel ViewModel
-@inject SmsMessenger.Core.Services.IProfileService ProfileService
+@inject ForgeLinkSms.Core.ViewModels.MenuViewModel ViewModel
+@inject ForgeLinkSms.Core.Services.IProfileService ProfileService
 @inject Microsoft.AspNetCore.Components.NavigationManager Nav
 
 <div style="padding:12px;">
@@ -3121,13 +3121,13 @@ Replace the full contents of `src/SmsMessenger/Pages/Menu/MenuPage.razor`:
 
 - [ ] **Step 8: Swap the Conversations top-right icon between the profile photo and the gear**
 
-Replace the full contents of `src/SmsMessenger/Pages/Conversations/ConversationsPage.razor`:
+Replace the full contents of `src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor`:
 
 ```razor
 @page "/conversations"
 @using Microsoft.AspNetCore.Components
-@inject SmsMessenger.Core.ViewModels.ConversationsViewModel ViewModel
-@inject SmsMessenger.Core.Services.IProfileService ProfileService
+@inject ForgeLinkSms.Core.ViewModels.ConversationsViewModel ViewModel
+@inject ForgeLinkSms.Core.Services.IProfileService ProfileService
 @inject NavigationManager Nav
 
 <div style="padding:12px;">
@@ -3263,7 +3263,7 @@ Replace the full contents of `src/SmsMessenger/Pages/Conversations/Conversations
 
 - [ ] **Step 9: Register DI**
 
-In `src/SmsMessenger/MauiProgram.cs`, after the `IThemeService` line added in Task 7, add:
+In `src/ForgeLinkSms/MauiProgram.cs`, after the `IThemeService` line added in Task 7, add:
 
 ```csharp
 builder.Services.AddSingleton<IProfileService, ProfileService>();
@@ -3273,7 +3273,7 @@ builder.Services.AddTransient<ProfileViewModel>();
 - [ ] **Step 10: Build to verify it compiles**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -f net9.0-android
 ```
 
 Expected: `Build succeeded.`
@@ -3281,7 +3281,7 @@ Expected: `Build succeeded.`
 - [ ] **Step 11: Manual verification on the physical device**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 ```
 
 On the device: confirm the Conversations top-right icon is still the gear (no profile set yet). Tap it → menu → tap the header card ("Set up your profile") → confirm it opens `/profile`. Type a name, tap "+ Photo," pick one from the device's photo picker, confirm it shows in the circle, tap Save. Confirm you're back on the menu with the header now showing that name and photo. Go back to Conversations — confirm the top-right icon is now that same photo instead of the gear.
@@ -3289,7 +3289,7 @@ On the device: confirm the Conversations top-right icon is still the gear (no pr
 - [ ] **Step 12: Commit**
 
 ```bash
-git add src/SmsMessenger.Core/Models/UserProfile.cs src/SmsMessenger.Core/Services/IProfileService.cs src/SmsMessenger/Platforms/Android/ProfileService.cs src/SmsMessenger.Core/ViewModels/ProfileViewModel.cs tests/SmsMessenger.Core.Tests/ViewModels/ProfileViewModelTests.cs src/SmsMessenger/Pages/Profile src/SmsMessenger/Pages/Menu/MenuPage.razor src/SmsMessenger/Pages/Conversations/ConversationsPage.razor src/SmsMessenger/MauiProgram.cs
+git add src/ForgeLinkSms.Core/Models/UserProfile.cs src/ForgeLinkSms.Core/Services/IProfileService.cs src/ForgeLinkSms/Platforms/Android/ProfileService.cs src/ForgeLinkSms.Core/ViewModels/ProfileViewModel.cs tests/ForgeLinkSms.Core.Tests/ViewModels/ProfileViewModelTests.cs src/ForgeLinkSms/Pages/Profile src/ForgeLinkSms/Pages/Menu/MenuPage.razor src/ForgeLinkSms/Pages/Conversations/ConversationsPage.razor src/ForgeLinkSms/MauiProgram.cs
 git commit -m "feat: add Your Profile and show it as the Conversations top-right icon"
 ```
 
@@ -3307,7 +3307,7 @@ git commit -m "feat: add Your Profile and show it as the Conversations top-right
 - [ ] **Step 1: Full manual walkthrough on the physical device**
 
 ```bash
-dotnet build src/SmsMessenger/SmsMessenger.csproj -t:Run -f net9.0-android
+dotnet build src/ForgeLinkSms/ForgeLinkSms.csproj -t:Run -f net9.0-android
 ```
 
 Walk through, in order, on the device: Conversations shows the gear (or your profile photo, if Task 8 was tested with one already set) top-right, no bottom nav bar anywhere → long-press a conversation, Trash it, confirm it vanishes → menu → Trash, confirm it's listed, Restore it, confirm it's back in Conversations → long-press a different conversation, Block it, confirm it vanishes → menu → Blocked, confirm it's listed, Unblock it → menu → Mark as Read, confirm the status line and that unread dots clear → menu → Undo, confirm it reverses that same mark-as-read → menu → Theme, switch to Dark and a different accent, confirm the whole app re-colors and a full app restart keeps the choice → menu → Your Profile, set a name and photo, Save, confirm the menu header and the Conversations top-right icon both reflect it. If any step doesn't work, that's a defect in the corresponding earlier task, not a new task.
@@ -3315,7 +3315,7 @@ Walk through, in order, on the device: Conversations shows the gear (or your pro
 - [ ] **Step 2: Run the full unit test suite one more time**
 
 ```bash
-dotnet test tests/SmsMessenger.Core.Tests
+dotnet test tests/ForgeLinkSms.Core.Tests
 ```
 
 Expected: PASS, all tests (36 from the original plan + everything added in Tasks 1–8 of this plan).

@@ -1,0 +1,26 @@
+@page "/"
+@inject ForgeLinkSms.Core.ViewModels.SplashViewModel ViewModel
+@inject ForgeLinkSms.Core.Services.PendingNavigationStore PendingNav
+@inject ForgeLinkSms.Core.Services.IThemeService ThemeService
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:var(--accent-color);">
+    <h1 style="color:white;">ForgeLink SMS</h1>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await JS.InvokeVoidAsync("applyTheme", ThemeService.GetThemeMode().ToString(), ThemeService.GetAccentColor());
+
+        var pendingRoute = PendingNav.ConsumePendingRoute();
+        if (!string.IsNullOrEmpty(pendingRoute))
+        {
+            Nav.NavigateTo(pendingRoute);
+            return;
+        }
+
+        await ViewModel.InitializeAsync();
+    }
+}
