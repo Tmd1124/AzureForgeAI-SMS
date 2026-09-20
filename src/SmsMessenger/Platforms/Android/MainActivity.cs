@@ -53,6 +53,15 @@ public class MainActivity : MauiAppCompatActivity
         CapturePendingRoute(intent);
     }
 
+    // Fires whenever this activity comes back to the foreground — including returning from
+    // the native Add Contact screen launched by the conversations list's "+" avatar button —
+    // so pages can refresh data that may have changed while we were away.
+    protected override void OnResume()
+    {
+        base.OnResume();
+        MauiApplication.Current.Services.GetRequiredService<IAppResumeNotifier>().NotifyResumed();
+    }
+
     // Notification taps and ACTION_SENDTO hand-offs (ComposeSmsActivity) launch this Activity with
     // an "initial_route" extra. MainActivity and the BlazorWebView's NavigationManager are in
     // different DI scopes, so the route is staged here and picked up by SplashPage on the circuit

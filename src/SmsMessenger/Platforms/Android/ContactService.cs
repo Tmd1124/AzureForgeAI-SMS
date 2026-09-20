@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using SmsMessenger.Core.Models;
 using SmsMessenger.Core.Services;
 using AndroidApp = global::Android.App.Application;
@@ -10,7 +11,33 @@ namespace SmsMessenger.Platforms.Android;
 
 public class ContactService : IContactService
 {
+    // Keyed on the raw SMS address string, which is stable for a given thread across
+    // reloads. ContactService is registered as a singleton, so this lives for the app's
+    // lifetime — an existing contact edited mid-session won't be picked up until restart,
+    // an accepted tradeoff for avoiding a redundant ContentResolver query + photo re-encode
+    // on every conversations-list reload (including after every trash/archive/favorite/read
+    // action). "Not found" results are deliberately NOT cached: unlike an existing contact's
+    // photo conversion, a negative PhoneLookup query is cheap, and caching it would mean a
+    // number newly added as a contact (e.g. via the "+" avatar button) never resolves to its
+    // name/photo for the rest of the session.
+    private readonly ConcurrentDictionary<string, ContactInfo?> _lookupCache = new();
+
     public async Task<ContactInfo?> LookupAsync(string phoneNumber)
+    {
+        if (_lookupCache.TryGetValue(phoneNumber, out var cached))
+        {
+            return cached;
+        }
+
+        var result = await LookupUncachedAsync(phoneNumber);
+        if (result is not null)
+        {
+            _lookupCache[phoneNumber] = result;
+        }
+        return result;
+    }
+
+    private async Task<ContactInfo?> LookupUncachedAsync(string phoneNumber)
     {
         var context = AndroidApp.Context;
         var uri = AndroidUri.WithAppendedPath(AndroidContactsContract.PhoneLookup.ContentFilterUri, AndroidUri.Encode(phoneNumber));

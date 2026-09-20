@@ -1,9 +1,11 @@
 @page "/conversations"
+@implements IDisposable
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Web
 @inject SmsMessenger.Core.ViewModels.ConversationsViewModel ViewModel
 @inject SmsMessenger.Core.Services.IProfileService ProfileService
 @inject SmsMessenger.Core.Services.IContactService ContactService
+@inject SmsMessenger.Core.Services.IAppResumeNotifier AppResumeNotifier
 @inject NavigationManager Nav
 
 <div style="padding:12px;">
@@ -34,7 +36,10 @@
         </div>
     }
 
-    @if (ViewModel.Threads.Count == 0)
+    @if (_isLoading)
+    {
+    }
+    else if (ViewModel.Threads.Count == 0)
     {
         <p>No conversations yet.</p>
     }
@@ -57,7 +62,8 @@
                 }
                 else
                 {
-                    <button @onclick="() => AddContact(thread.Address)" @onclick:stopPropagation="true" @onpointerdown:stopPropagation="true"
+                    <button @onclick="() => AddContact(thread.Address)" @onclick:stopPropagation="true"
+                            @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"
                             style="width:40px;height:40px;border-radius:50%;border:none;background:var(--accent-color);color:white;font-size:1.3em;flex-shrink:0;">
                         +
                     </button>
@@ -110,11 +116,37 @@
     private bool _isSearchOpen;
     private bool _shouldFocusSearch;
     private ElementReference _searchInput;
+    private bool _isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
         _photoDataUri = await ProfileService.GetProfilePhotoDataUriAsync();
         await ViewModel.LoadCommand.ExecuteAsync(null);
+        _isLoading = false;
+        AppResumeNotifier.Resumed += OnAppResumed;
+    }
+
+    private void OnAppResumed()
+    {
+        // A pointerdown on a row can be left "stuck" with no matching pointerup if this
+        // activity loses foreground focus mid-gesture — e.g. the "+" avatar button launching
+        // the native Add Contact screen. Without this reset, the next unrelated tap/scroll to
+        // land on that same row would compute its swipe distance against the stale pointerdown
+        // position and could be misread as a real swipe, incorrectly trashing or archiving it.
+        _activePointerDownThreadId = null;
+        _longPressCts?.Cancel();
+        _longPressTriggered = false;
+
+        _ = InvokeAsync(async () =>
+        {
+            await ViewModel.LoadCommand.ExecuteAsync(null);
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        AppResumeNotifier.Resumed -= OnAppResumed;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

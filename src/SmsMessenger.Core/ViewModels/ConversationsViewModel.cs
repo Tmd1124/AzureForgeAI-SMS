@@ -18,6 +18,7 @@ public partial class ConversationsViewModel : ObservableObject
     private readonly IMarkAsReadService _markAsReadService;
     private readonly IArchiveRepository _archiveRepository;
     private IReadOnlyList<SmsThread> _allThreads = Array.Empty<SmsThread>();
+    private bool _isLoadingThreads;
 
     public ObservableCollection<SmsThread> Threads { get; } = new();
 
@@ -46,24 +47,42 @@ public partial class ConversationsViewModel : ObservableObject
     [RelayCommand]
     private async Task Load()
     {
-        var threads = await _threadService.GetThreadsAsync();
-        var trashedIds = await _trashRepository.GetTrashedThreadIdsAsync();
-        var blockedNumbers = await _blockService.GetBlockedNumbersAsync();
-        var favoriteIds = await _favoriteRepository.GetFavoriteThreadIdsAsync();
-        var archivedIds = await _archiveRepository.GetArchivedThreadIdsAsync();
+        // ExecuteAsync is called directly from several places (initial page load, every
+        // trash/archive/favorite/read action, and an app-resume hook), bypassing the
+        // AsyncRelayCommand's own CanExecute gate. Without this guard, two overlapping runs
+        // both read-modify-write the shared _allThreads field and Threads collection with no
+        // synchronization, which can silently corrupt the visible list.
+        if (_isLoadingThreads)
+        {
+            return;
+        }
 
-        _allThreads = threads
-            .Where(t => !trashedIds.Contains(t.Id) && !blockedNumbers.Contains(t.Address) && !archivedIds.Contains(t.Id))
-            .Select(t =>
-            {
-                t.IsFavorite = favoriteIds.Contains(t.Id);
-                return t;
-            })
-            .OrderByDescending(t => t.IsFavorite)
-            .ThenByDescending(t => t.UnreadCount > 0)
-            .ThenByDescending(t => t.LastMessageTimestamp)
-            .ToList();
-        ApplyFilter();
+        _isLoadingThreads = true;
+        try
+        {
+            var threads = await _threadService.GetThreadsAsync();
+            var trashedIds = await _trashRepository.GetTrashedThreadIdsAsync();
+            var blockedNumbers = await _blockService.GetBlockedNumbersAsync();
+            var favoriteIds = await _favoriteRepository.GetFavoriteThreadIdsAsync();
+            var archivedIds = await _archiveRepository.GetArchivedThreadIdsAsync();
+
+            _allThreads = threads
+                .Where(t => !trashedIds.Contains(t.Id) && !blockedNumbers.Contains(t.Address) && !archivedIds.Contains(t.Id))
+                .Select(t =>
+                {
+                    t.IsFavorite = favoriteIds.Contains(t.Id);
+                    return t;
+                })
+                .OrderByDescending(t => t.IsFavorite)
+                .ThenByDescending(t => t.UnreadCount > 0)
+                .ThenByDescending(t => t.LastMessageTimestamp)
+                .ToList();
+            ApplyFilter();
+        }
+        finally
+        {
+            _isLoadingThreads = false;
+        }
     }
 
     [RelayCommand]

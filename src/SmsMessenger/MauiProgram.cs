@@ -67,6 +67,8 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IProfileService, ProfileService>();
 		builder.Services.AddTransient<ProfileViewModel>();
 
+		builder.Services.AddSingleton<IAppResumeNotifier, AppResumeNotifier>();
+
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();
 		builder.Logging.AddDebug();

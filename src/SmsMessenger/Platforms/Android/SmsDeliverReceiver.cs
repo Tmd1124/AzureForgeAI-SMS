@@ -28,6 +28,30 @@ public class SmsDeliverReceiver : BroadcastReceiver
         var address = messages[0]!.OriginatingAddress ?? string.Empty;
         var body = string.Concat(messages.Select(m => m!.MessageBody));
 
+        // OnReceive runs on the main thread, and Android only allows a BroadcastReceiver a few
+        // seconds to return from it. The block-list check, SMS insert/query, and contact lookup
+        // below are all blocking ContentResolver calls; running them here synchronously could
+        // freeze the whole app — a real ANR — whenever those content providers were even briefly
+        // contended (e.g. the conversations list doing its own batch of contact lookups at the
+        // same moment). GoAsync() lets OnReceive return immediately while a background thread
+        // does the actual work, and the system knows the broadcast isn't finished until
+        // pendingResult.Finish() is called.
+        var pendingResult = GoAsync();
+        Task.Run(() =>
+        {
+            try
+            {
+                HandleMessage(context, address, body);
+            }
+            finally
+            {
+                pendingResult?.Finish();
+            }
+        });
+    }
+
+    private static void HandleMessage(Context context, string address, string body)
+    {
         var services = MauiApplication.Current.Services;
         var blockService = services.GetRequiredService<IContactBlockService>();
         var normalizedAddress = PhoneNumberFormatter.ToComparableDigits(address);

@@ -64,6 +64,28 @@ public class ConversationsViewModelTests
             (archiveRepository ?? MakeEmptyArchiveRepository()).Object);
 
     [Fact]
+    public async Task LoadCommand_ignores_a_second_concurrent_call_while_the_first_is_still_running()
+    {
+        var threadServiceTcs = new TaskCompletionSource<IReadOnlyList<SmsThread>>();
+        var threadService = new Mock<IThreadService>();
+        var callCount = 0;
+        threadService.Setup(s => s.GetThreadsAsync()).Returns(() =>
+        {
+            callCount++;
+            return threadServiceTcs.Task;
+        });
+        var viewModel = MakeViewModel(threadService);
+
+        var firstLoad = viewModel.LoadCommand.ExecuteAsync(null);
+        var secondLoad = viewModel.LoadCommand.ExecuteAsync(null);
+        threadServiceTcs.SetResult(new List<SmsThread> { MakeThread(1, "5550142231", "Alice Smith", "hi") });
+        await Task.WhenAll(firstLoad, secondLoad);
+
+        Assert.Equal(1, callCount);
+        Assert.Single(viewModel.Threads);
+    }
+
+    [Fact]
     public async Task LoadCommand_populates_Threads_from_the_service()
     {
         var threadService = new Mock<IThreadService>();

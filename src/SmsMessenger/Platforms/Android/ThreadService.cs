@@ -17,7 +17,7 @@ public class ThreadService : IThreadService
     public async Task<IReadOnlyList<SmsThread>> GetThreadsAsync()
     {
         var context = AndroidApp.Context;
-        var results = new List<SmsThread>();
+        var rawRows = new List<(long ThreadId, string Address, string Body, long DateMillis, int Unread)>();
 
         // Telephony.Threads only carries thread ids; the snippet (address,
         // body, date, read) is read straight from Telephony.Sms grouped by
@@ -28,7 +28,7 @@ public class ThreadService : IThreadService
 
         if (cursor is null)
         {
-            return results;
+            return Array.Empty<SmsThread>();
         }
 
         var seenThreadIds = new HashSet<long>();
@@ -46,19 +46,34 @@ public class ThreadService : IThreadService
                 continue; // already took the most recent row for this thread (query is DATE DESC)
             }
 
-            var address = cursor.GetString(addressIdx) ?? string.Empty;
-            var contact = await _contactService.LookupAsync(address);
-            var unread = cursor.GetInt(readIdx) == 0 ? 1 : 0;
+            rawRows.Add((
+                threadId,
+                cursor.GetString(addressIdx) ?? string.Empty,
+                cursor.GetString(bodyIdx) ?? string.Empty,
+                cursor.GetLong(dateIdx),
+                cursor.GetInt(readIdx) == 0 ? 1 : 0));
+        }
 
+        // Each lookup is dispatched via Task.Run so the contact-provider query (a blocking
+        // call) for every thread runs on its own thread-pool thread instead of one at a time —
+        // with dozens of conversations, sequential awaits here were the dominant cost of loading
+        // the list.
+        var contacts = await Task.WhenAll(rawRows.Select(row => Task.Run(() => _contactService.LookupAsync(row.Address))));
+
+        var results = new List<SmsThread>(rawRows.Count);
+        for (var i = 0; i < rawRows.Count; i++)
+        {
+            var row = rawRows[i];
+            var contact = contacts[i];
             results.Add(new SmsThread
             {
-                Id = threadId,
-                Address = address,
+                Id = row.ThreadId,
+                Address = row.Address,
                 DisplayName = contact?.DisplayName,
                 PhotoUri = contact?.PhotoUri,
-                LastMessageBody = cursor.GetString(bodyIdx) ?? string.Empty,
-                LastMessageTimestamp = DateTimeOffset.FromUnixTimeMilliseconds(cursor.GetLong(dateIdx)),
-                UnreadCount = unread
+                LastMessageBody = row.Body,
+                LastMessageTimestamp = DateTimeOffset.FromUnixTimeMilliseconds(row.DateMillis),
+                UnreadCount = row.Unread
             });
         }
 
