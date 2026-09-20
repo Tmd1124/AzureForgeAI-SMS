@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @inject SmsMessenger.Core.ViewModels.ConversationsViewModel ViewModel
 @inject SmsMessenger.Core.Services.IProfileService ProfileService
+@inject SmsMessenger.Core.Services.IContactService ContactService
 @inject NavigationManager Nav
 
 <div style="padding:12px;">
@@ -33,17 +34,25 @@
     {
         @foreach (var thread in ViewModel.Threads)
         {
-            <div @onpointerdown="() => OnPointerDown(thread.Id, thread.Address, thread.IsFavorite)"
-                 @onpointerup="() => OnPointerUp(thread.Id, thread.Address)"
+            <div @onpointerdown="e => OnPointerDown(thread.Id, thread.Address, thread.IsFavorite, thread.UnreadCount > 0, e)"
+                 @onpointerup="e => OnPointerUp(thread.Id, thread.Address, e)"
+                 @onpointermove="OnPointerMove"
                  @onpointerleave="CancelLongPress"
-                 style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #eee;">
+                 style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #eee;touch-action:pan-y;background:@(thread.UnreadCount > 0 ? "rgba(234,179,8,0.15)" : "transparent");">
                 @if (!string.IsNullOrEmpty(thread.PhotoUri))
                 {
                     <img src="@thread.PhotoUri" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;" />
                 }
-                else
+                else if (!string.IsNullOrWhiteSpace(thread.DisplayName))
                 {
                     <div style="width:40px;height:40px;border-radius:50%;background:var(--accent-color);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;">@thread.Initials</div>
+                }
+                else
+                {
+                    <button @onclick="() => AddContact(thread.Address)" @onclick:stopPropagation="true" @onpointerdown:stopPropagation="true"
+                            style="width:40px;height:40px;border-radius:50%;border:none;background:var(--accent-color);color:white;font-size:1.3em;flex-shrink:0;">
+                        +
+                    </button>
                 }
                 <div>
                     <strong>@thread.DisplayNameOrAddress</strong>
@@ -72,6 +81,7 @@
     <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;" @onclick="CloseActionSheet">
         <div style="background:var(--card-color);width:100%;padding:12px;" @onclick:stopPropagation="true">
             <div @onclick="FavoriteSelectedThread" style="padding:12px;">@(_actionSheetIsFavorite ? "💔 Unfavorite" : "❤️ Favorite")</div>
+            <div @onclick="MarkReadSelectedThread" style="padding:12px;">@(_actionSheetIsUnread ? "✅ Mark as Read" : "📩 Mark as Unread")</div>
             <div @onclick="TrashSelectedThread" style="padding:12px;">🗑 Trash</div>
             <div @onclick="BlockSelectedThread" style="padding:12px;">🚫 Block</div>
         </div>
@@ -80,8 +90,8 @@
 
 @if (_isSearchOpen)
 {
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);" @onclick="CloseSearch">
-        <div style="background:var(--card-color);padding:12px;" @onclick:stopPropagation="true">
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);touch-action:none;" @onpointerdown="CloseSearch">
+        <div style="background:var(--card-color);padding:12px;" @onpointerdown:stopPropagation="true">
             <input @ref="_searchInput" placeholder="Search contacts or numbers" @bind="ViewModel.SearchText" @bind:event="oninput" style="width:100%;" />
         </div>
     </div>
@@ -91,8 +101,12 @@
     private long? _actionSheetThreadId;
     private string _actionSheetAddress = string.Empty;
     private bool _actionSheetIsFavorite;
+    private bool _actionSheetIsUnread;
     private CancellationTokenSource? _longPressCts;
     private bool _longPressTriggered;
+    private long? _activePointerDownThreadId;
+    private double _pointerDownX;
+    private const double SwipeThreshold = 80;
     private string? _photoDataUri;
     private bool _isSearchOpen;
     private bool _shouldFocusSearch;
@@ -130,8 +144,10 @@
         Nav.NavigateTo($"/conversations/thread?id={threadId}&address={Uri.EscapeDataString(address)}");
     }
 
-    private void OnPointerDown(long threadId, string address, bool isFavorite)
+    private void OnPointerDown(long threadId, string address, bool isFavorite, bool isUnread, PointerEventArgs e)
     {
+        _activePointerDownThreadId = threadId;
+        _pointerDownX = e.ClientX;
         _longPressTriggered = false;
         _longPressCts = new CancellationTokenSource();
         var token = _longPressCts.Token;
@@ -146,6 +162,7 @@
                     _actionSheetThreadId = threadId;
                     _actionSheetAddress = address;
                     _actionSheetIsFavorite = isFavorite;
+                    _actionSheetIsUnread = isUnread;
                     StateHasChanged();
                 });
             }
@@ -158,13 +175,42 @@
 
     private void CancelLongPress() => _longPressCts?.Cancel();
 
-    private void OnPointerUp(long threadId, string address)
+    private void OnPointerMove(PointerEventArgs e)
+    {
+        if (Math.Abs(e.ClientX - _pointerDownX) > 15)
+        {
+            CancelLongPress();
+        }
+    }
+
+    private async Task OnPointerUp(long threadId, string address, PointerEventArgs e)
     {
         _longPressCts?.Cancel();
-        if (!_longPressTriggered)
+        if (_activePointerDownThreadId != threadId)
         {
-            OpenThread(threadId, address);
+            // pointerup with no matching pointerdown on this row (e.g. an overlay above it just closed
+            // mid-gesture and the browser redelivered the release here) — not a real tap, ignore it.
+            return;
         }
+        _activePointerDownThreadId = null;
+        if (_longPressTriggered)
+        {
+            return;
+        }
+
+        var deltaX = e.ClientX - _pointerDownX;
+        if (deltaX >= SwipeThreshold)
+        {
+            await ViewModel.TrashThreadCommand.ExecuteAsync(threadId);
+            return;
+        }
+        if (deltaX <= -SwipeThreshold)
+        {
+            await ViewModel.ArchiveThreadCommand.ExecuteAsync(threadId);
+            return;
+        }
+
+        OpenThread(threadId, address);
     }
 
     private void CloseActionSheet() => _actionSheetThreadId = null;
@@ -194,5 +240,19 @@
             await ViewModel.FavoriteThreadCommand.ExecuteAsync(id);
         }
         CloseActionSheet();
+    }
+
+    private async Task MarkReadSelectedThread()
+    {
+        if (_actionSheetThreadId is long id)
+        {
+            await ViewModel.MarkThreadReadStateCommand.ExecuteAsync(id);
+        }
+        CloseActionSheet();
+    }
+
+    private async Task AddContact(string address)
+    {
+        await ContactService.AddContactAsync(address);
     }
 }

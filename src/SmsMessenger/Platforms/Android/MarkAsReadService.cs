@@ -24,6 +24,12 @@ public class MarkAsReadService : IMarkAsReadService
         return unreadThreadIds;
     }
 
+    public Task MarkThreadAsReadAsync(long threadId)
+    {
+        SetReadFlag(new[] { threadId }, read: 1);
+        return Task.CompletedTask;
+    }
+
     public Task MarkThreadsAsUnreadAsync(IReadOnlyList<long> threadIds)
     {
         SetReadFlag(threadIds, read: 0);

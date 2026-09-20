@@ -3,6 +3,8 @@ using SmsMessenger.Core.Services;
 using AndroidApp = global::Android.App.Application;
 using AndroidContactsContract = global::Android.Provider.ContactsContract;
 using AndroidUri = global::Android.Net.Uri;
+using AndroidIntent = global::Android.Content.Intent;
+using AndroidActivityFlags = global::Android.Content.ActivityFlags;
 
 namespace SmsMessenger.Platforms.Android;
 
@@ -97,5 +99,14 @@ public class ContactService : IContactService
         }
 
         return Task.FromResult<IReadOnlyList<ContactInfo>>(results);
+    }
+
+    public Task AddContactAsync(string phoneNumber)
+    {
+        var intent = new AndroidIntent(AndroidIntent.ActionInsert, AndroidContactsContract.Contacts.ContentUri);
+        intent.PutExtra(AndroidContactsContract.Intents.Insert.Phone, phoneNumber);
+        intent.SetFlags(AndroidActivityFlags.NewTask);
+        AndroidApp.Context.StartActivity(intent);
+        return Task.CompletedTask;
     }
 }

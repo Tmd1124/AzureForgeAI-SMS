@@ -50,6 +50,11 @@ public static class MauiProgram
 		favoriteRepository.InitializeAsync().GetAwaiter().GetResult();
 		builder.Services.AddSingleton<IFavoriteRepository>(favoriteRepository);
 
+		var archiveRepository = new ArchiveRepository(Path.Combine(FileSystem.AppDataDirectory, "SmsMessenger.db"));
+		archiveRepository.InitializeAsync().GetAwaiter().GetResult();
+		builder.Services.AddSingleton<IArchiveRepository>(archiveRepository);
+		builder.Services.AddTransient<ArchivedViewModel>();
+
 		builder.Services.AddSingleton<IMarkAsReadService, MarkAsReadService>();
 		builder.Services.AddTransient<MenuViewModel>();
 

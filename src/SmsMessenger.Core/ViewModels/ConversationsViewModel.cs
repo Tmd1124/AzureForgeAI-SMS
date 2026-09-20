@@ -15,6 +15,8 @@ public partial class ConversationsViewModel : ObservableObject
     private readonly IContactBlockService _blockService;
     private readonly IFavoriteRepository _favoriteRepository;
     private readonly IUndoStack _undoStack;
+    private readonly IMarkAsReadService _markAsReadService;
+    private readonly IArchiveRepository _archiveRepository;
     private IReadOnlyList<SmsThread> _allThreads = Array.Empty<SmsThread>();
 
     public ObservableCollection<SmsThread> Threads { get; } = new();
@@ -28,13 +30,17 @@ public partial class ConversationsViewModel : ObservableObject
         ITrashRepository trashRepository,
         IContactBlockService blockService,
         IFavoriteRepository favoriteRepository,
-        IUndoStack undoStack)
+        IUndoStack undoStack,
+        IMarkAsReadService markAsReadService,
+        IArchiveRepository archiveRepository)
     {
         _threadService = threadService;
         _trashRepository = trashRepository;
         _blockService = blockService;
         _favoriteRepository = favoriteRepository;
         _undoStack = undoStack;
+        _markAsReadService = markAsReadService;
+        _archiveRepository = archiveRepository;
     }
 
     [RelayCommand]
@@ -44,18 +50,42 @@ public partial class ConversationsViewModel : ObservableObject
         var trashedIds = await _trashRepository.GetTrashedThreadIdsAsync();
         var blockedNumbers = await _blockService.GetBlockedNumbersAsync();
         var favoriteIds = await _favoriteRepository.GetFavoriteThreadIdsAsync();
+        var archivedIds = await _archiveRepository.GetArchivedThreadIdsAsync();
 
         _allThreads = threads
-            .Where(t => !trashedIds.Contains(t.Id) && !blockedNumbers.Contains(t.Address))
+            .Where(t => !trashedIds.Contains(t.Id) && !blockedNumbers.Contains(t.Address) && !archivedIds.Contains(t.Id))
             .Select(t =>
             {
                 t.IsFavorite = favoriteIds.Contains(t.Id);
                 return t;
             })
             .OrderByDescending(t => t.IsFavorite)
+            .ThenByDescending(t => t.UnreadCount > 0)
             .ThenByDescending(t => t.LastMessageTimestamp)
             .ToList();
         ApplyFilter();
+    }
+
+    [RelayCommand]
+    private async Task MarkThreadReadState(long threadId)
+    {
+        var thread = _allThreads.FirstOrDefault(t => t.Id == threadId);
+        if (thread is null)
+        {
+            return;
+        }
+
+        if (thread.UnreadCount > 0)
+        {
+            await _markAsReadService.MarkThreadAsReadAsync(threadId);
+            _undoStack.Push(new MarkAsReadUndoAction(new[] { threadId }, _markAsReadService));
+        }
+        else
+        {
+            await _markAsReadService.MarkThreadsAsUnreadAsync(new[] { threadId });
+        }
+
+        await Load();
     }
 
     [RelayCommand]
@@ -84,6 +114,14 @@ public partial class ConversationsViewModel : ObservableObject
     {
         await _trashRepository.TrashThreadAsync(threadId);
         _undoStack.Push(new TrashUndoAction(threadId, _trashRepository));
+        await Load();
+    }
+
+    [RelayCommand]
+    private async Task ArchiveThread(long threadId)
+    {
+        await _archiveRepository.ArchiveThreadAsync(threadId);
+        _undoStack.Push(new ArchiveUndoAction(threadId, _archiveRepository));
         await Load();
     }
 

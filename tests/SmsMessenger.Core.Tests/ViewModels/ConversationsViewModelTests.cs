@@ -8,14 +8,14 @@ namespace SmsMessenger.Core.Tests.ViewModels;
 
 public class ConversationsViewModelTests
 {
-    private static SmsThread MakeThread(long id, string address, string? name, string lastMessage, DateTimeOffset? timestamp = null) => new()
+    private static SmsThread MakeThread(long id, string address, string? name, string lastMessage, DateTimeOffset? timestamp = null, int unreadCount = 0) => new()
     {
         Id = id,
         Address = address,
         DisplayName = name,
         LastMessageBody = lastMessage,
         LastMessageTimestamp = timestamp ?? DateTimeOffset.UtcNow,
-        UnreadCount = 0
+        UnreadCount = unreadCount
     };
 
     private static Mock<ITrashRepository> MakeEmptyTrashRepository()
@@ -39,18 +39,29 @@ public class ConversationsViewModelTests
         return repository;
     }
 
+    private static Mock<IArchiveRepository> MakeEmptyArchiveRepository()
+    {
+        var repository = new Mock<IArchiveRepository>();
+        repository.Setup(r => r.GetArchivedThreadIdsAsync()).ReturnsAsync(new List<long>());
+        return repository;
+    }
+
     private static ConversationsViewModel MakeViewModel(
         Mock<IThreadService> threadService,
         Mock<ITrashRepository>? trashRepository = null,
         Mock<IContactBlockService>? blockService = null,
         Mock<IFavoriteRepository>? favoriteRepository = null,
-        Mock<IUndoStack>? undoStack = null) =>
+        Mock<IUndoStack>? undoStack = null,
+        Mock<IMarkAsReadService>? markAsReadService = null,
+        Mock<IArchiveRepository>? archiveRepository = null) =>
         new(
             threadService.Object,
             (trashRepository ?? MakeEmptyTrashRepository()).Object,
             (blockService ?? MakeEmptyBlockService()).Object,
             (favoriteRepository ?? MakeEmptyFavoriteRepository()).Object,
-            (undoStack ?? new Mock<IUndoStack>()).Object);
+            (undoStack ?? new Mock<IUndoStack>()).Object,
+            (markAsReadService ?? new Mock<IMarkAsReadService>()).Object,
+            (archiveRepository ?? MakeEmptyArchiveRepository()).Object);
 
     [Fact]
     public async Task LoadCommand_populates_Threads_from_the_service()
@@ -127,6 +138,108 @@ public class ConversationsViewModelTests
         Assert.True(viewModel.Threads[0].IsFavorite);
         Assert.Equal(1, viewModel.Threads[1].Id);
         Assert.False(viewModel.Threads[1].IsFavorite);
+    }
+
+    [Fact]
+    public async Task LoadCommand_excludes_archived_threads()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi"),
+            MakeThread(2, "5550148890", null, "hey there")
+        });
+        var archiveRepository = new Mock<IArchiveRepository>();
+        archiveRepository.Setup(r => r.GetArchivedThreadIdsAsync()).ReturnsAsync(new List<long> { 2 });
+        var viewModel = MakeViewModel(threadService, archiveRepository: archiveRepository);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Single(viewModel.Threads);
+        Assert.Equal(1, viewModel.Threads[0].Id);
+    }
+
+    [Fact]
+    public async Task ArchiveThreadCommand_archives_the_thread_and_pushes_an_undo_action()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi")
+        });
+        var archiveRepository = MakeEmptyArchiveRepository();
+        var undoStack = new Mock<IUndoStack>();
+        var viewModel = MakeViewModel(threadService, archiveRepository: archiveRepository, undoStack: undoStack);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.ArchiveThreadCommand.ExecuteAsync(1L);
+
+        archiveRepository.Verify(r => r.ArchiveThreadAsync(1), Times.Once);
+        undoStack.Verify(s => s.Push(It.IsAny<IUndoableAction>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task LoadCommand_sorts_unread_threads_below_favorites_and_above_read_threads()
+    {
+        var newest = DateTimeOffset.UtcNow;
+        var middle = DateTimeOffset.UtcNow.AddDays(-1);
+        var oldest = DateTimeOffset.UtcNow.AddDays(-10);
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi", newest, unreadCount: 0),
+            MakeThread(2, "5550148890", "Bob Jones", "hey", middle, unreadCount: 3),
+            MakeThread(3, "5550149999", "Carol Lee", "yo", oldest, unreadCount: 0)
+        });
+        var favoriteRepository = new Mock<IFavoriteRepository>();
+        favoriteRepository.Setup(r => r.GetFavoriteThreadIdsAsync()).ReturnsAsync(new List<long> { 3 });
+        var viewModel = MakeViewModel(threadService, favoriteRepository: favoriteRepository);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Equal(3, viewModel.Threads[0].Id);
+        Assert.Equal(2, viewModel.Threads[1].Id);
+        Assert.Equal(1, viewModel.Threads[2].Id);
+    }
+
+    [Fact]
+    public async Task MarkThreadReadStateCommand_marks_an_unread_thread_as_read_and_pushes_undo_action()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi", unreadCount: 2)
+        });
+        var markAsReadService = new Mock<IMarkAsReadService>();
+        var undoStack = new Mock<IUndoStack>();
+        var viewModel = MakeViewModel(threadService, markAsReadService: markAsReadService, undoStack: undoStack);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.MarkThreadReadStateCommand.ExecuteAsync(1L);
+
+        markAsReadService.Verify(s => s.MarkThreadAsReadAsync(1), Times.Once);
+        markAsReadService.Verify(s => s.MarkThreadsAsUnreadAsync(It.IsAny<IReadOnlyList<long>>()), Times.Never);
+        undoStack.Verify(s => s.Push(It.IsAny<IUndoableAction>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task MarkThreadReadStateCommand_marks_a_read_thread_as_unread_without_pushing_undo()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi", unreadCount: 0)
+        });
+        var markAsReadService = new Mock<IMarkAsReadService>();
+        var undoStack = new Mock<IUndoStack>();
+        var viewModel = MakeViewModel(threadService, markAsReadService: markAsReadService, undoStack: undoStack);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.MarkThreadReadStateCommand.ExecuteAsync(1L);
+
+        markAsReadService.Verify(s => s.MarkThreadsAsUnreadAsync(It.Is<IReadOnlyList<long>>(ids => ids.Count == 1 && ids[0] == 1)), Times.Once);
+        markAsReadService.Verify(s => s.MarkThreadAsReadAsync(It.IsAny<long>()), Times.Never);
+        undoStack.Verify(s => s.Push(It.IsAny<IUndoableAction>()), Times.Never);
     }
 
     [Fact]
