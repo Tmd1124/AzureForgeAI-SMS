@@ -27,7 +27,7 @@
     }
     else
     {
-        <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:8px;">
+        <div style="position:sticky;top:0;z-index:10;background:var(--surface-color);display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:8px;padding:6px 0;">
             <button @onclick="ToggleUnreadFilter"
                     style="width:32px;height:32px;border-radius:50%;border:none;padding:0;font-size:0.9em;background:@(ViewModel.ShowUnreadOnly ? "var(--accent-color)" : "#e2e8f0");color:@(ViewModel.ShowUnreadOnly ? "white" : "#1e293b");">
                 📩
