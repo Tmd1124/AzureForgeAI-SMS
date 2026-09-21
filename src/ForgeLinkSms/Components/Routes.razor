@@ -1,6 +1,32 @@
-﻿<Router AppAssembly="@typeof(MauiProgram).Assembly">
+﻿@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+@inject ForgeLinkSms.Core.Services.NavigationHistoryTracker HistoryTracker
+@implements IDisposable
+
+<Router AppAssembly="@typeof(MauiProgram).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
     </Found>
 </Router>
+
+@code {
+    protected override void OnInitialized()
+    {
+        HistoryTracker.NavigateAction = path => Nav.NavigateTo(path);
+        HistoryTracker.RecordNavigation(Nav.ToBaseRelativePath(Nav.Uri));
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        if (!e.IsNavigationIntercepted)
+        {
+            HistoryTracker.RecordNavigation(Nav.ToBaseRelativePath(e.Location));
+        }
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+}

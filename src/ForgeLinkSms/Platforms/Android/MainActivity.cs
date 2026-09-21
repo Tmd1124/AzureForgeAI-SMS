@@ -12,11 +12,41 @@ namespace ForgeLinkSms;
 [Activity(Theme = "@style/Maui.SplashTheme", MainLauncher = true, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density, WindowSoftInputMode = SoftInput.AdjustResize)]
 public class MainActivity : MauiAppCompatActivity
 {
+    private NavigationHistoryTracker? _historyTracker;
+
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
         CapturePendingRoute(Intent);
         ApplyImeInsetPadding();
+        _historyTracker = MauiApplication.Current.Services.GetRequiredService<NavigationHistoryTracker>();
+    }
+
+    // BlazorWebView's own Android WebView subclass handles the hardware back key itself: it consumes
+    // KEYCODE_BACK on the ACTION_DOWN event directly inside its own OnKeyDown override, calling the
+    // native WebView.GoBack()/CanGoBack() browser history right there — confirmed via live logcat
+    // capture (the WebView never sets FLAG_TRACKING on the down event, and the dispatcher/onBackPressed
+    // path never runs, yet navigation still happens). That native history was confirmed to sometimes
+    // pop more than one entry per press, landing the app back on the splash screen instead of one
+    // screen back (reproduced consistently after long-pressing a message to open the reaction picker,
+    // then pressing back). Overriding DispatchKeyEvent lets us claim the ACTION_DOWN event before it
+    // ever reaches the WebView, so we drive back-navigation from our own tracked stack
+    // (NavigationHistoryTracker) instead of the WebView's browser history. A dispatcher-based
+    // OnBackPressedCallback (the officially recommended approach) does not work here — it is never
+    // invoked, because the WebView already claims the event first.
+    public override bool DispatchKeyEvent(KeyEvent? e)
+    {
+        if (e is { KeyCode: Keycode.Back, Action: KeyEventActions.Down })
+        {
+            if (!_historyTracker!.TryConsumeLocalBack() && !_historyTracker.TryGoBack())
+            {
+                Finish();
+            }
+
+            return true;
+        }
+
+        return base.DispatchKeyEvent(e);
     }
 
     // Apps targeting API 35+ get edge-to-edge enforced, which makes windowSoftInputMode=
