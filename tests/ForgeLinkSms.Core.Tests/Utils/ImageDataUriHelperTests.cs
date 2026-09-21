@@ -23,6 +23,7 @@ public class ImageDataUriHelperTests
     [InlineData(".jpg", "image/jpeg")]
     [InlineData(".jpeg", "image/jpeg")]
     [InlineData(".png", "image/png")]
+    [InlineData(".gif", "image/gif")]
     [InlineData(".bin", "image/jpeg")]
     public async Task ToDataUriAsync_encodes_the_file_with_the_expected_mime_type(string extension, string expectedMimeType)
     {

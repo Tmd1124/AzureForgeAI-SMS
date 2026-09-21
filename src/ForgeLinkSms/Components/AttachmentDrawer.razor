@@ -1,5 +1,6 @@
 @inject ForgeLinkSms.Core.Services.IContactService ContactService
 @inject ForgeLinkSms.Core.Services.ILocationService LocationService
+@inject ForgeLinkSms.Core.Services.IAttachmentPickerService AttachmentPickerService
 @using ForgeLinkSms.Core.Models
 @using ForgeLinkSms.Core.Utils
 
@@ -90,15 +91,15 @@
             @if (_mode == DrawerMode.Grid)
             {
                 <div class="drawer-grid">
-                    <div class="drawer-item disabled" @onclick="ShowComingSoon">
+                    <div class="drawer-item" @onclick="PickGallery">
                         <span class="icon">🖼️</span>
                         <span>Gallery</span>
                     </div>
-                    <div class="drawer-item disabled" @onclick="ShowComingSoon">
+                    <div class="drawer-item" @onclick="PickGif">
                         <span class="icon">🎬</span>
                         <span>GIFs</span>
                     </div>
-                    <div class="drawer-item disabled" @onclick="ShowComingSoon">
+                    <div class="drawer-item" @onclick="PickFile">
                         <span class="icon">📁</span>
                         <span>Files</span>
                     </div>
@@ -165,6 +166,9 @@
     [Parameter]
     public EventCallback<string> OnInsertText { get; set; }
 
+    [Parameter]
+    public EventCallback<PickedAttachment> OnAttachmentPicked { get; set; }
+
     public void Open()
     {
         _isOpen = true;
@@ -201,6 +205,24 @@
     {
         Close();
         await OnInsertText.InvokeAsync(AttachmentTextFormatter.FormatContactShare(contact));
+    }
+
+    private Task PickGallery() => PickAndShare(AttachmentPickerService.PickImageOrVideoAsync);
+
+    private Task PickGif() => PickAndShare(AttachmentPickerService.PickGifAsync);
+
+    private Task PickFile() => PickAndShare(AttachmentPickerService.PickFileAsync);
+
+    private async Task PickAndShare(Func<Task<PickedAttachment?>> pick)
+    {
+        var attachment = await pick();
+        if (attachment is null)
+        {
+            return;
+        }
+
+        Close();
+        await OnAttachmentPicked.InvokeAsync(attachment);
     }
 
     private Task ShowComingSoon() => ShowToast("Coming soon");

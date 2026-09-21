@@ -91,6 +91,7 @@
                 }
             }
         </div>
+        <PendingAttachmentPreview Attachment="_pendingAttachment" OnRemove="() => _pendingAttachment = null" />
         <div style="display:flex;align-items:flex-end;padding:8px;">
             <button @onclick="() => _drawer?.Open()"
                     style="width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);font-size:1.4em;margin-right:8px;flex-shrink:0;">
@@ -100,7 +101,7 @@
                 <textarea placeholder="Text message" rows="1" spellcheck="true" autocorrect="on" autocapitalize="sentences"
                           @bind="ViewModel.ComposeText" @bind:event="oninput"></textarea>
             </div>
-            @if (!string.IsNullOrWhiteSpace(ViewModel.ComposeText))
+            @if (!string.IsNullOrWhiteSpace(ViewModel.ComposeText) && _pendingAttachment is null)
             {
                 <button @onclick="() => ViewModel.SendCommand.ExecuteAsync(null)"
                         style="width:40px;height:40px;border-radius:50%;border:none;background:#22c55e;color:white;font-size:1.2em;margin-left:8px;flex-shrink:0;">
@@ -111,7 +112,7 @@
     </div>
 }
 
-<AttachmentDrawer @ref="_drawer" OnInsertText="InsertIntoCompose" />
+<AttachmentDrawer @ref="_drawer" OnInsertText="InsertIntoCompose" OnAttachmentPicked="a => _pendingAttachment = a" />
 
 @if (_reactionTargetMessage is not null)
 {
@@ -138,6 +139,7 @@
     private ForgeLinkSms.Core.Models.SmsMessage? _reactionTargetMessage;
     private CancellationTokenSource? _messageLongPressCts;
     private ForgeLinkSms.Components.AttachmentDrawer? _drawer;
+    private ForgeLinkSms.Core.Models.PickedAttachment? _pendingAttachment;
 
     private void InsertIntoCompose(string text)
     {

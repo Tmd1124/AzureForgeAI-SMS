@@ -163,6 +163,7 @@
         <div style="flex:1;"></div>
     }
 
+    <PendingAttachmentPreview Attachment="_pendingAttachment" OnRemove="() => _pendingAttachment = null" />
     <div style="display:flex;align-items:flex-end;padding:8px;border-top:1px solid #eee;">
         <button @onclick="() => _drawer?.Open()"
                 style="width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);font-size:1.4em;margin-right:8px;flex-shrink:0;">
@@ -172,7 +173,7 @@
             <textarea placeholder="Text message" rows="1" spellcheck="true" autocorrect="on" autocapitalize="sentences"
                       @bind="ViewModel.MessageBody" @bind:event="oninput"></textarea>
         </div>
-        @if (!string.IsNullOrWhiteSpace(ViewModel.MessageBody))
+        @if (!string.IsNullOrWhiteSpace(ViewModel.MessageBody) && _pendingAttachment is null)
         {
             <button @onclick="() => ViewModel.SendCommand.ExecuteAsync(null)"
                     style="width:40px;height:40px;border-radius:50%;border:none;background:#22c55e;color:white;font-size:1.2em;margin-left:8px;flex-shrink:0;">
@@ -182,7 +183,7 @@
     </div>
 </div>
 
-<AttachmentDrawer @ref="_drawer" OnInsertText="InsertIntoMessage" />
+<AttachmentDrawer @ref="_drawer" OnInsertText="InsertIntoMessage" OnAttachmentPicked="a => _pendingAttachment = a" />
 
 @code {
     [SupplyParameterFromQuery(Name = "add")]
@@ -193,6 +194,7 @@
     private bool _longPressTriggered;
     private CancellationTokenSource? _longPressCts;
     private ForgeLinkSms.Components.AttachmentDrawer? _drawer;
+    private ForgeLinkSms.Core.Models.PickedAttachment? _pendingAttachment;
 
     private void InsertIntoMessage(string text)
     {

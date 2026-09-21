@@ -13,6 +13,7 @@ public static class ImageDataUriHelper
         var mimeType = Path.GetExtension(filePath).ToLowerInvariant() switch
         {
             ".png" => "image/png",
+            ".gif" => "image/gif",
             ".jpg" or ".jpeg" => "image/jpeg",
             _ => "image/jpeg"
         };
