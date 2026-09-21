@@ -11,6 +11,7 @@ using Android.Runtime;
 [assembly: UsesPermission("android.permission.POST_NOTIFICATIONS")]
 [assembly: UsesPermission(Android.Manifest.Permission.AccessFineLocation)]
 [assembly: UsesPermission(Android.Manifest.Permission.AccessCoarseLocation)]
+[assembly: UsesPermission(Android.Manifest.Permission.ReceiveBootCompleted)]
 
 namespace ForgeLinkSms;
 

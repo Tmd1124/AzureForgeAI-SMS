@@ -14,7 +14,7 @@ public class ComposeViewModelTests
             contacts = new Mock<IContactService>();
             contacts.Setup(c => c.GetAllContactsAsync()).ReturnsAsync(Array.Empty<ContactInfo>());
         }
-        return new ComposeViewModel((sms ?? new Mock<ISmsService>()).Object, contacts.Object);
+        return new ComposeViewModel((sms ?? new Mock<ISmsService>()).Object, contacts.Object, new Mock<IMessageSchedulerService>().Object);
     }
 
     [Fact]

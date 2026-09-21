@@ -17,6 +17,7 @@ public class SmsMessage
     public required DateTimeOffset Timestamp { get; init; }
     public required bool IsOutgoing { get; init; }
     public required SmsMessageStatus Status { get; init; }
+    public IReadOnlyList<MessageAttachment> Attachments { get; init; } = Array.Empty<MessageAttachment>();
 
     /// Only outgoing messages have a status to show — SMS has no concept
     /// of a "read" tick, so this never goes past Delivered.

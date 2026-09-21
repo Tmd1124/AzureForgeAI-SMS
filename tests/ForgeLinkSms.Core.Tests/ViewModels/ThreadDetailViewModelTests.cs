@@ -16,7 +16,7 @@ public class ThreadDetailViewModelTests
             new() { Id = 2, ThreadId = 1, Address = "555", Body = "second", Timestamp = DateTimeOffset.UtcNow, IsOutgoing = true, Status = SmsMessageStatus.Sent },
             new() { Id = 1, ThreadId = 1, Address = "555", Body = "first", Timestamp = DateTimeOffset.UtcNow.AddMinutes(-5), IsOutgoing = false, Status = SmsMessageStatus.Delivered }
         });
-        var viewModel = new ThreadDetailViewModel(sms.Object, threadId: 1, address: "555");
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555");
 
         await viewModel.LoadCommand.ExecuteAsync(null);
 
@@ -29,7 +29,7 @@ public class ThreadDetailViewModelTests
     public async Task SendCommand_does_nothing_when_ComposeText_is_blank()
     {
         var sms = new Mock<ISmsService>();
-        var viewModel = new ThreadDetailViewModel(sms.Object, threadId: 1, address: "555")
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555")
         {
             ComposeText = "   "
         };
@@ -43,7 +43,7 @@ public class ThreadDetailViewModelTests
     public async Task SendCommand_sends_and_clears_ComposeText()
     {
         var sms = new Mock<ISmsService>();
-        var viewModel = new ThreadDetailViewModel(sms.Object, threadId: 1, address: "5550148890")
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890")
         {
             ComposeText = "See you then"
         };
@@ -59,7 +59,7 @@ public class ThreadDetailViewModelTests
     {
         var sms = new Mock<ISmsService>();
         sms.Setup(s => s.GetMessagesAsync(1)).ReturnsAsync(new List<SmsMessage>());
-        var viewModel = new ThreadDetailViewModel(sms.Object, threadId: 1, address: "5550148890");
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890");
 
         await viewModel.SendReactionCommand.ExecuteAsync(("👍", "You still coming over"));
 
@@ -71,7 +71,7 @@ public class ThreadDetailViewModelTests
     {
         var sms = new Mock<ISmsService>();
         sms.Setup(s => s.GetMessagesAsync(1)).ReturnsAsync(new List<SmsMessage>());
-        var viewModel = new ThreadDetailViewModel(sms.Object, threadId: 1, address: "5550148890");
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890");
         var longBody = new string('a', 60);
 
         await viewModel.SendReactionCommand.ExecuteAsync(("❤️", longBody));
@@ -88,7 +88,7 @@ public class ThreadDetailViewModelTests
         {
             new() { Id = 1, ThreadId = 1, Address = "5550148890", Body = "👍 to \"hi\"", Timestamp = DateTimeOffset.UtcNow, IsOutgoing = true, Status = SmsMessageStatus.Sent }
         });
-        var viewModel = new ThreadDetailViewModel(sms.Object, threadId: 1, address: "5550148890");
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890");
 
         await viewModel.SendReactionCommand.ExecuteAsync(("👍", "hi"));
 

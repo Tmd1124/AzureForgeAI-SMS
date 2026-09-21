@@ -41,10 +41,16 @@ public class MarkAsReadService : IMarkAsReadService
         var context = AndroidApp.Context;
         var values = new AndroidContentValues();
         values.Put("read", read);
+        var mmsUri = global::Android.Net.Uri.Parse("content://mms")!;
 
         foreach (var threadId in threadIds)
         {
-            context.ContentResolver!.Update(AndroidTelephony.Sms.ContentUri!, values, "thread_id = ?", new[] { threadId.ToString() });
+            var args = new[] { threadId.ToString() };
+            context.ContentResolver!.Update(AndroidTelephony.Sms.ContentUri!, values, "thread_id = ?", args);
+            // A thread's unread state can come from either table (see ThreadService), so both
+            // have to be flipped or a thread whose newest message is an MMS would stay stuck
+            // showing unread after being opened/marked read.
+            context.ContentResolver!.Update(mmsUri, values, "thread_id = ?", args);
         }
     }
 }

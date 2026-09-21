@@ -12,6 +12,7 @@ public partial class ComposeViewModel : ObservableObject
 {
     private readonly ISmsService _smsService;
     private readonly IContactService _contactService;
+    private readonly IMessageSchedulerService _scheduler;
     private readonly List<ContactInfo> _allContacts = new();
     private readonly List<string> _selectedForGroup = new();
 
@@ -41,10 +42,11 @@ public partial class ComposeViewModel : ObservableObject
             || c.PhoneNumber.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
         .ToList();
 
-    public ComposeViewModel(ISmsService smsService, IContactService contactService)
+    public ComposeViewModel(ISmsService smsService, IContactService contactService, IMessageSchedulerService scheduler)
     {
         _smsService = smsService;
         _contactService = contactService;
+        _scheduler = scheduler;
         Recipients.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(IsGroupSend));
@@ -142,6 +144,22 @@ public partial class ComposeViewModel : ObservableObject
         foreach (var recipient in Recipients)
         {
             await _smsService.SendAsync(recipient, text);
+        }
+        MessageBody = string.Empty;
+    }
+
+    [RelayCommand]
+    private async Task ScheduleSend(DateTimeOffset sendAtUtc)
+    {
+        var text = MessageBody.Trim();
+        if (string.IsNullOrEmpty(text) || Recipients.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var recipient in Recipients)
+        {
+            await _scheduler.ScheduleAsync(recipient, text, sendAtUtc);
         }
         MessageBody = string.Empty;
     }

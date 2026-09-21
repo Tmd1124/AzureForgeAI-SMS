@@ -136,4 +136,44 @@ public class ContactService : IContactService
         AndroidApp.Context.StartActivity(intent);
         return Task.CompletedTask;
     }
+
+    public Task OpenContactAsync(string phoneNumber)
+    {
+        var context = AndroidApp.Context;
+        var lookupUri = FindContactLookupUri(context, phoneNumber);
+
+        AndroidIntent intent;
+        if (lookupUri is not null)
+        {
+            intent = new AndroidIntent(AndroidIntent.ActionView, lookupUri);
+        }
+        else
+        {
+            intent = new AndroidIntent(AndroidIntent.ActionInsert, AndroidContactsContract.Contacts.ContentUri);
+            intent.PutExtra(AndroidContactsContract.Intents.Insert.Phone, phoneNumber);
+        }
+        intent.SetFlags(AndroidActivityFlags.NewTask);
+        context.StartActivity(intent);
+        return Task.CompletedTask;
+    }
+
+    private static AndroidUri? FindContactLookupUri(global::Android.Content.Context context, string phoneNumber)
+    {
+        var uri = AndroidUri.WithAppendedPath(AndroidContactsContract.PhoneLookup.ContentFilterUri, AndroidUri.Encode(phoneNumber));
+        var projection = new[]
+        {
+            AndroidContactsContract.PhoneLookup.InterfaceConsts.Id,
+            AndroidContactsContract.PhoneLookup.InterfaceConsts.LookupKey
+        };
+
+        using var cursor = context.ContentResolver!.Query(uri!, projection, null, null, null);
+        if (cursor is null || !cursor.MoveToFirst())
+        {
+            return null;
+        }
+
+        var contactId = cursor.GetLong(cursor.GetColumnIndexOrThrow(AndroidContactsContract.PhoneLookup.InterfaceConsts.Id));
+        var lookupKey = cursor.GetString(cursor.GetColumnIndexOrThrow(AndroidContactsContract.PhoneLookup.InterfaceConsts.LookupKey));
+        return AndroidContactsContract.Contacts.GetLookupUri(contactId, lookupKey);
+    }
 }

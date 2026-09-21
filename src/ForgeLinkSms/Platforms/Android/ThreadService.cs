@@ -14,45 +14,28 @@ public class ThreadService : IThreadService
         _contactService = contactService;
     }
 
+    private sealed class ThreadLatestMessage
+    {
+        public required long ThreadId { get; init; }
+        public required long DateMillis { get; init; }
+        public required string Address { get; init; }
+        public required string Body { get; init; }
+        public required bool IsUnread { get; init; }
+    }
+
     public async Task<IReadOnlyList<SmsThread>> GetThreadsAsync()
     {
         var context = AndroidApp.Context;
-        var rawRows = new List<(long ThreadId, string Address, string Body, long DateMillis, int Unread)>();
+        var latestByThread = new Dictionary<long, ThreadLatestMessage>();
 
-        // Telephony.Threads only carries thread ids; the snippet (address,
-        // body, date, read) is read straight from Telephony.Sms grouped by
-        // thread_id, which is the simplest way to build the list view.
-        var projection = new[] { "thread_id", "address", "body", "date", "read" };
-        using var cursor = context.ContentResolver!.Query(
-            AndroidTelephony.Sms.ContentUri!, projection, null, null, "date DESC");
+        // A thread's most recent activity can be either an SMS or an MMS (a photo, a group
+        // text, many RCS fallbacks), and the two live in entirely separate content:// tables
+        // with no shared "conversations" view this app can rely on — so both are read here
+        // and merged per thread_id, keeping whichever side is newer.
+        ReadLatestSmsPerThread(context, latestByThread);
+        ReadLatestMmsPerThread(context, latestByThread);
 
-        if (cursor is null)
-        {
-            return Array.Empty<SmsThread>();
-        }
-
-        var seenThreadIds = new HashSet<long>();
-        var threadIdIdx = cursor.GetColumnIndexOrThrow("thread_id");
-        var addressIdx = cursor.GetColumnIndexOrThrow("address");
-        var bodyIdx = cursor.GetColumnIndexOrThrow("body");
-        var dateIdx = cursor.GetColumnIndexOrThrow("date");
-        var readIdx = cursor.GetColumnIndexOrThrow("read");
-
-        while (cursor.MoveToNext())
-        {
-            var threadId = cursor.GetLong(threadIdIdx);
-            if (!seenThreadIds.Add(threadId))
-            {
-                continue; // already took the most recent row for this thread (query is DATE DESC)
-            }
-
-            rawRows.Add((
-                threadId,
-                cursor.GetString(addressIdx) ?? string.Empty,
-                cursor.GetString(bodyIdx) ?? string.Empty,
-                cursor.GetLong(dateIdx),
-                cursor.GetInt(readIdx) == 0 ? 1 : 0));
-        }
+        var rawRows = latestByThread.Values.ToList();
 
         // Each lookup is dispatched via Task.Run so the contact-provider query (a blocking
         // call) for every thread runs on its own thread-pool thread instead of one at a time —
@@ -73,10 +56,96 @@ public class ThreadService : IThreadService
                 PhotoUri = contact?.PhotoUri,
                 LastMessageBody = row.Body,
                 LastMessageTimestamp = DateTimeOffset.FromUnixTimeMilliseconds(row.DateMillis),
-                UnreadCount = row.Unread
+                UnreadCount = row.IsUnread ? 1 : 0
             });
         }
 
         return results;
+    }
+
+    private static void ReadLatestSmsPerThread(global::Android.Content.Context context, Dictionary<long, ThreadLatestMessage> latestByThread)
+    {
+        var projection = new[] { "thread_id", "address", "body", "date", "read" };
+        using var cursor = context.ContentResolver!.Query(AndroidTelephony.Sms.ContentUri!, projection, null, null, "date DESC");
+        if (cursor is null)
+        {
+            return;
+        }
+
+        var threadIdIdx = cursor.GetColumnIndexOrThrow("thread_id");
+        var addressIdx = cursor.GetColumnIndexOrThrow("address");
+        var bodyIdx = cursor.GetColumnIndexOrThrow("body");
+        var dateIdx = cursor.GetColumnIndexOrThrow("date");
+        var readIdx = cursor.GetColumnIndexOrThrow("read");
+
+        while (cursor.MoveToNext())
+        {
+            var threadId = cursor.GetLong(threadIdIdx);
+            var dateMillis = cursor.GetLong(dateIdx);
+            if (latestByThread.TryGetValue(threadId, out var existing) && existing.DateMillis >= dateMillis)
+            {
+                continue; // already have a newer row (SMS or MMS) for this thread
+            }
+
+            latestByThread[threadId] = new ThreadLatestMessage
+            {
+                ThreadId = threadId,
+                DateMillis = dateMillis,
+                Address = cursor.GetString(addressIdx) ?? string.Empty,
+                Body = cursor.GetString(bodyIdx) ?? string.Empty,
+                IsUnread = cursor.GetInt(readIdx) == 0
+            };
+        }
+    }
+
+    private static void ReadLatestMmsPerThread(global::Android.Content.Context context, Dictionary<long, ThreadLatestMessage> latestByThread)
+    {
+        var latestMmsPerThread = MmsReader.QueryAll(context)
+            .GroupBy(m => m.ThreadId)
+            .Select(g => g.OrderByDescending(m => m.Date).First());
+
+        foreach (var mms in latestMmsPerThread)
+        {
+            var dateMillis = mms.Date.ToUnixTimeMilliseconds();
+            if (latestByThread.TryGetValue(mms.ThreadId, out var existing) && existing.DateMillis >= dateMillis)
+            {
+                continue; // the thread's newest SMS is still newer than its newest MMS
+            }
+
+            var address = MmsReader.GetAddress(context, mms.Id, mms.IsOutgoing);
+            var (body, attachments) = MmsReader.GetContent(context, mms.Id);
+
+            latestByThread[mms.ThreadId] = new ThreadLatestMessage
+            {
+                ThreadId = mms.ThreadId,
+                DateMillis = dateMillis,
+                Address = address,
+                Body = BuildPreviewText(body, attachments),
+                IsUnread = !mms.IsRead
+            };
+        }
+    }
+
+    // Mirrors how every mainstream messaging app previews an image/video-only MMS: since
+    // there's no text part to show, fall back to a short label describing what was sent.
+    private static string BuildPreviewText(string body, List<MessageAttachment> attachments)
+    {
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            return body;
+        }
+
+        if (attachments.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return attachments[0].Kind switch
+        {
+            AttachmentKind.Image => "📷 Photo",
+            AttachmentKind.Gif => "GIF",
+            AttachmentKind.Video => "🎬 Video",
+            _ => $"📎 {attachments[0].FileName}"
+        };
     }
 }

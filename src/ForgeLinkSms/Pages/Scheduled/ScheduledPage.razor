@@ -1,0 +1,32 @@
+@page "/scheduled"
+@inject ForgeLinkSms.Core.ViewModels.ScheduledViewModel ViewModel
+
+<div style="padding:12px;">
+    <h3>Scheduled Messages</h3>
+
+    @if (ViewModel.ScheduledMessages.Count == 0)
+    {
+        <p>No scheduled messages.</p>
+    }
+    else
+    {
+        @foreach (var message in ViewModel.ScheduledMessages)
+        {
+            <div style="padding:10px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+                <div style="min-width:0;">
+                    <strong>@ViewModel.GetDisplayName(message.Address)</strong>
+                    <div style="color:#94a3b8;font-size:0.85em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@message.Body</div>
+                    <div style="color:#06b6d4;font-size:0.8em;">Sends @message.SendAtUtc.LocalDateTime.ToString("MMM d, h:mm tt")</div>
+                </div>
+                <button @onclick="() => ViewModel.CancelCommand.ExecuteAsync(message.Id)" style="flex-shrink:0;">Cancel</button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ViewModel.LoadCommand.ExecuteAsync(null);
+    }
+}

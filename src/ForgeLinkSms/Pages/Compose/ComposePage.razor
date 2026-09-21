@@ -164,6 +164,7 @@
     }
 
     <PendingAttachmentPreview Attachment="_pendingAttachment" OnRemove="() => _pendingAttachment = null" />
+    <ScheduledSendPreview SendAt="_scheduledSendTime" OnRemove="() => _scheduledSendTime = null" />
     <div style="display:flex;align-items:flex-end;padding:8px;border-top:1px solid #eee;">
         <button @onclick="() => _drawer?.Open()"
                 style="width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);font-size:1.4em;margin-right:8px;flex-shrink:0;">
@@ -175,7 +176,7 @@
         </div>
         @if (!string.IsNullOrWhiteSpace(ViewModel.MessageBody) && _pendingAttachment is null)
         {
-            <button @onclick="() => ViewModel.SendCommand.ExecuteAsync(null)"
+            <button @onclick="SendOrSchedule"
                     style="width:40px;height:40px;border-radius:50%;border:none;background:#22c55e;color:white;font-size:1.2em;margin-left:8px;flex-shrink:0;">
                 ➤
             </button>
@@ -183,7 +184,7 @@
     </div>
 </div>
 
-<AttachmentDrawer @ref="_drawer" OnInsertText="InsertIntoMessage" OnAttachmentPicked="a => _pendingAttachment = a" />
+<AttachmentDrawer @ref="_drawer" OnInsertText="InsertIntoMessage" OnAttachmentPicked="a => _pendingAttachment = a" OnScheduleTimePicked="t => _scheduledSendTime = t" />
 
 @code {
     [SupplyParameterFromQuery(Name = "add")]
@@ -195,6 +196,20 @@
     private CancellationTokenSource? _longPressCts;
     private ForgeLinkSms.Components.AttachmentDrawer? _drawer;
     private ForgeLinkSms.Core.Models.PickedAttachment? _pendingAttachment;
+    private DateTimeOffset? _scheduledSendTime;
+
+    private async Task SendOrSchedule()
+    {
+        if (_scheduledSendTime is { } sendAt)
+        {
+            await ViewModel.ScheduleSendCommand.ExecuteAsync(sendAt);
+            _scheduledSendTime = null;
+        }
+        else
+        {
+            await ViewModel.SendCommand.ExecuteAsync(null);
+        }
+    }
 
     private void InsertIntoMessage(string text)
     {

@@ -8,6 +8,7 @@ namespace ForgeLinkSms.Core.ViewModels;
 public partial class ThreadDetailViewModel : ObservableObject
 {
     private readonly ISmsService _smsService;
+    private readonly IMessageSchedulerService _scheduler;
     private readonly long _threadId;
     private readonly string _address;
 
@@ -16,9 +17,10 @@ public partial class ThreadDetailViewModel : ObservableObject
     [ObservableProperty]
     private string _composeText = string.Empty;
 
-    public ThreadDetailViewModel(ISmsService smsService, long threadId, string address)
+    public ThreadDetailViewModel(ISmsService smsService, IMessageSchedulerService scheduler, long threadId, string address)
     {
         _smsService = smsService;
+        _scheduler = scheduler;
         _threadId = threadId;
         _address = address;
     }
@@ -46,6 +48,19 @@ public partial class ThreadDetailViewModel : ObservableObject
         await _smsService.SendAsync(_address, text);
         ComposeText = string.Empty;
         await Load();
+    }
+
+    [RelayCommand]
+    private async Task ScheduleSend(DateTimeOffset sendAtUtc)
+    {
+        var text = ComposeText.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        await _scheduler.ScheduleAsync(_address, text, sendAtUtc);
+        ComposeText = string.Empty;
     }
 
     [RelayCommand]

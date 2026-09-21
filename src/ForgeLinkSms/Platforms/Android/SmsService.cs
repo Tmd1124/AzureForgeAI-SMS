@@ -58,6 +58,27 @@ public class SmsService : ISmsService
             }
         }
 
+        // MMS (photos, group texts, many RCS fallbacks) live in a separate provider from SMS —
+        // merged in here so the thread view doesn't silently drop them. The caller sorts the
+        // combined list by Timestamp, so ordering here doesn't matter.
+        foreach (var mms in MmsReader.QueryAll(context, threadId))
+        {
+            var address = MmsReader.GetAddress(context, mms.Id, mms.IsOutgoing);
+            var (body, attachments) = MmsReader.GetContent(context, mms.Id);
+
+            results.Add(new SmsMessage
+            {
+                Id = mms.Id,
+                ThreadId = mms.ThreadId,
+                Address = address,
+                Body = body,
+                Timestamp = mms.Date,
+                IsOutgoing = mms.IsOutgoing,
+                Status = mms.IsOutgoing ? SmsMessageStatus.Sent : SmsMessageStatus.Delivered,
+                Attachments = attachments
+            });
+        }
+
         return Task.FromResult<IReadOnlyList<SmsMessage>>(results);
     }
 

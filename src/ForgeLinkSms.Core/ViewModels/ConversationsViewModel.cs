@@ -26,6 +26,10 @@ public partial class ConversationsViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Threads))]
     private string _searchText = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Threads))]
+    private bool _showUnreadOnly;
+
     public ConversationsViewModel(
         IThreadService threadService,
         ITrashRepository trashRepository,
@@ -203,6 +207,20 @@ public partial class ConversationsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task Undo()
+    {
+        await _undoStack.UndoAsync();
+        await Load();
+    }
+
+    [RelayCommand]
+    private async Task MarkThreadsUnread(IReadOnlyList<long> threadIds)
+    {
+        await _markAsReadService.MarkThreadsAsUnreadAsync(threadIds);
+        await Load();
+    }
+
+    [RelayCommand]
     private async Task BlockThread(string address)
     {
         var normalizedAddress = PhoneNumberFormatter.ToComparableDigits(address);
@@ -213,6 +231,8 @@ public partial class ConversationsViewModel : ObservableObject
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
+    partial void OnShowUnreadOnlyChanged(bool value) => ApplyFilter();
+
     private void ApplyFilter()
     {
         Threads.Clear();
@@ -222,6 +242,11 @@ public partial class ConversationsViewModel : ObservableObject
             : _allThreads.Where(t =>
                 t.DisplayNameOrAddress.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                 t.LastMessageBody.Contains(query, StringComparison.OrdinalIgnoreCase));
+
+        if (ShowUnreadOnly)
+        {
+            matches = matches.Where(t => t.UnreadCount > 0);
+        }
 
         foreach (var thread in matches)
         {

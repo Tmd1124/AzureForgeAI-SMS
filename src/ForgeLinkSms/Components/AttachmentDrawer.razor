@@ -111,13 +111,13 @@
                         <span class="icon">👤</span>
                         <span>Contact</span>
                     </div>
-                    <div class="drawer-item disabled" @onclick="ShowComingSoon">
+                    <div class="drawer-item" @onclick="OpenSchedulePicker">
                         <span class="icon">⏰</span>
                         <span>Schedule</span>
                     </div>
                 </div>
             }
-            else
+            else if (_mode == DrawerMode.ContactList)
             {
                 <div class="drawer-back" @onclick="() => _mode = DrawerMode.Grid">‹ Back</div>
                 @if (_contacts is { Count: 0 })
@@ -145,6 +145,17 @@
                     }
                 }
             }
+            else
+            {
+                <div class="drawer-back" @onclick="() => _mode = DrawerMode.Grid">‹ Back</div>
+                <p style="margin:0 0 12px;">When should this be sent?</p>
+                <input type="datetime-local" @bind="_scheduleInputValue" min="@_minScheduleValue.ToString("yyyy-MM-ddTHH:mm")"
+                       style="width:100%;padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:1em;box-sizing:border-box;" />
+                <button @onclick="ConfirmSchedule" disabled="@(_scheduleInputValue is null)"
+                        style="width:100%;margin-top:12px;padding:10px;border-radius:8px;border:none;background:var(--accent-color);color:white;font-size:1em;">
+                    Confirm
+                </button>
+            }
         </div>
     </div>
 }
@@ -155,19 +166,24 @@
 }
 
 @code {
-    private enum DrawerMode { Grid, ContactList }
+    private enum DrawerMode { Grid, ContactList, Schedule }
 
     private bool _isOpen;
     private DrawerMode _mode = DrawerMode.Grid;
     private string? _toastMessage;
     private List<ContactInfo>? _contacts;
     private CancellationTokenSource? _toastCts;
+    private DateTime? _scheduleInputValue;
+    private DateTime _minScheduleValue;
 
     [Parameter]
     public EventCallback<string> OnInsertText { get; set; }
 
     [Parameter]
     public EventCallback<PickedAttachment> OnAttachmentPicked { get; set; }
+
+    [Parameter]
+    public EventCallback<DateTimeOffset> OnScheduleTimePicked { get; set; }
 
     public void Open()
     {
@@ -223,6 +239,26 @@
 
         Close();
         await OnAttachmentPicked.InvokeAsync(attachment);
+    }
+
+    private void OpenSchedulePicker()
+    {
+        var now = DateTime.Now;
+        _minScheduleValue = now;
+        _scheduleInputValue = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0).AddHours(1);
+        _mode = DrawerMode.Schedule;
+    }
+
+    private async Task ConfirmSchedule()
+    {
+        if (_scheduleInputValue is not { } localTime)
+        {
+            return;
+        }
+
+        var sendAt = new DateTimeOffset(DateTime.SpecifyKind(localTime, DateTimeKind.Local));
+        Close();
+        await OnScheduleTimePicked.InvokeAsync(sendAt);
     }
 
     private Task ShowComingSoon() => ShowToast("Coming soon");
