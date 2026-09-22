@@ -16,7 +16,7 @@
             <button @onclick="ClearSelection" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">✕</button>
             <strong style="flex:1;">@_selectedThreadIds.Count selected</strong>
             <button @onclick="ToggleFavoriteSelectedThreads" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">@(AllSelectedAreFavorited() ? "💔" : "❤️")</button>
-            <button @onclick="MarkSelectedThreadsUnread" style="width:36px;height:32px;border:none;border-radius:50%;background:#e2e8f0;font-size:1em;line-height:1;padding:0;">📩</button>
+            <button @onclick="ToggleSelectedThreadsReadState" style="width:36px;height:32px;border:none;border-radius:50%;background:#e2e8f0;font-size:1em;line-height:1;padding:0;">📩</button>
             <button @onclick="ArchiveSelectedThreads" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">📦</button>
             <button @onclick="TrashSelectedThreads" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">🗑</button>
             @if (_selectedThreadIds.Count == 1)
@@ -443,11 +443,11 @@
         await ViewModel.FavoriteThreadsCommand.ExecuteAsync(ids);
     }
 
-    private async Task MarkSelectedThreadsUnread()
+    private async Task ToggleSelectedThreadsReadState()
     {
         var ids = _selectedThreadIds.ToList();
         _selectedThreadIds.Clear();
-        await ViewModel.MarkThreadsUnreadCommand.ExecuteAsync(ids);
+        await ViewModel.MarkThreadsReadStateCommand.ExecuteAsync(ids);
     }
 
     private async Task ArchiveSelectedThreads()

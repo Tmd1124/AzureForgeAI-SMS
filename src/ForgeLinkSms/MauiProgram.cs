@@ -22,6 +22,7 @@ public static class MauiProgram
 		builder.Services.AddMauiBlazorWebView();
 
 		builder.Services.AddSingleton<IDefaultAppRoleService, DefaultAppRoleService>();
+		builder.Services.AddSingleton<IBootDetectionService, BootDetectionService>();
 		builder.Services.AddSingleton<IPermissionService, PermissionService>();
 		builder.Services.AddSingleton<IContactService, ContactService>();
 		builder.Services.AddSingleton<IThreadService, ThreadService>();

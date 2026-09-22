@@ -1,6 +1,7 @@
 using Android.App;
 using Android.Content;
 using Microsoft.Extensions.DependencyInjection;
+using ForgeLinkSms.Core.Data;
 using ForgeLinkSms.Core.Services;
 using ForgeLinkSms.Core.Utils;
 using AndroidTelephony = global::Android.Provider.Telephony;
@@ -74,6 +75,26 @@ public class SmsDeliverReceiver : BroadcastReceiver
             if (threadCursor is not null && threadCursor.MoveToFirst())
             {
                 threadId = threadCursor.GetLong(threadCursor.GetColumnIndexOrThrow("thread_id"));
+            }
+        }
+
+        if (threadId != 0L)
+        {
+            // A reply to an archived/trashed conversation means the user is actively back in
+            // touch with it — surface it in the main list again rather than leaving a new,
+            // unread message hidden in Archive/Trash where it's easy to miss. The message row
+            // itself was already inserted with read=0 above, so the thread's unread state is
+            // already correct once it's back in the main list.
+            var archiveRepository = services.GetRequiredService<IArchiveRepository>();
+            if (archiveRepository.IsArchivedAsync(threadId).GetAwaiter().GetResult())
+            {
+                archiveRepository.UnarchiveThreadAsync(threadId).GetAwaiter().GetResult();
+            }
+
+            var trashRepository = services.GetRequiredService<ITrashRepository>();
+            if (trashRepository.IsTrashedAsync(threadId).GetAwaiter().GetResult())
+            {
+                trashRepository.RestoreThreadAsync(threadId).GetAwaiter().GetResult();
             }
         }
 

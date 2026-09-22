@@ -77,10 +77,8 @@ public partial class ConversationsViewModel : ObservableObject
                     t.IsFavorite = favoriteIds.Contains(t.Id);
                     return t;
                 })
-                .OrderByDescending(t => t.IsFavorite)
-                .ThenByDescending(t => t.UnreadCount > 0)
-                .ThenByDescending(t => t.LastMessageTimestamp)
                 .ToList();
+            SortThreads();
             ApplyFilter();
         }
         finally
@@ -102,13 +100,16 @@ public partial class ConversationsViewModel : ObservableObject
         {
             await _markAsReadService.MarkThreadAsReadAsync(threadId);
             _undoStack.Push(new MarkAsReadUndoAction(new[] { threadId }, _markAsReadService));
+            thread.UnreadCount = 0;
         }
         else
         {
             await _markAsReadService.MarkThreadsAsUnreadAsync(new[] { threadId });
+            thread.UnreadCount = 1;
         }
 
-        await Load();
+        SortThreads();
+        ApplyFilter();
     }
 
     [RelayCommand]
@@ -123,13 +124,16 @@ public partial class ConversationsViewModel : ObservableObject
         if (thread.IsFavorite)
         {
             await _favoriteRepository.UnfavoriteThreadAsync(threadId);
+            thread.IsFavorite = false;
         }
         else
         {
             await _favoriteRepository.FavoriteThreadAsync(threadId);
+            thread.IsFavorite = true;
         }
 
-        await Load();
+        SortThreads();
+        ApplyFilter();
     }
 
     [RelayCommand]
@@ -154,14 +158,17 @@ public partial class ConversationsViewModel : ObservableObject
             if (allFavorited)
             {
                 await _favoriteRepository.UnfavoriteThreadAsync(thread.Id);
+                thread.IsFavorite = false;
             }
             else
             {
                 await _favoriteRepository.FavoriteThreadAsync(thread.Id);
+                thread.IsFavorite = true;
             }
         }
 
-        await Load();
+        SortThreads();
+        ApplyFilter();
     }
 
     [RelayCommand]
@@ -169,7 +176,7 @@ public partial class ConversationsViewModel : ObservableObject
     {
         await _trashRepository.TrashThreadAsync(threadId);
         _undoStack.Push(new TrashUndoAction(threadId, _trashRepository));
-        await Load();
+        RemoveThreadsFromList(new[] { threadId });
     }
 
     [RelayCommand]
@@ -177,7 +184,7 @@ public partial class ConversationsViewModel : ObservableObject
     {
         await _archiveRepository.ArchiveThreadAsync(threadId);
         _undoStack.Push(new ArchiveUndoAction(threadId, _archiveRepository));
-        await Load();
+        RemoveThreadsFromList(new[] { threadId });
     }
 
     [RelayCommand]
@@ -190,7 +197,7 @@ public partial class ConversationsViewModel : ObservableObject
             undoActions.Add(new TrashUndoAction(threadId, _trashRepository));
         }
         _undoStack.Push(new BulkUndoAction(undoActions, $"Trashed {threadIds.Count} conversation(s)"));
-        await Load();
+        RemoveThreadsFromList(threadIds);
     }
 
     [RelayCommand]
@@ -203,21 +210,56 @@ public partial class ConversationsViewModel : ObservableObject
             undoActions.Add(new ArchiveUndoAction(threadId, _archiveRepository));
         }
         _undoStack.Push(new BulkUndoAction(undoActions, $"Archived {threadIds.Count} conversation(s)"));
-        await Load();
+        RemoveThreadsFromList(threadIds);
     }
 
     [RelayCommand]
     private async Task Undo()
     {
+        // Undo restores a thread from trash/archive or flips a read flag that this ViewModel
+        // doesn't otherwise track in memory (e.g. re-inserting a favorited-then-trashed thread),
+        // so a full reload is worth the cost here — undo is rare, unlike the actions above.
         await _undoStack.UndoAsync();
         await Load();
     }
 
     [RelayCommand]
-    private async Task MarkThreadsUnread(IReadOnlyList<long> threadIds)
+    private async Task MarkThreadsReadState(IReadOnlyList<long> threadIds)
     {
-        await _markAsReadService.MarkThreadsAsUnreadAsync(threadIds);
-        await Load();
+        var threads = threadIds
+            .Select(id => _allThreads.FirstOrDefault(t => t.Id == id))
+            .Where(t => t is not null)
+            .Cast<SmsThread>()
+            .ToList();
+        if (threads.Count == 0)
+        {
+            return;
+        }
+
+        // Only a selection that's entirely unread resolves to "mark read" — an all-read
+        // selection or a mixed one both resolve to "mark unread", since that's the one outcome
+        // that isn't ambiguous no matter what was selected.
+        var allUnread = threads.All(t => t.UnreadCount > 0);
+        if (allUnread)
+        {
+            await _markAsReadService.MarkThreadsAsReadAsync(threadIds);
+            _undoStack.Push(new MarkAsReadUndoAction(threadIds, _markAsReadService));
+            foreach (var thread in threads)
+            {
+                thread.UnreadCount = 0;
+            }
+        }
+        else
+        {
+            await _markAsReadService.MarkThreadsAsUnreadAsync(threadIds);
+            foreach (var thread in threads)
+            {
+                thread.UnreadCount = 1;
+            }
+        }
+
+        SortThreads();
+        ApplyFilter();
     }
 
     [RelayCommand]
@@ -226,7 +268,23 @@ public partial class ConversationsViewModel : ObservableObject
         var normalizedAddress = PhoneNumberFormatter.ToComparableDigits(address);
         await _blockService.BlockAsync(normalizedAddress);
         _undoStack.Push(new BlockUndoAction(normalizedAddress, _blockService));
-        await Load();
+        _allThreads = _allThreads.Where(t => PhoneNumberFormatter.ToComparableDigits(t.Address) != normalizedAddress).ToList();
+        ApplyFilter();
+    }
+
+    private void SortThreads()
+    {
+        _allThreads = _allThreads
+            .OrderByDescending(t => t.IsFavorite)
+            .ThenByDescending(t => t.UnreadCount > 0)
+            .ThenByDescending(t => t.LastMessageTimestamp)
+            .ToList();
+    }
+
+    private void RemoveThreadsFromList(IReadOnlyCollection<long> threadIds)
+    {
+        _allThreads = _allThreads.Where(t => !threadIds.Contains(t.Id)).ToList();
+        ApplyFilter();
     }
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();

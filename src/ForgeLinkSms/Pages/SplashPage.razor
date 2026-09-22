@@ -2,13 +2,17 @@
 @inject ForgeLinkSms.Core.ViewModels.SplashViewModel ViewModel
 @inject ForgeLinkSms.Core.Services.PendingNavigationStore PendingNav
 @inject ForgeLinkSms.Core.Services.IThemeService ThemeService
+@inject ForgeLinkSms.Core.Services.IBootDetectionService BootDetection
 @inject Microsoft.AspNetCore.Components.NavigationManager Nav
 @inject Microsoft.JSInterop.IJSRuntime JS
 
-<div class="splash-screen">
-    <div class="splash-glow"></div>
-    <img src="images/splash-logo.jpg" class="splash-logo" alt="ForgeLink SMS" />
-</div>
+@if (_showSplash)
+{
+    <div class="splash-screen">
+        <div class="splash-glow"></div>
+        <img src="images/splash-logo.jpg" class="splash-logo" alt="ForgeLink SMS" />
+    </div>
+}
 
 <style>
     .splash-screen {
@@ -77,6 +81,8 @@
 </style>
 
 @code {
+    private bool _showSplash;
+
     protected override async Task OnInitializedAsync()
     {
         await JS.InvokeVoidAsync("applyTheme", ThemeService.GetThemeMode().ToString(), ThemeService.GetAccentColor());
@@ -88,7 +94,16 @@
             return;
         }
 
-        await Task.Delay(1000);
+        // The branded splash animation is only worth showing right after the device actually
+        // restarts — every other cold start (e.g. Android killing the backgrounded app process
+        // for memory, then the user switching back to it) should feel instant instead of
+        // replaying a full-second animation the user has already seen this session.
+        _showSplash = BootDetection.IsFirstLaunchSinceBoot();
+        if (_showSplash)
+        {
+            await Task.Delay(1000);
+        }
+
         await ViewModel.InitializeAsync();
     }
 }

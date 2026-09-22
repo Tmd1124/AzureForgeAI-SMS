@@ -30,6 +30,12 @@ public class MarkAsReadService : IMarkAsReadService
         return Task.CompletedTask;
     }
 
+    public Task MarkThreadsAsReadAsync(IReadOnlyList<long> threadIds)
+    {
+        SetReadFlag(threadIds, read: 1);
+        return Task.CompletedTask;
+    }
+
     public Task MarkThreadsAsUnreadAsync(IReadOnlyList<long> threadIds)
     {
         SetReadFlag(threadIds, read: 0);

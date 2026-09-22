@@ -7,7 +7,7 @@ public class SmsThread
     public required string? DisplayName { get; init; }
     public required string LastMessageBody { get; init; }
     public required DateTimeOffset LastMessageTimestamp { get; init; }
-    public required int UnreadCount { get; init; }
+    public required int UnreadCount { get; set; }
     public string? PhotoUri { get; init; }
     public bool IsFavorite { get; set; }
 
