@@ -104,13 +104,27 @@
                         {
                             @if (attachment.DataUri is not null)
                             {
-                                <img src="@attachment.DataUri" alt="@attachment.FileName" style="display:block;max-width:100%;max-height:240px;border-radius:10px;margin-top:@(string.IsNullOrEmpty(message.Body) ? "0" : "6px");" />
+                                <div style="position:relative;margin-top:@(string.IsNullOrEmpty(message.Body) ? "0" : "6px");">
+                                    <img src="@attachment.DataUri" alt="@attachment.FileName" style="display:block;max-width:100%;max-height:240px;border-radius:10px;" />
+                                    <button @onclick="() => SaveAttachment(attachment)" @onclick:stopPropagation="true"
+                                            @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"
+                                            title="Save"
+                                            style="position:absolute;right:8px;bottom:8px;width:32px;height:32px;border-radius:50%;border:none;background:rgba(0,0,0,0.55);color:white;font-size:1em;display:flex;align-items:center;justify-content:center;">
+                                        ⬇
+                                    </button>
+                                </div>
                             }
                             else
                             {
                                 <div style="display:flex;align-items:center;gap:6px;margin-top:@(string.IsNullOrEmpty(message.Body) ? "0" : "6px");">
                                     <span>@(attachment.Kind == AttachmentKind.Video ? "🎬" : "📎")</span>
                                     <span style="text-decoration:underline;">@attachment.FileName</span>
+                                    <button @onclick="() => SaveAttachment(attachment)" @onclick:stopPropagation="true"
+                                            @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"
+                                            title="Save"
+                                            style="border:none;background:transparent;color:inherit;font-size:1.1em;padding:0 2px;">
+                                        ⬇
+                                    </button>
                                 </div>
                             }
                         }
@@ -179,6 +193,13 @@
     </div>
 }
 
+@if (_showSaveToast)
+{
+    <div style="position:fixed;left:16px;right:16px;bottom:24px;z-index:21;background:#1e293b;color:white;border-radius:8px;padding:12px 16px;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+        @_saveToastMessage
+    </div>
+}
+
 @code {
     [SupplyParameterFromQuery(Name = "id")]
     public long ThreadId { get; set; }
@@ -194,6 +215,9 @@
     private ForgeLinkSms.Components.AttachmentDrawer? _drawer;
     private ForgeLinkSms.Core.Models.PickedAttachment? _pendingAttachment;
     private DateTimeOffset? _scheduledSendTime;
+    private bool _showSaveToast;
+    private string _saveToastMessage = string.Empty;
+    private CancellationTokenSource? _saveToastCts;
     private IContactService? _contactService;
     private Microsoft.JSInterop.DotNetObjectReference<ThreadDetailPage>? _dotNetRef;
 
@@ -319,6 +343,8 @@
         {
             HistoryTracker.LocalBackHandler = null;
         }
+
+        _saveToastCts?.Cancel();
     }
 
     public async ValueTask DisposeAsync()
@@ -413,6 +439,40 @@
         {
             await _contactService.OpenContactAsync(Address);
         }
+    }
+
+    private async Task SaveAttachment(ForgeLinkSms.Core.Models.MessageAttachment attachment)
+    {
+        var saved = await Services.GetRequiredService<IAttachmentSaveService>().SaveToDeviceAsync(attachment);
+        ShowSaveToast(saved ? "Saved" : "Couldn't save attachment");
+    }
+
+    private void ShowSaveToast(string message)
+    {
+        _saveToastCts?.Cancel();
+        _saveToastCts = new CancellationTokenSource();
+        var token = _saveToastCts.Token;
+        _saveToastMessage = message;
+        _showSaveToast = true;
+        StateHasChanged();
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(2000, token);
+                await InvokeAsync(() =>
+                {
+                    _showSaveToast = false;
+                    StateHasChanged();
+                });
+            }
+            catch (TaskCanceledException)
+            {
+                // A newer save/toast superseded this one, or the page is disposing — either way
+                // nothing left to dismiss.
+            }
+        });
     }
 
     private static async Task OpenUrl(MessageTextSegment segment)

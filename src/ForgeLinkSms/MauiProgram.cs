@@ -30,6 +30,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<ICalendarService, CalendarService>();
 		builder.Services.AddSingleton<ILocationService, LocationService>();
 		builder.Services.AddSingleton<IAttachmentPickerService, AttachmentPickerService>();
+		builder.Services.AddSingleton<IAttachmentSaveService, AttachmentSaveService>();
 		builder.Services.AddScoped<INavigationService, NavigationService>();
 		builder.Services.AddTransient<SplashViewModel>();
 		builder.Services.AddTransient<OnboardingViewModel>();

@@ -194,7 +194,8 @@ internal static class MmsReader
             {
                 FileName = fileName,
                 Kind = kind,
-                DataUri = dataUri
+                DataUri = dataUri,
+                PartId = partId
             });
         }
 
