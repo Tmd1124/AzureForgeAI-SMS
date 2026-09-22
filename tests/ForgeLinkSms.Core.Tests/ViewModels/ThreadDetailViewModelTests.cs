@@ -267,6 +267,37 @@ public class ThreadDetailViewModelTests
     }
 
     [Fact]
+    public async Task SendCommand_sends_mms_with_caption_when_an_attachment_is_passed()
+    {
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.GetMessagesAsync(1, null, It.IsAny<int>())).ReturnsAsync(new List<SmsMessage>());
+        var attachment = new PickedAttachment { FileName = "photo.jpg", LocalPath = "/tmp/photo.jpg", Kind = AttachmentKind.Image };
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890")
+        {
+            ComposeText = "Check this out"
+        };
+
+        await viewModel.SendCommand.ExecuteAsync(attachment);
+
+        sms.Verify(s => s.SendMmsAsync(1, "5550148890", "Check this out", attachment), Times.Once);
+        sms.Verify(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        Assert.Equal(string.Empty, viewModel.ComposeText);
+    }
+
+    [Fact]
+    public async Task SendCommand_sends_mms_with_no_body_when_ComposeText_is_blank()
+    {
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.GetMessagesAsync(1, null, It.IsAny<int>())).ReturnsAsync(new List<SmsMessage>());
+        var attachment = new PickedAttachment { FileName = "photo.jpg", LocalPath = "/tmp/photo.jpg", Kind = AttachmentKind.Image };
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890");
+
+        await viewModel.SendCommand.ExecuteAsync(attachment);
+
+        sms.Verify(s => s.SendMmsAsync(1, "5550148890", null, attachment), Times.Once);
+    }
+
+    [Fact]
     public async Task SendReactionCommand_sends_the_emoji_quoting_the_target_message()
     {
         var sms = new Mock<ISmsService>();

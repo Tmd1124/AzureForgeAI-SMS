@@ -244,15 +244,23 @@ public partial class ThreadDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task Send()
+    private async Task Send(Models.PickedAttachment? attachment)
     {
         var text = ComposeText.Trim();
-        if (string.IsNullOrEmpty(text))
+        if (string.IsNullOrEmpty(text) && attachment is null)
         {
             return;
         }
 
-        await _smsService.SendAsync(_address, text);
+        if (attachment is not null)
+        {
+            await _smsService.SendMmsAsync(_threadId, _address, string.IsNullOrEmpty(text) ? null : text, attachment);
+        }
+        else
+        {
+            await _smsService.SendAsync(_address, text);
+        }
+
         ComposeText = string.Empty;
         await Load();
     }

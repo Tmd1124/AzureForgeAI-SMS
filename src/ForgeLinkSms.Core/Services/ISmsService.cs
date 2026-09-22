@@ -14,4 +14,6 @@ public interface ISmsService
     Task<IReadOnlyList<SmsMessage>> GetNewerMessagesAsync(long threadId, DateTimeOffset afterTimestamp, int pageSize);
 
     Task SendAsync(string address, string body);
+
+    Task SendMmsAsync(long threadId, string address, string? body, PickedAttachment attachment);
 }

@@ -1,4 +1,5 @@
 using ForgeLinkSms.Core.Services;
+using PickedAttachment = ForgeLinkSms.Core.Models.PickedAttachment;
 using SmsMessage = ForgeLinkSms.Core.Models.SmsMessage;
 using SmsMessageStatus = ForgeLinkSms.Core.Models.SmsMessageStatus;
 using AndroidApp = global::Android.App.Application;
@@ -167,6 +168,9 @@ public class SmsService : ISmsService
 
         return results;
     }
+
+    public Task SendMmsAsync(long threadId, string address, string? body, PickedAttachment attachment) =>
+        MmsSender.SendAsync(threadId, address, body, attachment.LocalPath, attachment.FileName);
 
     public Task SendAsync(string address, string body)
     {
