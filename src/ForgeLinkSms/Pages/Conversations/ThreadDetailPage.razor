@@ -131,6 +131,10 @@
                     </div>
                     <div style="font-size:0.75em;color:#94a3b8;margin-top:2px;">
                         @message.Timestamp.LocalDateTime.ToString("h:mm tt")
+                        @if (message.Attachments.Any(a => _savedAttachmentPartIds.Contains(a.PartId)))
+                        {
+                            <span> · Saved</span>
+                        }
                         @if (!string.IsNullOrEmpty(message.StatusDisplay))
                         {
                             <span> · @message.StatusDisplay</span>
@@ -218,6 +222,7 @@
     private bool _showSaveToast;
     private string _saveToastMessage = string.Empty;
     private CancellationTokenSource? _saveToastCts;
+    private readonly HashSet<long> _savedAttachmentPartIds = new();
     private IContactService? _contactService;
     private Microsoft.JSInterop.DotNetObjectReference<ThreadDetailPage>? _dotNetRef;
 
@@ -268,7 +273,7 @@
         // meant a slow or failing "mark as read" call blocked the messages from ever showing.
         _ = MarkThreadAsReadBestEffortAsync();
 
-        HistoryTracker.LocalBackHandler = TryCloseReactionBarForBack;
+        HistoryTracker.LocalBackHandler = TryCloseOverlayForBack;
     }
 
     private async Task MarkThreadAsReadBestEffortAsync()
@@ -320,18 +325,24 @@
     }
 
     // The hardware back button is fully intercepted at the native layer (see MainActivity) to fix
-    // an unrelated bug, so it no longer reaches this overlay's own click-outside-to-close handler —
-    // it must close the reaction picker itself instead of falling through to leaving the thread.
-    private bool TryCloseReactionBarForBack()
+    // an unrelated bug, so it no longer reaches these overlays' own click-outside-to-close handlers —
+    // they must be closed here instead of falling through to leaving the thread.
+    private bool TryCloseOverlayForBack()
     {
-        if (_reactionTargetMessage is null)
+        if (_drawer is { IsOpen: true })
         {
-            return false;
+            _drawer.Close();
+            return true;
         }
 
-        CloseReactionBar();
-        StateHasChanged();
-        return true;
+        if (_reactionTargetMessage is not null)
+        {
+            CloseReactionBar();
+            StateHasChanged();
+            return true;
+        }
+
+        return false;
     }
 
     public void Dispose()
@@ -339,7 +350,7 @@
         // Blazor's router can create the next page before disposing this one, so only clear the
         // handler if it's still ours — otherwise this would wipe out a registration the next page
         // already made.
-        if (HistoryTracker.LocalBackHandler == TryCloseReactionBarForBack)
+        if (HistoryTracker.LocalBackHandler == TryCloseOverlayForBack)
         {
             HistoryTracker.LocalBackHandler = null;
         }
@@ -444,6 +455,10 @@
     private async Task SaveAttachment(ForgeLinkSms.Core.Models.MessageAttachment attachment)
     {
         var saved = await Services.GetRequiredService<IAttachmentSaveService>().SaveToDeviceAsync(attachment);
+        if (saved)
+        {
+            _savedAttachmentPartIds.Add(attachment.PartId);
+        }
         ShowSaveToast(saved ? "Saved" : "Couldn't save attachment");
     }
 

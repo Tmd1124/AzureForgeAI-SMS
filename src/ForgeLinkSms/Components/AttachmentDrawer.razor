@@ -7,7 +7,12 @@
 <style>
     .drawer-overlay {
         position: fixed;
-        inset: 0;
+        top: 0;
+        left: 0;
+        right: 0;
+        /* Stops above the compose bar (text box + send button) instead of covering it, so the
+           compose bar stays visible and usable while the drawer is open. */
+        bottom: 64px;
         background: rgba(0, 0, 0, 0.4);
         display: flex;
         align-items: flex-end;
@@ -170,6 +175,8 @@
 
     private bool _isOpen;
     private DrawerMode _mode = DrawerMode.Grid;
+
+    public bool IsOpen => _isOpen;
     private string? _toastMessage;
     private List<ContactInfo>? _contacts;
     private CancellationTokenSource? _toastCts;
@@ -192,7 +199,7 @@
         StateHasChanged();
     }
 
-    private void Close()
+    public void Close()
     {
         _isOpen = false;
         StateHasChanged();

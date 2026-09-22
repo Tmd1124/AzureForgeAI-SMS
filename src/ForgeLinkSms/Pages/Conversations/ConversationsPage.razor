@@ -8,6 +8,7 @@
 @inject ForgeLinkSms.Core.Services.IAppResumeNotifier AppResumeNotifier
 @inject ForgeLinkSms.Core.Services.NavigationHistoryTracker HistoryTracker
 @inject NavigationManager Nav
+@using ForgeLinkSms.Core.Utils
 
 <div style="padding:12px;">
     @if (_selectedThreadIds.Count > 0)
@@ -109,7 +110,7 @@
                     }
                     <div style="color:#94a3b8;font-size:0.85em;">@thread.PreviewText</div>
                 </div>
-                @if (_selectedThreadIds.Count == 0)
+                @if (_selectedThreadIds.Count == 0 && PhoneNumberFormatter.IsValidPhoneNumber(thread.Address))
                 {
                     <button @onclick="() => PhoneDialer.Default.Open(thread.Address)" @onclick:stopPropagation="true"
                             @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"
