@@ -26,16 +26,23 @@ public class ThreadService : IThreadService
     public async Task<IReadOnlyList<SmsThread>> GetThreadsAsync()
     {
         var context = AndroidApp.Context;
-        var latestByThread = new Dictionary<long, ThreadLatestMessage>();
 
-        // A thread's most recent activity can be either an SMS or an MMS (a photo, a group
-        // text, many RCS fallbacks), and the two live in entirely separate content:// tables
-        // with no shared "conversations" view this app can rely on — so both are read here
-        // and merged per thread_id, keeping whichever side is newer.
-        ReadLatestSmsPerThread(context, latestByThread);
-        ReadLatestMmsPerThread(context, latestByThread);
-
-        var rawRows = latestByThread.Values.ToList();
+        // The whole scan (including reading and base64-decoding any MMS image/GIF that's the
+        // newest message in a thread) is blocking ContentResolver work. Blazor Hybrid page
+        // lifecycle callbacks run on the UI thread by default, so without Task.Run this can
+        // freeze touch input long enough to trip Android's ANR watchdog on a device with many
+        // MMS-heavy conversations.
+        var rawRows = await Task.Run(() =>
+        {
+            // A thread's most recent activity can be either an SMS or an MMS (a photo, a group
+            // text, many RCS fallbacks), and the two live in entirely separate content:// tables
+            // with no shared "conversations" view this app can rely on — so both are read here
+            // and merged per thread_id, keeping whichever side is newer.
+            var latestByThread = new Dictionary<long, ThreadLatestMessage>();
+            ReadLatestSmsPerThread(context, latestByThread);
+            ReadLatestMmsPerThread(context, latestByThread);
+            return latestByThread.Values.ToList();
+        });
 
         // Each lookup is dispatched via Task.Run so the contact-provider query (a blocking
         // call) for every thread runs on its own thread-pool thread instead of one at a time —
@@ -113,7 +120,10 @@ public class ThreadService : IThreadService
             }
 
             var address = MmsReader.GetAddress(context, mms.Id, mms.IsOutgoing);
-            var (body, attachments) = MmsReader.GetContent(context, mms.Id);
+            // The conversation list only shows a text snippet (BuildPreviewText below uses the
+            // attachment's Kind/FileName, never DataUri), so skip decoding image/GIF bytes here —
+            // that cost is only worth paying once a thread is actually opened.
+            var (body, attachments) = MmsReader.GetContent(context, mms.Id, includeAttachmentData: false);
 
             latestByThread[mms.ThreadId] = new ThreadLatestMessage
             {

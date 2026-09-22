@@ -19,28 +19,22 @@ public class MarkAsReadService : IMarkAsReadService
         var threads = await _threadService.GetThreadsAsync();
         var unreadThreadIds = threads.Where(t => t.UnreadCount > 0).Select(t => t.Id).ToList();
 
-        SetReadFlag(unreadThreadIds, read: 1);
+        await Task.Run(() => SetReadFlag(unreadThreadIds, read: 1));
 
         return unreadThreadIds;
     }
 
-    public Task MarkThreadAsReadAsync(long threadId)
-    {
-        SetReadFlag(new[] { threadId }, read: 1);
-        return Task.CompletedTask;
-    }
+    // SetReadFlag is blocking ContentResolver work — Task.Run here matches SmsService/
+    // ThreadService, which back this same content://sms and content://mms tables off the UI
+    // thread for the same reason (a stall here can otherwise block a Blazor page's render).
+    public Task MarkThreadAsReadAsync(long threadId) =>
+        Task.Run(() => SetReadFlag(new[] { threadId }, read: 1));
 
-    public Task MarkThreadsAsReadAsync(IReadOnlyList<long> threadIds)
-    {
-        SetReadFlag(threadIds, read: 1);
-        return Task.CompletedTask;
-    }
+    public Task MarkThreadsAsReadAsync(IReadOnlyList<long> threadIds) =>
+        Task.Run(() => SetReadFlag(threadIds, read: 1));
 
-    public Task MarkThreadsAsUnreadAsync(IReadOnlyList<long> threadIds)
-    {
-        SetReadFlag(threadIds, read: 0);
-        return Task.CompletedTask;
-    }
+    public Task MarkThreadsAsUnreadAsync(IReadOnlyList<long> threadIds) =>
+        Task.Run(() => SetReadFlag(threadIds, read: 0));
 
     private static void SetReadFlag(IReadOnlyList<long> threadIds, int read)
     {

@@ -1,8 +1,10 @@
 @page "/conversations/thread"
 @implements IDisposable
+@implements IAsyncDisposable
 @inject IServiceProvider Services
 @inject ForgeLinkSms.Core.Services.ICalendarService CalendarService
 @inject ForgeLinkSms.Core.Services.NavigationHistoryTracker HistoryTracker
+@inject Microsoft.JSInterop.IJSRuntime JS
 @using Microsoft.Extensions.DependencyInjection
 @using ForgeLinkSms.Components
 @using ForgeLinkSms.Core.Models
@@ -40,16 +42,39 @@
 {
     <div style="display:flex;flex-direction:column;height:100vh;">
         <div @onclick="OpenContact" style="padding:10px;background:var(--card-color);border-bottom:1px solid #eee;cursor:pointer;">@DisplayName</div>
-        <div style="flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column-reverse;">
+        @if (ViewModel.LoadFailed)
+        {
+            <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:16px;color:#94a3b8;">
+                <span>Couldn't load messages.</span>
+                <button @onclick="() => ViewModel!.LoadCommand.ExecuteAsync(null)" style="border:none;background:var(--accent-color);color:white;padding:8px 16px;border-radius:8px;">Retry</button>
+            </div>
+        }
+        <div id="thread-scroll-container" style="flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column-reverse;">
+            @* First DOM child = visual bottom in a column-reverse container, i.e. right below the
+               newest currently-loaded message — where a "catching up to latest" hint belongs. *@
+            @if (ViewModel.IsLoadingNewer)
+            {
+                <div style="text-align:center;color:#94a3b8;font-size:0.85em;padding:8px;">Loading recent messages…</div>
+            }
             @* Rendered newest-first: paired with column-reverse, the browser's default scroll
                position lands on the newest message (bottom) without any JS interop, and stays
                pinned there as new messages arrive — same trick every chat UI uses.
                Date separators are emitted right after the message that starts a new day: since
                column-reverse fully flips DOM order into visual order, "after in this DOM loop"
                is "above it" on screen — i.e. exactly where a separator for that day belongs. *@
+            @* @key is essential here, not cosmetic: LoadOlderMessages prepends to Messages, and
+               without a stable key Blazor's diff matches elements by position, so every already-
+               rendered message (image data included) looks "changed" and gets re-sent on every
+               insert. That turned a 50-message page into a render batch big enough to exceed the
+               WebView bridge's JSON size limit and crash the page.
+               The key can't be message.Id alone: SMS and MMS are separate tables with their own
+               auto-increment _id sequences, so an SMS row and an MMS row in the same thread can
+               share a numeric Id — Blazor treats a duplicate key as a hard error, not a warning.
+               Pairing Id with the exact timestamp (millisecond for SMS, second for MMS) makes a
+               genuine collision practically impossible. *@
             @foreach (var (message, showDateSeparator) in MessagesWithDateSeparators().Reverse())
             {
-                <div style="display:flex;flex-direction:column;align-items:@(message.IsOutgoing ? "flex-end" : "flex-start");margin:4px 4px;">
+                <div @key="@($"{message.Id}-{message.Timestamp.Ticks}")" style="display:flex;flex-direction:column;align-items:@(message.IsOutgoing ? "flex-end" : "flex-start");margin:4px 4px;">
                     <div @onpointerdown="() => OnMessagePointerDown(message)"
                          @onpointerup="CancelMessageLongPress"
                          @onpointerleave="CancelMessageLongPress"
@@ -100,10 +125,22 @@
                 </div>
                 @if (showDateSeparator)
                 {
-                    <div style="text-align:center;color:#94a3b8;font-size:0.8em;margin:12px 0 4px;">
-                        @FormatDateSeparator(DateOnly.FromDateTime(message.Timestamp.LocalDateTime))
+                    @* Keyed off the adjacent message's own (already-unique) key rather than just
+                       the date: if the same calendar date ever shows up as non-contiguous in
+                       Messages for any reason, two separators for that date would otherwise both
+                       claim the same "date-yyyyMMdd" key, which Blazor treats as a hard error. *@
+                    <div @key="@($"date-{message.Timestamp:yyyyMMdd}-{message.Id}-{message.Timestamp.Ticks}")" style="text-align:center;color:#94a3b8;font-size:0.8em;margin:12px 0 4px;">
+                        @FormatDateSeparator(message.Timestamp)
                     </div>
                 }
+            }
+            @* column-reverse means the last DOM child renders at the visual top — i.e. right
+               above the oldest currently-loaded message, exactly where a "loading older" hint
+               belongs. Scrolling to fetch more is driven by a plain scroll listener on the
+               container itself (see OnAfterRenderAsync), not this indicator. *@
+            @if (ViewModel.IsLoadingMore)
+            {
+                <div style="text-align:center;color:#94a3b8;font-size:0.85em;padding:8px;">Loading older messages…</div>
             }
         </div>
         <PendingAttachmentPreview Attachment="_pendingAttachment" OnRemove="() => _pendingAttachment = null" />
@@ -158,6 +195,7 @@
     private ForgeLinkSms.Core.Models.PickedAttachment? _pendingAttachment;
     private DateTimeOffset? _scheduledSendTime;
     private IContactService? _contactService;
+    private Microsoft.JSInterop.DotNetObjectReference<ThreadDetailPage>? _dotNetRef;
 
     private async Task SendOrSchedule()
     {
@@ -192,9 +230,61 @@
         ViewModel = new ThreadDetailViewModel(smsService, scheduler, ThreadId, Address);
         await ViewModel.LoadCommand.ExecuteAsync(null);
 
-        await Services.GetRequiredService<IMarkAsReadService>().MarkThreadAsReadAsync(ThreadId);
+        // Fire-and-forget: flipping the read flag is best-effort housekeeping, not something the
+        // thread's messages should ever wait on to render — Blazor doesn't paint the updated
+        // Messages collection until this whole method returns, so awaiting this here previously
+        // meant a slow or failing "mark as read" call blocked the messages from ever showing.
+        _ = MarkThreadAsReadBestEffortAsync();
 
         HistoryTracker.LocalBackHandler = TryCloseReactionBarForBack;
+    }
+
+    private async Task MarkThreadAsReadBestEffortAsync()
+    {
+        try
+        {
+            await Services.GetRequiredService<IMarkAsReadService>().MarkThreadAsReadAsync(ThreadId);
+        }
+        catch (Exception)
+        {
+            // Best-effort — a failure here shouldn't affect anything the user can see.
+        }
+    }
+
+    // The scroll container itself never gets removed/re-added across re-renders (unlike its
+    // children), so the listener only needs attaching once.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = Microsoft.JSInterop.DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("forgeLinkInfiniteScroll.observe", "thread-scroll-container", _dotNetRef);
+        }
+    }
+
+    [Microsoft.JSInterop.JSInvokable]
+    public async Task OnScrolledNearOldestMessage()
+    {
+        if (ViewModel is not null)
+        {
+            // Unlike a Blazor-bound event handler (@onclick, @onscroll), a [JSInvokable] method
+            // reached via raw JS interop doesn't automatically trigger a re-render when it
+            // completes — the ViewModel's Messages collection was genuinely growing on every
+            // scroll, but the page never repainted to show it, so it looked permanently stuck
+            // at the first page.
+            await ViewModel.LoadOlderMessagesCommand.ExecuteAsync(null);
+            StateHasChanged();
+        }
+    }
+
+    [Microsoft.JSInterop.JSInvokable]
+    public async Task OnScrolledNearNewestMessage()
+    {
+        if (ViewModel is not null)
+        {
+            await ViewModel.LoadNewerMessagesCommand.ExecuteAsync(null);
+            StateHasChanged();
+        }
     }
 
     // The hardware back button is fully intercepted at the native layer (see MainActivity) to fix
@@ -223,6 +313,21 @@
         }
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("forgeLinkInfiniteScroll.dispose", "thread-scroll-container");
+        }
+        catch (Exception)
+        {
+            // The WebView/circuit may already be tearing down by the time this runs — nothing
+            // to clean up on the JS side in that case.
+        }
+
+        _dotNetRef?.Dispose();
+    }
+
     private IEnumerable<(ForgeLinkSms.Core.Models.SmsMessage Message, bool ShowDateSeparator)> MessagesWithDateSeparators()
     {
         DateOnly? lastDate = null;
@@ -234,8 +339,19 @@
         }
     }
 
-    private static string FormatDateSeparator(DateOnly date)
+    private static string FormatDateSeparator(DateTimeOffset timestamp)
     {
+        // Android occasionally loses an MMS's date/date_sent entirely (both columns read back as
+        // 0, i.e. the Unix epoch) — confirmed on a real device against a genuinely sent photo
+        // whose timestamp metadata never got written. The message itself is real content and
+        // still gets shown; it just can't carry a meaningful date, so show that plainly instead
+        // of the misleading "December 31, 1969" a literal epoch timestamp would format to.
+        if (timestamp == DateTimeOffset.UnixEpoch)
+        {
+            return "Unknown date";
+        }
+
+        var date = DateOnly.FromDateTime(timestamp.LocalDateTime);
         var today = DateOnly.FromDateTime(DateTime.Now);
         if (date == today)
         {

@@ -1,3 +1,4 @@
+using System.Threading;
 using ForgeLinkSms.Core.Models;
 using ForgeLinkSms.Core.Utils;
 using AndroidContext = global::Android.Content.Context;
@@ -22,6 +23,37 @@ internal static class MmsReader
     // bigger gets shown as a plain file chip instead of decoding multi-megabyte bytes into a
     // base64 string that both this process and the WebView would have to hold in memory.
     private const long MaxInlineAttachmentBytes = 5 * 1024 * 1024;
+
+    // A per-attachment cap alone isn't enough: a single page of 50 messages can still contain
+    // a cluster of many images each just under that cap, and their combined base64 size is what
+    // actually gets serialized into one Blazor render batch and shipped to the WebView. A real
+    // thread with a run of camera photos produced a batch over 160MB this way, which the WebView's
+    // JSON writer refuses to serialize and crashes the whole page. AttachmentBudget bounds the
+    // total raw bytes inlined across one page's worth of attachments; once it's spent, remaining
+    // images in that page fall back to the file-chip UI instead of blowing the batch size up
+    // further.
+    public sealed class AttachmentBudget
+    {
+        private long _remainingBytes;
+
+        public AttachmentBudget(long totalBytes) => _remainingBytes = totalBytes;
+
+        public bool TryReserve(long bytes)
+        {
+            while (true)
+            {
+                var current = Interlocked.Read(ref _remainingBytes);
+                if (bytes > current)
+                {
+                    return false;
+                }
+                if (Interlocked.CompareExchange(ref _remainingBytes, current - bytes, current) == current)
+                {
+                    return true;
+                }
+            }
+        }
+    }
 
     public sealed class MmsSummary
     {
@@ -106,7 +138,7 @@ internal static class MmsReader
         return fallback ?? string.Empty;
     }
 
-    public static (string Body, List<MessageAttachment> Attachments) GetContent(AndroidContext context, long mmsId)
+    public static (string Body, List<MessageAttachment> Attachments) GetContent(AndroidContext context, long mmsId, bool includeAttachmentData = true, AttachmentBudget? budget = null)
     {
         var partUri = AndroidUri.Parse("content://mms/part")!;
         var projection = new[] { "_id", "ct", "text", "name", "cl" };
@@ -151,8 +183,11 @@ internal static class MmsReader
 
             var fileName = cursor.GetString(nameIdx) ?? cursor.GetString(clIdx) ?? $"attachment-{partId}";
             var kind = AttachmentKindClassifier.FromContentType(contentType);
-            var dataUri = kind is AttachmentKind.Image or AttachmentKind.Gif
-                ? ReadPartAsDataUri(context, partId, contentType)
+            // Decoding and base64-encoding image/GIF bytes is the expensive part of reading an
+            // MMS — skip it entirely when the caller only needs a preview label (kind + file
+            // name), e.g. building the conversation list's snippet text for dozens of threads.
+            var dataUri = includeAttachmentData && kind is AttachmentKind.Image or AttachmentKind.Gif
+                ? ReadPartAsDataUri(context, partId, contentType, budget)
                 : null;
 
             attachments.Add(new MessageAttachment
@@ -184,7 +219,7 @@ internal static class MmsReader
         }
     }
 
-    private static string? ReadPartAsDataUri(AndroidContext context, long partId, string contentType)
+    private static string? ReadPartAsDataUri(AndroidContext context, long partId, string contentType, AttachmentBudget? budget)
     {
         try
         {
@@ -196,6 +231,10 @@ internal static class MmsReader
             using var memoryStream = new MemoryStream();
             stream.CopyTo(memoryStream);
             if (memoryStream.Length > MaxInlineAttachmentBytes)
+            {
+                return null;
+            }
+            if (budget is not null && !budget.TryReserve(memoryStream.Length))
             {
                 return null;
             }
