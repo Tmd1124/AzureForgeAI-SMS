@@ -746,6 +746,58 @@ public class ConversationsViewModelTests
     }
 
     [Fact]
+    public async Task ActiveFilterIds_stacks_with_SearchText()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi"),
+            MakeThread(2, "5550148890", "Bob Jones", "hey")
+        });
+        var filterRepository = new Mock<IFilterRepository>();
+        filterRepository.Setup(r => r.GetAllFiltersAsync()).ReturnsAsync(new List<Filter>());
+        filterRepository.Setup(r => r.GetAllAssignmentsAsync()).ReturnsAsync(new Dictionary<long, List<long>>
+        {
+            [1] = new List<long> { 10 },
+            [2] = new List<long> { 10 }
+        });
+        var viewModel = MakeViewModel(threadService, filterRepository: filterRepository);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+        viewModel.ToggleActiveFilter(10);
+
+        viewModel.SearchText = "alice";
+
+        Assert.Single(viewModel.Threads);
+        Assert.Equal(1, viewModel.Threads[0].Id);
+    }
+
+    [Fact]
+    public async Task LoadCommand_prunes_ActiveFilterIds_of_filters_that_no_longer_exist()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231", "Alice Smith", "hi"),
+            MakeThread(2, "5550148890", "Bob Jones", "hey")
+        });
+        var filterRepository = new Mock<IFilterRepository>();
+        filterRepository.SetupSequence(r => r.GetAllFiltersAsync())
+            .ReturnsAsync(new List<Filter> { new() { Id = 10, Name = "Work", ColorHex = "#6366f1" } })
+            .ReturnsAsync(new List<Filter>());
+        filterRepository.Setup(r => r.GetAllAssignmentsAsync()).ReturnsAsync(new Dictionary<long, List<long>>
+        {
+            [1] = new List<long> { 10 }
+        });
+        var viewModel = MakeViewModel(threadService, filterRepository: filterRepository);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+        viewModel.ToggleActiveFilter(10);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.DoesNotContain(10L, viewModel.ActiveFilterIds);
+    }
+
+    [Fact]
     public async Task ToggleFilterForThreadsCommand_assigns_the_filter_to_every_thread_missing_it()
     {
         var threadService = new Mock<IThreadService>();

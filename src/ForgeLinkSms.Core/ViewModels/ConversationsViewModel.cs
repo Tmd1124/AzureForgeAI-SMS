@@ -82,6 +82,7 @@ public partial class ConversationsViewModel : ObservableObject
             {
                 Filters.Add(filter);
             }
+            ActiveFilterIds.RemoveWhere(id => Filters.All(f => f.Id != id));
 
             _allThreads = threads
                 .Where(t => !trashedIds.Contains(t.Id) && !blockedNumbers.Contains(t.Address) && !archivedIds.Contains(t.Id))
