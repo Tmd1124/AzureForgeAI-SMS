@@ -1,0 +1,70 @@
+@using ForgeLinkSms.Core.Models
+
+@if (_isOpen)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;z-index:20;" @onclick="Close">
+        <div style="background:var(--card-color);width:100%;padding:12px;border-radius:16px 16px 0 0;max-height:60vh;overflow-y:auto;" @onclick:stopPropagation="true">
+            @if (Filters.Count == 0)
+            {
+                <p style="text-align:center;color:#94a3b8;padding:12px;">No filters yet.</p>
+            }
+            else
+            {
+                @foreach (var filter in Filters)
+                {
+                    <div @onclick="() => OnToggle.InvokeAsync(filter)"
+                         style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #eee;cursor:pointer;">
+                        <div style="width:20px;height:20px;border-radius:50%;background:@filter.ColorHex;flex-shrink:0;"></div>
+                        <span style="flex:1;">@filter.Name</span>
+                        <div style="width:20px;height:20px;border:2px solid var(--accent-color);border-radius:4px;display:flex;align-items:center;justify-content:center;background:@(IsChecked(filter) ? "var(--accent-color)" : "transparent");color:white;flex-shrink:0;">
+                            @(IsChecked(filter) ? "✓" : "")
+                        </div>
+                    </div>
+                }
+            }
+            @if (ShowManageLink)
+            {
+                <div @onclick="OnManageFilters" style="padding:12px 0 0;color:var(--accent-color);font-weight:600;cursor:pointer;">
+                    Manage filters
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isOpen;
+
+    public bool IsOpen => _isOpen;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Filter> Filters { get; set; } = Array.Empty<Filter>();
+
+    [Parameter, EditorRequired]
+    public Func<Filter, bool> IsChecked { get; set; } = _ => false;
+
+    [Parameter]
+    public EventCallback<Filter> OnToggle { get; set; }
+
+    [Parameter]
+    public bool ShowManageLink { get; set; }
+
+    [Parameter]
+    public EventCallback OnManageFilters { get; set; }
+
+    [Parameter]
+    public EventCallback OnClosed { get; set; }
+
+    public void Open()
+    {
+        _isOpen = true;
+        StateHasChanged();
+    }
+
+    public void Close()
+    {
+        _isOpen = false;
+        StateHasChanged();
+        _ = OnClosed.InvokeAsync();
+    }
+}
