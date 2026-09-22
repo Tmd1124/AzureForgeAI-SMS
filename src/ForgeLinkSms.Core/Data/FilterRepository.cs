@@ -14,8 +14,16 @@ public class FilterRepository : IFilterRepository, IDisposable
 
     public async Task InitializeAsync()
     {
-        await _db.CreateTableAsync<Filter>();
-        await _db.CreateTableAsync<ThreadFilterAssignment>();
+        // ConfigureAwait(false) is required here specifically: MauiProgram.cs calls this
+        // synchronously via .GetAwaiter().GetResult() on Android's main thread during app
+        // startup. Without it, the second await's continuation would need to resume on that
+        // same main thread's captured SynchronizationContext — which is unavailable because
+        // that thread is blocked waiting on this very method, deadlocking app startup into an
+        // ANR ("failed to complete startup"). None of this repository's other methods are ever
+        // called this way (they're always awaited normally from a ViewModel), so they don't
+        // need it.
+        await _db.CreateTableAsync<Filter>().ConfigureAwait(false);
+        await _db.CreateTableAsync<ThreadFilterAssignment>().ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<Filter>> GetAllFiltersAsync() =>
