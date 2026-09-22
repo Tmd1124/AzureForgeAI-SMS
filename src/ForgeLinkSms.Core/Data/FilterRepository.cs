@@ -44,8 +44,12 @@ public class FilterRepository : IFilterRepository, IDisposable
 
     public async Task DeleteFilterAsync(long filterId)
     {
-        await _db.ExecuteAsync("DELETE FROM ThreadFilterAssignment WHERE FilterId = ?", filterId);
-        await _db.DeleteAsync<Filter>(filterId);
+        // ConfigureAwait(false) as a standing precaution: this method isn't called synchronously
+        // today, but InitializeAsync's identical shape without it deadlocked app startup once
+        // already (see the comment there) — cheap insurance against the same call pattern being
+        // introduced here later.
+        await _db.ExecuteAsync("DELETE FROM ThreadFilterAssignment WHERE FilterId = ?", filterId).ConfigureAwait(false);
+        await _db.DeleteAsync<Filter>(filterId).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyDictionary<long, List<long>>> GetAllAssignmentsAsync()
@@ -58,12 +62,13 @@ public class FilterRepository : IFilterRepository, IDisposable
 
     public async Task AssignFilterAsync(long threadId, long filterId)
     {
+        // ConfigureAwait(false) as a standing precaution — see DeleteFilterAsync.
         var existing = await _db.Table<ThreadFilterAssignment>()
             .Where(a => a.ThreadId == threadId && a.FilterId == filterId)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync().ConfigureAwait(false);
         if (existing is null)
         {
-            await _db.InsertAsync(new ThreadFilterAssignment { ThreadId = threadId, FilterId = filterId });
+            await _db.InsertAsync(new ThreadFilterAssignment { ThreadId = threadId, FilterId = filterId }).ConfigureAwait(false);
         }
     }
 
