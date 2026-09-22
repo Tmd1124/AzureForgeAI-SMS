@@ -140,4 +140,18 @@ public class FilterRepositoryTests : IDisposable
         Assert.Contains(work.Id, assignments[1]);
         Assert.Contains(urgent.Id, assignments[1]);
     }
+
+    [Fact]
+    public async Task RemoveAllAssignmentsForThreadAsync_removes_only_that_threads_assignments()
+    {
+        var filter = await _repository.CreateFilterAsync("Work", "#6366f1");
+        await _repository.AssignFilterAsync(threadId: 1, filterId: filter.Id);
+        await _repository.AssignFilterAsync(threadId: 2, filterId: filter.Id);
+
+        await _repository.RemoveAllAssignmentsForThreadAsync(1);
+
+        var assignments = await _repository.GetAllAssignmentsAsync();
+        Assert.False(assignments.ContainsKey(1));
+        Assert.True(assignments.ContainsKey(2));
+    }
 }

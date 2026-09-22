@@ -75,6 +75,9 @@ public class FilterRepository : IFilterRepository, IDisposable
     public Task UnassignFilterAsync(long threadId, long filterId) =>
         _db.ExecuteAsync("DELETE FROM ThreadFilterAssignment WHERE ThreadId = ? AND FilterId = ?", threadId, filterId);
 
+    public Task RemoveAllAssignmentsForThreadAsync(long threadId) =>
+        _db.ExecuteAsync("DELETE FROM ThreadFilterAssignment WHERE ThreadId = ?", threadId);
+
     public void Dispose()
     {
         _db.CloseAsync().GetAwaiter().GetResult();

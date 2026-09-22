@@ -28,6 +28,12 @@ public class TrashRepository : ITrashRepository, IDisposable
         return rows.Select(r => r.ThreadId).ToList();
     }
 
+    public async Task<IReadOnlyList<long>> GetExpiredThreadIdsAsync(DateTimeOffset olderThan)
+    {
+        var rows = await _db.Table<TrashedThread>().Where(t => t.TrashedAtUtc < olderThan).ToListAsync();
+        return rows.Select(r => r.ThreadId).ToList();
+    }
+
     public void Dispose()
     {
         _db.CloseAsync().GetAwaiter().GetResult();

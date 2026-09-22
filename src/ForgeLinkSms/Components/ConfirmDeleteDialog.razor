@@ -1,0 +1,41 @@
+@if (_isOpen)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;z-index:30;" @onclick="Close">
+        <div style="background:var(--card-color);width:100%;padding:20px;border-radius:16px 16px 0 0;box-sizing:border-box;" @onclick:stopPropagation="true">
+            <p style="margin:0 0 16px;font-weight:600;color:var(--text-color);">Permanently delete @_count conversation@(_count == 1 ? "" : "s")? This cannot be undone.</p>
+            <div style="display:flex;gap:12px;">
+                <button @onclick="Close" style="flex:1;padding:12px;border-radius:8px;border:none;background:#e2e8f0;color:#1e293b;font-size:1em;">Cancel</button>
+                <button @onclick="ConfirmClick" style="flex:1;padding:12px;border-radius:8px;border:none;background:#ef4444;color:white;font-size:1em;font-weight:600;">Delete</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isOpen;
+    private int _count;
+
+    public bool IsOpen => _isOpen;
+
+    [Parameter]
+    public EventCallback OnConfirm { get; set; }
+
+    public void Open(int count)
+    {
+        _count = count;
+        _isOpen = true;
+        StateHasChanged();
+    }
+
+    public void Close()
+    {
+        _isOpen = false;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmClick()
+    {
+        Close();
+        await OnConfirm.InvokeAsync();
+    }
+}

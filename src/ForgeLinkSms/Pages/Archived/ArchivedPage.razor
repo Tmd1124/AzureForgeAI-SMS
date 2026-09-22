@@ -1,8 +1,32 @@
 @page "/archived"
+@implements IDisposable
 @inject ForgeLinkSms.Core.ViewModels.ArchivedViewModel ViewModel
+@inject ForgeLinkSms.Core.Services.NavigationHistoryTracker HistoryTracker
+@using ForgeLinkSms.Components
 
 <div style="padding:12px;">
-    <h3>Archived</h3>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <h3 style="margin:0;">Archived</h3>
+        @if (ViewModel.ArchivedThreads.Count > 0)
+        {
+            <div style="display:flex;align-items:center;gap:12px;">
+                @if (_selectedThreadIds.Count > 0)
+                {
+                    <span>@_selectedThreadIds.Count selected</span>
+                }
+                <span @onclick="ToggleSelectAll" style="color:var(--accent-color);cursor:pointer;font-weight:600;">
+                    @(AllSelected() ? "Deselect all" : "Select all")
+                </span>
+                @if (_selectedThreadIds.Count > 0)
+                {
+                    <button @onclick="OpenDeleteConfirm" title="Delete selected"
+                            style="border:none;background:transparent;color:#ef4444;font-size:1.4em;font-weight:bold;line-height:1;padding:0;">
+                        ✕
+                    </button>
+                }
+            </div>
+        }
+    </div>
 
     @if (ViewModel.ArchivedThreads.Count == 0)
     {
@@ -12,8 +36,12 @@
     {
         @foreach (var thread in ViewModel.ArchivedThreads)
         {
-            <div style="padding:10px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
-                <div>
+            <div style="padding:10px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:10px;">
+                <div @onclick="() => ToggleSelection(thread.Id)"
+                     style="width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.9em;background:@(_selectedThreadIds.Contains(thread.Id) ? "var(--accent-color)" : "transparent");border:2px solid var(--accent-color);color:white;cursor:pointer;">
+                    @(_selectedThreadIds.Contains(thread.Id) ? "✓" : "")
+                </div>
+                <div style="flex:1;min-width:0;">
                     <strong>@thread.DisplayNameOrAddress</strong>
                     <div style="color:#94a3b8;font-size:0.85em;">@thread.PreviewText</div>
                 </div>
@@ -23,9 +51,80 @@
     }
 </div>
 
+<ConfirmDeleteDialog @ref="_confirmDialog" OnConfirm="DeleteSelected" />
+
 @code {
+    private readonly HashSet<long> _selectedThreadIds = new();
+    private ConfirmDeleteDialog? _confirmDialog;
+
     protected override async Task OnInitializedAsync()
     {
         await ViewModel.LoadCommand.ExecuteAsync(null);
+        HistoryTracker.LocalBackHandler = TryCloseOverlayForBack;
+    }
+
+    // The hardware back button is fully intercepted at the native layer (see MainActivity), so
+    // it no longer reaches this page's own click handlers — it must close the confirm dialog or
+    // clear an active selection itself instead of falling through to leaving the page.
+    private bool TryCloseOverlayForBack()
+    {
+        if (_confirmDialog is { IsOpen: true })
+        {
+            _confirmDialog.Close();
+            return true;
+        }
+
+        if (_selectedThreadIds.Count == 0)
+        {
+            return false;
+        }
+
+        _selectedThreadIds.Clear();
+        StateHasChanged();
+        return true;
+    }
+
+    public void Dispose()
+    {
+        if (HistoryTracker.LocalBackHandler == TryCloseOverlayForBack)
+        {
+            HistoryTracker.LocalBackHandler = null;
+        }
+    }
+
+    private void ToggleSelection(long threadId)
+    {
+        if (!_selectedThreadIds.Remove(threadId))
+        {
+            _selectedThreadIds.Add(threadId);
+        }
+    }
+
+    private bool AllSelected() =>
+        ViewModel.ArchivedThreads.Count > 0 &&
+        ViewModel.ArchivedThreads.All(t => _selectedThreadIds.Contains(t.Id));
+
+    private void ToggleSelectAll()
+    {
+        if (AllSelected())
+        {
+            _selectedThreadIds.Clear();
+        }
+        else
+        {
+            foreach (var thread in ViewModel.ArchivedThreads)
+            {
+                _selectedThreadIds.Add(thread.Id);
+            }
+        }
+    }
+
+    private void OpenDeleteConfirm() => _confirmDialog?.Open(_selectedThreadIds.Count);
+
+    private async Task DeleteSelected()
+    {
+        var ids = _selectedThreadIds.ToList();
+        _selectedThreadIds.Clear();
+        await ViewModel.DeleteThreadsCommand.ExecuteAsync(ids);
     }
 }

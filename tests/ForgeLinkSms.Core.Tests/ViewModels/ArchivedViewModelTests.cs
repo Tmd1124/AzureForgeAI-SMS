@@ -29,7 +29,7 @@ public class ArchivedViewModelTests
             MakeThread(1, "5550142231"),
             MakeThread(2, "5550148890")
         });
-        var viewModel = new ArchivedViewModel(archiveRepository.Object, threadService.Object);
+        var viewModel = MakeViewModel(archiveRepository, threadService);
 
         await viewModel.LoadCommand.ExecuteAsync(null);
 
@@ -46,7 +46,7 @@ public class ArchivedViewModelTests
             .ReturnsAsync(new List<long>());
         var threadService = new Mock<IThreadService>();
         threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread> { MakeThread(2, "5550148890") });
-        var viewModel = new ArchivedViewModel(archiveRepository.Object, threadService.Object);
+        var viewModel = MakeViewModel(archiveRepository, threadService);
         await viewModel.LoadCommand.ExecuteAsync(null);
 
         await viewModel.UnarchiveCommand.ExecuteAsync(2L);
@@ -54,4 +54,49 @@ public class ArchivedViewModelTests
         archiveRepository.Verify(r => r.UnarchiveThreadAsync(2), Times.Once);
         Assert.Empty(viewModel.ArchivedThreads);
     }
+
+    [Fact]
+    public async Task DeleteThreadsCommand_permanently_deletes_every_selected_thread_and_reloads()
+    {
+        var archiveRepository = new Mock<IArchiveRepository>();
+        archiveRepository.SetupSequence(r => r.GetArchivedThreadIdsAsync())
+            .ReturnsAsync(new List<long> { 1, 2 })
+            .ReturnsAsync(new List<long>());
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5550142231"),
+            MakeThread(2, "5550148890")
+        });
+        var threadDeletionService = new Mock<IThreadDeletionService>();
+        var favoriteRepository = new Mock<IFavoriteRepository>();
+        var filterRepository = new Mock<IFilterRepository>();
+        var viewModel = MakeViewModel(archiveRepository, threadService, threadDeletionService, favoriteRepository, filterRepository);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.DeleteThreadsCommand.ExecuteAsync(new List<long> { 1, 2 });
+
+        threadDeletionService.Verify(s => s.DeleteThreadAsync(1), Times.Once);
+        threadDeletionService.Verify(s => s.DeleteThreadAsync(2), Times.Once);
+        favoriteRepository.Verify(r => r.UnfavoriteThreadAsync(1), Times.Once);
+        favoriteRepository.Verify(r => r.UnfavoriteThreadAsync(2), Times.Once);
+        filterRepository.Verify(r => r.RemoveAllAssignmentsForThreadAsync(1), Times.Once);
+        filterRepository.Verify(r => r.RemoveAllAssignmentsForThreadAsync(2), Times.Once);
+        archiveRepository.Verify(r => r.UnarchiveThreadAsync(1), Times.Once);
+        archiveRepository.Verify(r => r.UnarchiveThreadAsync(2), Times.Once);
+        Assert.Empty(viewModel.ArchivedThreads);
+    }
+
+    private static ArchivedViewModel MakeViewModel(
+        Mock<IArchiveRepository> archiveRepository,
+        Mock<IThreadService> threadService,
+        Mock<IThreadDeletionService>? threadDeletionService = null,
+        Mock<IFavoriteRepository>? favoriteRepository = null,
+        Mock<IFilterRepository>? filterRepository = null) =>
+        new(
+            archiveRepository.Object,
+            threadService.Object,
+            (threadDeletionService ?? new Mock<IThreadDeletionService>()).Object,
+            (favoriteRepository ?? new Mock<IFavoriteRepository>()).Object,
+            (filterRepository ?? new Mock<IFilterRepository>()).Object);
 }

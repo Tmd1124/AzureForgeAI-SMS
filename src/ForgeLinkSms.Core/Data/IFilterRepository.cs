@@ -13,4 +13,9 @@ public interface IFilterRepository
     Task<IReadOnlyDictionary<long, List<long>>> GetAllAssignmentsAsync();
     Task AssignFilterAsync(long threadId, long filterId);
     Task UnassignFilterAsync(long threadId, long filterId);
+
+    /// Removes every filter assignment for a thread — used when a thread is permanently
+    /// deleted, since Android can reuse a thread_id for an unrelated later conversation and a
+    /// leftover assignment would otherwise silently apply to it.
+    Task RemoveAllAssignmentsForThreadAsync(long threadId);
 }
