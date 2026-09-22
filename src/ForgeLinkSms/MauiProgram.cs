@@ -62,6 +62,7 @@ public static class MauiProgram
 		var filterRepository = new FilterRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
 		filterRepository.InitializeAsync().GetAwaiter().GetResult();
 		builder.Services.AddSingleton<IFilterRepository>(filterRepository);
+		builder.Services.AddTransient<FiltersViewModel>();
 
 		var scheduledMessageRepository = new ScheduledMessageRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
 		scheduledMessageRepository.InitializeAsync().GetAwaiter().GetResult();
