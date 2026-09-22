@@ -17,10 +17,13 @@ public partial class ConversationsViewModel : ObservableObject
     private readonly IUndoStack _undoStack;
     private readonly IMarkAsReadService _markAsReadService;
     private readonly IArchiveRepository _archiveRepository;
+    private readonly IFilterRepository _filterRepository;
     private IReadOnlyList<SmsThread> _allThreads = Array.Empty<SmsThread>();
     private bool _isLoadingThreads;
 
     public ObservableCollection<SmsThread> Threads { get; } = new();
+    public ObservableCollection<Filter> Filters { get; } = new();
+    public HashSet<long> ActiveFilterIds { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Threads))]
@@ -37,7 +40,8 @@ public partial class ConversationsViewModel : ObservableObject
         IFavoriteRepository favoriteRepository,
         IUndoStack undoStack,
         IMarkAsReadService markAsReadService,
-        IArchiveRepository archiveRepository)
+        IArchiveRepository archiveRepository,
+        IFilterRepository filterRepository)
     {
         _threadService = threadService;
         _trashRepository = trashRepository;
@@ -46,6 +50,7 @@ public partial class ConversationsViewModel : ObservableObject
         _undoStack = undoStack;
         _markAsReadService = markAsReadService;
         _archiveRepository = archiveRepository;
+        _filterRepository = filterRepository;
     }
 
     [RelayCommand]
@@ -69,12 +74,21 @@ public partial class ConversationsViewModel : ObservableObject
             var blockedNumbers = await _blockService.GetBlockedNumbersAsync();
             var favoriteIds = await _favoriteRepository.GetFavoriteThreadIdsAsync();
             var archivedIds = await _archiveRepository.GetArchivedThreadIdsAsync();
+            var filters = await _filterRepository.GetAllFiltersAsync();
+            var assignments = await _filterRepository.GetAllAssignmentsAsync();
+
+            Filters.Clear();
+            foreach (var filter in filters)
+            {
+                Filters.Add(filter);
+            }
 
             _allThreads = threads
                 .Where(t => !trashedIds.Contains(t.Id) && !blockedNumbers.Contains(t.Address) && !archivedIds.Contains(t.Id))
                 .Select(t =>
                 {
                     t.IsFavorite = favoriteIds.Contains(t.Id);
+                    t.FilterIds = assignments.TryGetValue(t.Id, out var ids) ? ids : new List<long>();
                     return t;
                 })
                 .ToList();
@@ -287,6 +301,49 @@ public partial class ConversationsViewModel : ObservableObject
         ApplyFilter();
     }
 
+    public void ToggleActiveFilter(long filterId)
+    {
+        if (!ActiveFilterIds.Remove(filterId))
+        {
+            ActiveFilterIds.Add(filterId);
+        }
+        ApplyFilter();
+    }
+
+    [RelayCommand]
+    private async Task ToggleFilterForThreads((IReadOnlyList<long> ThreadIds, long FilterId) args)
+    {
+        var threads = args.ThreadIds
+            .Select(id => _allThreads.FirstOrDefault(t => t.Id == id))
+            .Where(t => t is not null)
+            .Cast<SmsThread>()
+            .ToList();
+        if (threads.Count == 0)
+        {
+            return;
+        }
+
+        // Mirrors FavoriteThreads: if every selected thread already has this filter, the
+        // action removes it from all of them; otherwise it adds it to whichever ones are
+        // missing it.
+        var allHaveFilter = threads.All(t => t.FilterIds.Contains(args.FilterId));
+        foreach (var thread in threads)
+        {
+            if (allHaveFilter)
+            {
+                await _filterRepository.UnassignFilterAsync(thread.Id, args.FilterId);
+                thread.FilterIds = thread.FilterIds.Where(id => id != args.FilterId).ToList();
+            }
+            else if (!thread.FilterIds.Contains(args.FilterId))
+            {
+                await _filterRepository.AssignFilterAsync(thread.Id, args.FilterId);
+                thread.FilterIds = thread.FilterIds.Append(args.FilterId).ToList();
+            }
+        }
+
+        ApplyFilter();
+    }
+
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
     partial void OnShowUnreadOnlyChanged(bool value) => ApplyFilter();
@@ -304,6 +361,11 @@ public partial class ConversationsViewModel : ObservableObject
         if (ShowUnreadOnly)
         {
             matches = matches.Where(t => t.UnreadCount > 0);
+        }
+
+        if (ActiveFilterIds.Count > 0)
+        {
+            matches = matches.Where(t => t.FilterIds.Any(id => ActiveFilterIds.Contains(id)));
         }
 
         foreach (var thread in matches)
