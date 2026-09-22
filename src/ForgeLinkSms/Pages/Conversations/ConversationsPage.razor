@@ -18,7 +18,7 @@
             <button @onclick="ClearSelection" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">✕</button>
             <strong style="flex:1;">@_selectedThreadIds.Count selected</strong>
             <button @onclick="ToggleFavoriteSelectedThreads" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">@(AllSelectedAreFavorited() ? "💔" : "❤️")</button>
-            <button @onclick="OpenFilterAssignPicker" style="width:36px;height:32px;border:none;background:transparent;display:flex;align-items:center;justify-content:center;padding:0;">@FunnelIcon</button>
+            <button @onclick="OpenFilterAssignPicker" style="width:36px;height:32px;border:none;background:transparent;color:var(--text-color);display:flex;align-items:center;justify-content:center;padding:0;">@FunnelIcon</button>
             <button @onclick="ToggleSelectedThreadsReadState" style="width:36px;height:32px;border:none;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;padding:0;">@(AllSelectedAreRead() ? EyeSlashIcon : EyeOpenIcon)</button>
             <button @onclick="ArchiveSelectedThreads" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">📦</button>
             <button @onclick="TrashSelectedThreads" style="width:36px;height:32px;border:none;background:transparent;font-size:1em;line-height:1;padding:0;">🗑</button>
