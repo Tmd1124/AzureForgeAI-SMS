@@ -1,0 +1,16 @@
+using ForgeLinkSms.Core.Models;
+
+namespace ForgeLinkSms.Core.Data;
+
+public interface IFilterRepository
+{
+    Task InitializeAsync();
+    Task<IReadOnlyList<Filter>> GetAllFiltersAsync();
+    Task<Filter> CreateFilterAsync(string name, string colorHex);
+    Task RenameFilterAsync(long filterId, string newName);
+    Task SetFilterColorAsync(long filterId, string colorHex);
+    Task DeleteFilterAsync(long filterId);
+    Task<IReadOnlyDictionary<long, List<long>>> GetAllAssignmentsAsync();
+    Task AssignFilterAsync(long threadId, long filterId);
+    Task UnassignFilterAsync(long threadId, long filterId);
+}

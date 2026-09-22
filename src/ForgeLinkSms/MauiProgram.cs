@@ -59,6 +59,10 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IArchiveRepository>(archiveRepository);
 		builder.Services.AddTransient<ArchivedViewModel>();
 
+		var filterRepository = new FilterRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
+		filterRepository.InitializeAsync().GetAwaiter().GetResult();
+		builder.Services.AddSingleton<IFilterRepository>(filterRepository);
+
 		var scheduledMessageRepository = new ScheduledMessageRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
 		scheduledMessageRepository.InitializeAsync().GetAwaiter().GetResult();
 		builder.Services.AddSingleton<IScheduledMessageRepository>(scheduledMessageRepository);
