@@ -75,10 +75,17 @@
             @foreach (var (message, showDateSeparator) in MessagesWithDateSeparators().Reverse())
             {
                 <div @key="@($"{message.Id}-{message.Timestamp.Ticks}")" style="display:flex;flex-direction:column;align-items:@(message.IsOutgoing ? "flex-end" : "flex-start");margin:4px 4px;">
+                    @{
+                        // An image-only message (no body text, every attachment has a decoded thumbnail)
+                        // renders the photo edge-to-edge instead of inside the colored bubble — the bubble's
+                        // padding otherwise shows as a colored border around the image.
+                        var isImageOnlyMessage = string.IsNullOrEmpty(message.Body) && message.Attachments.Count > 0
+                            && message.Attachments.All(a => a.DataUri is not null);
+                    }
                     <div @onpointerdown="() => OnMessagePointerDown(message)"
                          @onpointerup="CancelMessageLongPress"
                          @onpointerleave="CancelMessageLongPress"
-                         style="max-width:75%;padding:8px 12px;border-radius:16px;user-select:none;-webkit-user-select:none;background:@(message.IsOutgoing ? "var(--accent-color)" : "var(--card-color)");color:@(message.IsOutgoing ? "white" : "var(--text-color)");">
+                         style="max-width:75%;padding:@(isImageOnlyMessage ? "0" : "8px 12px");border-radius:16px;overflow:hidden;user-select:none;-webkit-user-select:none;background:@(isImageOnlyMessage ? "transparent" : (message.IsOutgoing ? "var(--accent-color)" : "var(--card-color)"));color:@(message.IsOutgoing ? "white" : "var(--text-color)");">
                         @foreach (var segment in MessageLinkParser.Parse(message.Body))
                         {
                             switch (segment.Kind)
