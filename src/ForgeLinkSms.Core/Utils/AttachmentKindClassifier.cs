@@ -26,6 +26,12 @@ public static class AttachmentKindClassifier
             return AttachmentKind.Video;
         }
 
+        if (contentType.Equals("text/x-vcard", StringComparison.OrdinalIgnoreCase) ||
+            contentType.Equals("text/vcard", StringComparison.OrdinalIgnoreCase))
+        {
+            return AttachmentKind.Contact;
+        }
+
         return AttachmentKind.File;
     }
 }

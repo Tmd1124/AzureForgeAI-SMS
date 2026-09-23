@@ -98,6 +98,14 @@ internal static class MmsSender
     private static string GetContentType(string localPath)
     {
         var extension = Path.GetExtension(localPath).TrimStart('.').ToLowerInvariant();
+
+        // Android's MimeTypeMap doesn't reliably resolve "vcf" across API levels, and
+        // AttachmentKindClassifier.FromContentType only recognizes the vCard MIME types below.
+        if (extension == "vcf")
+        {
+            return "text/x-vcard";
+        }
+
         return AndroidMimeTypeMap.Singleton?.GetMimeTypeFromExtension(extension) ?? "application/octet-stream";
     }
 }

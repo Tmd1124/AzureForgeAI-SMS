@@ -11,7 +11,12 @@
         else
         {
             <div style="width:44px;height:44px;border-radius:8px;background:var(--surface-color);display:flex;align-items:center;justify-content:center;font-size:1.3em;flex-shrink:0;">
-                @(Attachment.Kind == AttachmentKind.Video ? "🎬" : "📄")
+                @(Attachment.Kind switch
+                {
+                    AttachmentKind.Video => "🎬",
+                    AttachmentKind.Contact => "👤",
+                    _ => "📄"
+                })
             </div>
         }
         <div style="flex:1;min-width:0;">

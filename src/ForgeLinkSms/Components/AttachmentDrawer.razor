@@ -227,7 +227,27 @@
     private async Task ShareContact(ContactInfo contact)
     {
         Close();
-        await OnInsertText.InvokeAsync(AttachmentTextFormatter.FormatContactShare(contact));
+
+        var attachmentsDir = Path.Combine(FileSystem.AppDataDirectory, "attachments");
+        Directory.CreateDirectory(attachmentsDir);
+
+        var fileName = $"{SanitizeFileName(contact.DisplayName)}.vcf";
+        var localPath = Path.Combine(attachmentsDir, fileName);
+        await File.WriteAllTextAsync(localPath, AttachmentTextFormatter.FormatContactShare(contact));
+
+        await OnAttachmentPicked.InvokeAsync(new PickedAttachment
+        {
+            FileName = fileName,
+            LocalPath = localPath,
+            Kind = AttachmentKind.Contact
+        });
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var cleaned = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
+        return cleaned.Length == 0 ? "Contact" : cleaned;
     }
 
     private Task PickGallery() => PickAndShare(AttachmentPickerService.PickImageOrVideoAsync);
