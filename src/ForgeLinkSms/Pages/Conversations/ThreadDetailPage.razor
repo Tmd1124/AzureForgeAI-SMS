@@ -112,7 +112,8 @@
                             @if (attachment.DataUri is not null)
                             {
                                 <div style="position:relative;margin-top:@(string.IsNullOrEmpty(message.Body) ? "0" : "6px");">
-                                    <img src="@attachment.DataUri" alt="@attachment.FileName" style="display:block;max-width:100%;max-height:240px;border-radius:10px;" />
+                                    <img src="@attachment.DataUri" alt="@attachment.FileName" style="display:block;max-width:100%;max-height:240px;border-radius:10px;cursor:pointer;"
+                                         @onclick="() => OpenImageViewer(attachment)" @onclick:stopPropagation="true" />
                                     <button @onclick="() => SaveAttachment(attachment)" @onclick:stopPropagation="true"
                                             @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"
                                             title="Save"
@@ -209,6 +210,17 @@
     </div>
 }
 
+@if (_viewerAttachment is not null)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:25;display:flex;align-items:center;justify-content:center;" @onclick="CloseImageViewer">
+        <img src="@_viewerAttachment.DataUri" alt="@_viewerAttachment.FileName" style="max-width:100%;max-height:100%;object-fit:contain;" @onclick:stopPropagation="true" />
+        <button @onclick="CloseImageViewer" title="Close"
+                style="position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;border:none;background:rgba(255,255,255,0.15);color:white;font-size:1.3em;">
+            ✕
+        </button>
+    </div>
+}
+
 @if (_showSaveToast)
 {
     <div style="position:fixed;left:16px;right:16px;bottom:24px;z-index:21;background:#1e293b;color:white;border-radius:8px;padding:12px 16px;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
@@ -227,6 +239,7 @@
     private string DisplayName = string.Empty;
     private static readonly string[] ReactionEmojis = { "👍", "❤️", "😂", "😮", "😢", "🙏" };
     private ForgeLinkSms.Core.Models.SmsMessage? _reactionTargetMessage;
+    private ForgeLinkSms.Core.Models.MessageAttachment? _viewerAttachment;
     private CancellationTokenSource? _messageLongPressCts;
     private ForgeLinkSms.Components.AttachmentDrawer? _drawer;
     private ForgeLinkSms.Core.Models.PickedAttachment? _pendingAttachment;
@@ -341,6 +354,12 @@
     // they must be closed here instead of falling through to leaving the thread.
     private bool TryCloseOverlayForBack()
     {
+        if (_viewerAttachment is not null)
+        {
+            CloseImageViewer();
+            return true;
+        }
+
         if (_drawer is { IsOpen: true })
         {
             _drawer.Close();
@@ -463,6 +482,10 @@
             await _contactService.OpenContactAsync(Address);
         }
     }
+
+    private void OpenImageViewer(ForgeLinkSms.Core.Models.MessageAttachment attachment) => _viewerAttachment = attachment;
+
+    private void CloseImageViewer() => _viewerAttachment = null;
 
     private async Task SaveAttachment(ForgeLinkSms.Core.Models.MessageAttachment attachment)
     {
