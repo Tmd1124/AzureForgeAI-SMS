@@ -83,6 +83,7 @@
                         var isImageOnlyMessage = string.IsNullOrEmpty(message.Body) && message.Attachments.Count > 0
                             && message.Attachments.All(a => a.DataUri is not null);
                     }
+                    <div style="display:flex;width:100%;align-items:center;gap:8px;flex-direction:@(message.IsOutgoing ? "row-reverse" : "row");">
                     <div @onpointerdown="() => OnMessagePointerDown(message)"
                          @onpointerup="CancelMessageLongPress"
                          @onpointerleave="CancelMessageLongPress"
@@ -142,6 +143,18 @@
                                 </div>
                             }
                         }
+                    </div>
+                    @if (ReferenceEquals(_reactionTargetMessage, message) && !string.IsNullOrEmpty(message.Body))
+                    {
+                        @* z-index lifts it above the reaction sheet's full-screen backdrop so it stays tappable while the sheet is open. *@
+                        <button @onclick="CopyMessageText" title="Copy"
+                                style="position:relative;z-index:1;flex-shrink:0;width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" />
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                            </svg>
+                        </button>
+                    }
                     </div>
                     <div style="font-size:0.75em;color:#94a3b8;margin-top:2px;">
                         @message.Timestamp.LocalDateTime.ToString("h:mm tt")
@@ -493,6 +506,17 @@
             await ViewModel!.SendReactionCommand.ExecuteAsync((emoji, _reactionTargetMessage.Body));
         }
         CloseReactionBar();
+    }
+
+    private async Task CopyMessageText()
+    {
+        var body = _reactionTargetMessage?.Body;
+        CloseReactionBar();
+        if (!string.IsNullOrEmpty(body))
+        {
+            await Clipboard.Default.SetTextAsync(body);
+            ShowSaveToast("Copied");
+        }
     }
 
     private async Task OpenContact()
