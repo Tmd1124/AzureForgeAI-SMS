@@ -198,39 +198,7 @@ public partial class ThreadDetailViewModel : ObservableObject
         IsLoadingNewer = true;
         try
         {
-            var page = await _smsService.GetNewerMessagesAsync(_threadId, _newestLoadedTimestamp.Value, PageSize) ?? Array.Empty<Models.SmsMessage>();
-            var ordered = page.OrderBy(m => m.Timestamp).ToList();
-
-            foreach (var message in ordered)
-            {
-                Messages.Add(message);
-            }
-
-            // Trimming here removes from the oldest end instead — the window's top boundary just
-            // moved forward in time, so a later scroll back up needs to treat that as "there's
-            // more history above" again rather than assuming it already has everything back to
-            // _oldestLoadedTimestamp.
-            if (Messages.Count > MaxLoadedMessages)
-            {
-                HasMoreMessages = true;
-            }
-            while (Messages.Count > MaxLoadedMessages)
-            {
-                Messages.RemoveAt(0);
-            }
-
-            if (Messages.Count > 0)
-            {
-                _oldestLoadedTimestamp = Messages[0].Timestamp;
-            }
-            if (ordered.Count > 0)
-            {
-                _newestLoadedTimestamp = ordered[^1].Timestamp;
-            }
-
-            // Fewer than a full page means there's nothing newer left in the provider — the
-            // window's newest message is genuinely the thread's latest again.
-            IsAtLatest = page.Count < PageSize;
+            await AppendNewerMessagesAsync();
         }
         catch (Exception)
         {
@@ -241,6 +209,79 @@ public partial class ThreadDetailViewModel : ObservableObject
             IsLoadingNewer = false;
             _isLoadingMessages = false;
         }
+    }
+
+    [RelayCommand]
+    private async Task RefreshLatest()
+    {
+        if (_isLoadingMessages)
+        {
+            return;
+        }
+
+        if (_newestLoadedTimestamp is null)
+        {
+            await Load();
+            return;
+        }
+
+        // A trimmed window isn't showing "now" anyway; scrolling down will fetch the new
+        // message along with everything else trimming discarded.
+        if (!IsAtLatest)
+        {
+            return;
+        }
+
+        _isLoadingMessages = true;
+        try
+        {
+            await AppendNewerMessagesAsync();
+        }
+        catch (Exception)
+        {
+            // Best-effort — reopening the thread still shows it.
+        }
+        finally
+        {
+            _isLoadingMessages = false;
+        }
+    }
+
+    private async Task AppendNewerMessagesAsync()
+    {
+        var page = await _smsService.GetNewerMessagesAsync(_threadId, _newestLoadedTimestamp!.Value, PageSize) ?? Array.Empty<Models.SmsMessage>();
+        var ordered = page.OrderBy(m => m.Timestamp).ToList();
+
+        foreach (var message in ordered)
+        {
+            Messages.Add(message);
+        }
+
+        // Trimming here removes from the oldest end instead — the window's top boundary just
+        // moved forward in time, so a later scroll back up needs to treat that as "there's
+        // more history above" again rather than assuming it already has everything back to
+        // _oldestLoadedTimestamp.
+        if (Messages.Count > MaxLoadedMessages)
+        {
+            HasMoreMessages = true;
+        }
+        while (Messages.Count > MaxLoadedMessages)
+        {
+            Messages.RemoveAt(0);
+        }
+
+        if (Messages.Count > 0)
+        {
+            _oldestLoadedTimestamp = Messages[0].Timestamp;
+        }
+        if (ordered.Count > 0)
+        {
+            _newestLoadedTimestamp = ordered[^1].Timestamp;
+        }
+
+        // Fewer than a full page means there's nothing newer left in the provider — the
+        // window's newest message is genuinely the thread's latest again.
+        IsAtLatest = page.Count < PageSize;
     }
 
     [RelayCommand]

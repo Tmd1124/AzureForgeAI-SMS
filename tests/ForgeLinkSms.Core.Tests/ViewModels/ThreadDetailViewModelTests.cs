@@ -221,6 +221,46 @@ public class ThreadDetailViewModelTests
     }
 
     [Fact]
+    public async Task RefreshLatestCommand_appends_a_newly_received_message_without_reloading()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.GetMessagesAsync(1, null, It.IsAny<int>())).ReturnsAsync(new List<SmsMessage>
+        {
+            MakeMessage(1, "hi", now)
+        });
+        sms.Setup(s => s.GetNewerMessagesAsync(1, now, It.IsAny<int>())).ReturnsAsync(new List<SmsMessage>
+        {
+            MakeMessage(2, "reply", now.AddSeconds(5))
+        });
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555");
+        await viewModel.LoadCommand.ExecuteAsync(null);
+        var first = viewModel.Messages[0];
+
+        await viewModel.RefreshLatestCommand.ExecuteAsync(null);
+
+        Assert.Equal(new[] { "hi", "reply" }, viewModel.Messages.Select(m => m.Body));
+        Assert.Same(first, viewModel.Messages[0]);
+        Assert.True(viewModel.IsAtLatest);
+        sms.Verify(s => s.GetMessagesAsync(1, null, It.IsAny<int>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RefreshLatestCommand_loads_the_thread_when_nothing_was_loaded_yet()
+    {
+        var sms = new Mock<ISmsService>();
+        sms.SetupSequence(s => s.GetMessagesAsync(1, null, It.IsAny<int>()))
+            .ReturnsAsync(new List<SmsMessage>())
+            .ReturnsAsync(new List<SmsMessage> { MakeMessage(1, "first ever", DateTimeOffset.UtcNow) });
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555");
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.RefreshLatestCommand.ExecuteAsync(null);
+
+        Assert.Single(viewModel.Messages, m => m.Body == "first ever");
+    }
+
+    [Fact]
     public async Task LoadOlderMessagesCommand_does_nothing_when_HasMoreMessages_is_false()
     {
         var sms = new Mock<ISmsService>();

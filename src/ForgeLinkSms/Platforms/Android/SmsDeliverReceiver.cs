@@ -96,6 +96,8 @@ public class SmsDeliverReceiver : BroadcastReceiver
             {
                 trashRepository.RestoreThreadAsync(threadId).GetAwaiter().GetResult();
             }
+
+            services.GetRequiredService<IIncomingMessageNotifier>().NotifyMessageReceived(threadId);
         }
 
         var contactService = services.GetRequiredService<IContactService>();

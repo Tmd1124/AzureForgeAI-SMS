@@ -5,6 +5,7 @@
 @inject ForgeLinkSms.Core.Services.ICalendarService CalendarService
 @inject ForgeLinkSms.Core.Services.NavigationHistoryTracker HistoryTracker
 @inject Microsoft.JSInterop.IJSRuntime JS
+@inject ForgeLinkSms.Core.Services.IIncomingMessageNotifier IncomingMessageNotifier
 @using Microsoft.Extensions.DependencyInjection
 @using ForgeLinkSms.Components
 @using ForgeLinkSms.Core.Models
@@ -298,7 +299,24 @@
         // meant a slow or failing "mark as read" call blocked the messages from ever showing.
         _ = MarkThreadAsReadBestEffortAsync();
 
+        IncomingMessageNotifier.MessageReceived += OnMessageReceived;
         HistoryTracker.LocalBackHandler = TryCloseOverlayForBack;
+    }
+
+    // Raised from the SMS receiver's background thread, hence InvokeAsync.
+    private void OnMessageReceived(long threadId)
+    {
+        if (threadId != ThreadId || ViewModel is null)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            await ViewModel.RefreshLatestCommand.ExecuteAsync(null);
+            StateHasChanged();
+            await MarkThreadAsReadBestEffortAsync();
+        });
     }
 
     private async Task MarkThreadAsReadBestEffortAsync()
@@ -378,6 +396,8 @@
 
     public void Dispose()
     {
+        IncomingMessageNotifier.MessageReceived -= OnMessageReceived;
+
         // Blazor's router can create the next page before disposing this one, so only clear the
         // handler if it's still ours — otherwise this would wipe out a registration the next page
         // already made.
