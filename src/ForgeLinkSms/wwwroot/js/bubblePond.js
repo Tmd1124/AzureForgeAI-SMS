@@ -27,6 +27,34 @@ window.forgeLinkBubblePond = {
         document.addEventListener("scroll", this.handler, { passive: true, capture: true });
         update();
     },
+    // Selecting a row makes the pond disappear (and leaving selection brings it back), which
+    // shifts every row by the pond's height. Remembering where a row sat on screen before that
+    // render and scrolling by the difference afterward keeps it under the user's finger.
+    anchor: null,
+    rememberRow: function (rowId) {
+        var row = document.getElementById(rowId);
+        this.anchor = row ? { id: rowId, top: row.getBoundingClientRect().top } : null;
+    },
+    restoreRow: function () {
+        var anchor = this.anchor;
+        this.anchor = null;
+        var row = anchor ? document.getElementById(anchor.id) : null;
+        if (!row) {
+            return;
+        }
+        var delta = row.getBoundingClientRect().top - anchor.top;
+        if (delta !== 0) {
+            var scroller = document.scrollingElement || document.documentElement;
+            for (var el = row.parentElement; el; el = el.parentElement) {
+                var overflowY = getComputedStyle(el).overflowY;
+                if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
+                    scroller = el;
+                    break;
+                }
+            }
+            scroller.scrollTop += delta;
+        }
+    },
     dispose: function () {
         if (this.handler) {
             document.removeEventListener("scroll", this.handler, { capture: true });

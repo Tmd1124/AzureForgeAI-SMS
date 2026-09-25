@@ -18,7 +18,7 @@
     @if (_selectedThreadIds.Count > 0)
     {
         <div style="position:sticky;top:0;z-index:10;background:var(--surface-color);display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:6px 4px;overflow-x:auto;">
-            <button @onclick="ClearSelection" style="width:40px;height:40px;flex-shrink:0;border:none;background:transparent;font-size:1.2em;line-height:1;padding:0;">✕</button>
+            <button @onclick="ClearSelection" title="Clear selection" style="width:40px;height:40px;flex-shrink:0;border:none;background:transparent;color:var(--text-color);font-size:1.4em;font-weight:bold;line-height:1;padding:0;">✕</button>
             <strong style="flex:1;min-width:0;">@_selectedThreadIds.Count selected</strong>
             <button @onclick="ToggleFavoriteSelectedThreads" style="width:40px;height:40px;flex-shrink:0;border:none;background:transparent;font-size:1.2em;line-height:1;padding:0;">@(AllSelectedAreFavorited() ? "💔" : "❤️")</button>
             <button @onclick="OpenFilterAssignPicker" style="width:40px;height:40px;flex-shrink:0;border:none;background:transparent;color:var(--text-color);display:flex;align-items:center;justify-content:center;padding:0;">@FunnelIcon</button>
@@ -149,7 +149,7 @@
                 </div>
                 continue;
             }
-            <div @key="thread!.Id" @onpointerdown="e => OnPointerDown(thread.Id, e)"
+            <div @key="thread!.Id" id="@RowId(thread.Id)" @onpointerdown="e => OnPointerDown(thread.Id, e)"
                  @onpointerup="e => OnPointerUp(thread.Id, thread.Address, e)"
                  @onpointermove="OnPointerMove"
                  @onpointerleave="CancelLongPress"
@@ -311,6 +311,7 @@
     private ForgeLinkSms.Core.Models.OneTimeCode? _copiedCode;
     private long? _snoozeThreadId;
     private readonly HashSet<UpdateCategory> _expandedUpdateGroups = new();
+    private bool _restoreRowAnchor;
     private DateTime? _customSnoozeTime;
     private readonly CancellationTokenSource _codeExpiryCts = new();
 
@@ -447,6 +448,11 @@
         {
             await JS.InvokeVoidAsync("forgeLinkBubblePond.observe", "bubble-pond", "bubble-pond-mini", "conversations-header");
         }
+        if (_restoreRowAnchor)
+        {
+            _restoreRowAnchor = false;
+            await JS.InvokeVoidAsync("forgeLinkBubblePond.restoreRow");
+        }
         if (_shouldFocusSearch)
         {
             _shouldFocusSearch = false;
@@ -491,9 +497,11 @@
             {
                 await Task.Delay(500, token);
                 _longPressTriggered = true;
-                await InvokeAsync(() =>
+                await InvokeAsync(async () =>
                 {
+                    var anchored = await RememberRowPosition(threadId);
                     _selectedThreadIds.Add(threadId);
+                    _restoreRowAnchor = anchored;
                     StateHasChanged();
                 });
             }
@@ -754,7 +762,30 @@
         await ContactService.AddContactAsync(address);
     }
 
-    private void ClearSelection() => _selectedThreadIds.Clear();
+    private void ClearSelection()
+    {
+        if (_selectedThreadIds.Count > 0 && ViewModel.PondThreads.Count > 0)
+        {
+            // The JS call is queued ahead of this handler's render batch, so it measures the row
+            // before the pond reappears above it.
+            _ = JS.InvokeVoidAsync("forgeLinkBubblePond.rememberRow", RowId(_selectedThreadIds.First()));
+            _restoreRowAnchor = true;
+        }
+        _selectedThreadIds.Clear();
+    }
+
+    private static string RowId(long threadId) => $"thread-row-{threadId}";
+
+    // Only needed when the pond is showing, since that's what shifts the list.
+    private async Task<bool> RememberRowPosition(long threadId)
+    {
+        if (ViewModel.PondThreads.Count == 0)
+        {
+            return false;
+        }
+        await JS.InvokeVoidAsync("forgeLinkBubblePond.rememberRow", RowId(threadId));
+        return true;
+    }
 
     private bool AllSelectedAreFavorited() =>
         _selectedThreadIds.Count > 0 &&

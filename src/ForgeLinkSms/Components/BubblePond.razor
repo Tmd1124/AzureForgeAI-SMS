@@ -55,15 +55,8 @@
     [Parameter] public EventCallback<SmsThread> OnOpen { get; set; }
     [Parameter] public EventCallback<SmsThread> OnLongPress { get; set; }
 
-    // Hand-tuned bubble centers (x as % of pond width, y in px) for rank order, spaced so
-    // the rank sizes below never overlap, even with names underneath. Fewer than 8 bubbles
-    // use the first N slots.
-    private static readonly (double XPercent, int Y)[] Slots =
-    {
-        (22, 60), (58, 42), (84, 96), (44, 134), (14, 168), (70, 178), (40, 206), (92, 196)
-    };
-
-    private static readonly int[] Sizes = { 88, 80, 74, 68, 62, 56, 52, 48 };
+    private static readonly IReadOnlyList<(double XPercent, int Y)> Slots = PondLayout.Slots;
+    private static readonly IReadOnlyList<int> Sizes = PondLayout.Sizes;
 
     private CancellationTokenSource? _pressCts;
     private long? _pressedThreadId;

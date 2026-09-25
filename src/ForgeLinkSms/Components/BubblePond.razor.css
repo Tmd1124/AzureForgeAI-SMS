@@ -1,6 +1,6 @@
 .bubble-pond {
     position: relative;
-    height: 250px;
+    height: 260px; /* PondLayout.Height */
     margin: 4px 0 8px;
 }
 
@@ -61,7 +61,7 @@
     top: 100%;
     transform: translateX(-50%);
     margin-top: 3px;
-    max-width: 90px;
+    max-width: 76px; /* the name width PondLayoutTests checks for overlap */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
