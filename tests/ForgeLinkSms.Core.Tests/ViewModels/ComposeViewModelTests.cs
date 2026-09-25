@@ -51,7 +51,23 @@ public class ComposeViewModelTests
     }
 
     [Fact]
-    public async Task SendCommand_sends_individually_to_every_recipient()
+    public async Task SendCommand_sends_individually_to_every_recipient_when_group_chat_is_off()
+    {
+        var sms = new Mock<ISmsService>();
+        var viewModel = CreateViewModel(sms);
+        viewModel.SendAsGroup = false;
+        viewModel.MessageBody = "hello everyone";
+        viewModel.AddRecipientCommand.Execute("5550148890");
+        viewModel.AddRecipientCommand.Execute("5550142231");
+
+        await viewModel.SendCommand.ExecuteAsync(null);
+
+        sms.Verify(s => s.SendAsync("5550148890", "hello everyone"), Times.Once);
+        sms.Verify(s => s.SendAsync("5550142231", "hello everyone"), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendCommand_sends_one_group_message_by_default_with_several_recipients()
     {
         var sms = new Mock<ISmsService>();
         var viewModel = CreateViewModel(sms);
@@ -61,8 +77,23 @@ public class ComposeViewModelTests
 
         await viewModel.SendCommand.ExecuteAsync(null);
 
-        sms.Verify(s => s.SendAsync("5550148890", "hello everyone"), Times.Once);
-        sms.Verify(s => s.SendAsync("5550142231", "hello everyone"), Times.Once);
+        Assert.True(viewModel.SendAsGroup);
+        sms.Verify(s => s.SendGroupAsync(0, It.Is<IReadOnlyList<string>>(a => a.SequenceEqual(new[] { "5550148890", "5550142231" })), "hello everyone", null), Times.Once);
+        sms.Verify(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SendCommand_with_one_recipient_is_a_plain_text()
+    {
+        var sms = new Mock<ISmsService>();
+        var viewModel = CreateViewModel(sms);
+        viewModel.MessageBody = "hi";
+        viewModel.AddRecipientCommand.Execute("5550148890");
+
+        await viewModel.SendCommand.ExecuteAsync(null);
+
+        sms.Verify(s => s.SendAsync("5550148890", "hi"), Times.Once);
+        sms.Verify(s => s.SendGroupAsync(It.IsAny<long>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<string?>(), It.IsAny<PickedAttachment?>()), Times.Never);
     }
 
     private static ContactInfo Contact(string name, string phone) => new() { DisplayName = name, PhoneNumber = phone };

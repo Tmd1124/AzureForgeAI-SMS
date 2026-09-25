@@ -170,7 +170,10 @@ public class SmsService : ISmsService
     }
 
     public Task SendMmsAsync(long threadId, string address, string? body, PickedAttachment attachment) =>
-        MmsSender.SendAsync(threadId, address, body, attachment.LocalPath, attachment.FileName);
+        MmsSender.SendAsync(threadId, new[] { address }, body, attachment.LocalPath, attachment.FileName);
+
+    public Task SendGroupAsync(long threadId, IReadOnlyList<string> addresses, string? body, PickedAttachment? attachment) =>
+        MmsSender.SendAsync(threadId, addresses, body, attachment?.LocalPath, attachment?.FileName);
 
     public Task SendAsync(string address, string body)
     {

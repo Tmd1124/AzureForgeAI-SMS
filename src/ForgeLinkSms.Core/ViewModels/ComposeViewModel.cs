@@ -27,6 +27,10 @@ public partial class ComposeViewModel : ObservableObject
 
     public bool IsGroupSend => Recipients.Count > 1;
 
+    // With several recipients: one shared group conversation (true) or a separate copy to each person.
+    [ObservableProperty]
+    private bool _sendAsGroup = true;
+
     [ObservableProperty]
     private bool _isMultiSelecting;
 
@@ -141,9 +145,16 @@ public partial class ComposeViewModel : ObservableObject
             return;
         }
 
-        foreach (var recipient in Recipients)
+        if (IsGroupSend && SendAsGroup)
         {
-            await _smsService.SendAsync(recipient, text);
+            await _smsService.SendGroupAsync(0, Recipients.ToList(), text, null);
+        }
+        else
+        {
+            foreach (var recipient in Recipients)
+            {
+                await _smsService.SendAsync(recipient, text);
+            }
         }
         MessageBody = string.Empty;
     }

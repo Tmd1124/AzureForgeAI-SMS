@@ -78,59 +78,6 @@ public class SmsDeliverReceiver : BroadcastReceiver
             }
         }
 
-        if (threadId != 0L)
-        {
-            // A reply to an archived/trashed conversation means the user is actively back in
-            // touch with it — surface it in the main list again rather than leaving a new,
-            // unread message hidden in Archive/Trash where it's easy to miss. The message row
-            // itself was already inserted with read=0 above, so the thread's unread state is
-            // already correct once it's back in the main list.
-            var archiveRepository = services.GetRequiredService<IArchiveRepository>();
-            if (archiveRepository.IsArchivedAsync(threadId).GetAwaiter().GetResult())
-            {
-                archiveRepository.UnarchiveThreadAsync(threadId).GetAwaiter().GetResult();
-            }
-
-            var trashRepository = services.GetRequiredService<ITrashRepository>();
-            if (trashRepository.IsTrashedAsync(threadId).GetAwaiter().GetResult())
-            {
-                trashRepository.RestoreThreadAsync(threadId).GetAwaiter().GetResult();
-            }
-
-            // Same idea as email snooze: a new message means the conversation needs attention now.
-            services.GetRequiredService<ISnoozeService>().UnsnoozeAsync(threadId).GetAwaiter().GetResult();
-
-            services.GetRequiredService<IIncomingMessageNotifier>().NotifyMessageReceived(threadId);
-        }
-
-        var contactService = services.GetRequiredService<IContactService>();
-        var contact = contactService.LookupAsync(address).GetAwaiter().GetResult();
-
-        var isAllowed = services.GetRequiredService<IAllowedSenderRepository>().IsAllowedAsync(normalizedAddress).GetAwaiter().GetResult();
-        var lane = SenderScreening.LaneFor(contact is not null, isFavorite: false, isAllowed, ThreadHasOutgoing(context, threadId), address);
-        if (!SenderScreening.ShouldNotify(lane, body))
-        {
-            return;
-        }
-
-        var notificationService = services.GetRequiredService<INotificationService>();
-        notificationService.NotifyIncomingMessage(contact?.DisplayName ?? address, body, threadId, address);
-    }
-
-    private static bool ThreadHasOutgoing(Context context, long threadId)
-    {
-        if (threadId == 0L)
-        {
-            return false;
-        }
-
-        using var cursor = context.ContentResolver!.Query(
-            AndroidTelephony.Sms.ContentUri!, new[] { "_id" }, "thread_id = ? AND type != 1", new[] { threadId.ToString() }, null);
-        if (cursor is not null && cursor.Count > 0)
-        {
-            return true;
-        }
-
-        return MmsReader.QueryAll(context, threadId).Any(m => m.IsOutgoing);
+        IncomingMessagePipeline.OnStored(context, threadId, address, body);
     }
 }

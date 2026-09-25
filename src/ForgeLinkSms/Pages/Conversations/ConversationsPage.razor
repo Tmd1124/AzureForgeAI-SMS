@@ -207,7 +207,7 @@
                                 style="border:none;border-radius:8px;padding:6px 10px;background:#e2e8f0;color:#b91c1c;font-weight:600;">Block</button>
                     </div>
                 }
-                else if (_selectedThreadIds.Count == 0 && PhoneNumberFormatter.IsValidPhoneNumber(thread.Address))
+                else if (_selectedThreadIds.Count == 0 && !thread.IsGroup && PhoneNumberFormatter.IsValidPhoneNumber(thread.Address))
                 {
                     <button @onclick="() => PhoneDialer.Default.Open(thread.Address)" @onclick:stopPropagation="true"
                             @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"

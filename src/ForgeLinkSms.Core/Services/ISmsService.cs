@@ -16,4 +16,8 @@ public interface ISmsService
     Task SendAsync(string address, string body);
 
     Task SendMmsAsync(long threadId, string address, string? body, PickedAttachment attachment);
+
+    /// Sends one MMS to everyone in a group conversation (text, attachment, or both). A threadId
+    /// of 0 means "find or create the group's conversation" — used when starting a new group.
+    Task SendGroupAsync(long threadId, IReadOnlyList<string> addresses, string? body, PickedAttachment? attachment);
 }

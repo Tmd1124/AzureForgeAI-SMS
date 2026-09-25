@@ -105,7 +105,21 @@
 
     @if (ViewModel.IsGroupSend)
     {
-        <p style="color:#92400e;background:#fef3c7;padding:8px 12px;margin:0;font-size:0.85em;">Sending to @ViewModel.Recipients.Count people individually — they won't see each other or each other's replies.</p>
+        <div style="display:flex;gap:6px;padding:8px 12px 4px;">
+            <button @onclick="() => ViewModel.SendAsGroup = true"
+                    style="flex:1;border:none;border-radius:999px;padding:6px 0;font-weight:600;background:@(ViewModel.SendAsGroup ? "var(--accent-color)" : "#e2e8f0");color:@(ViewModel.SendAsGroup ? "white" : "#1e293b");">
+                Group chat
+            </button>
+            <button @onclick="() => ViewModel.SendAsGroup = false"
+                    style="flex:1;border:none;border-radius:999px;padding:6px 0;font-weight:600;background:@(ViewModel.SendAsGroup ? "#e2e8f0" : "var(--accent-color)");color:@(ViewModel.SendAsGroup ? "#1e293b" : "white");">
+                Separate texts
+            </button>
+        </div>
+        <p style="color:#94a3b8;padding:0 12px 8px;margin:0;font-size:0.85em;">
+            @(ViewModel.SendAsGroup
+                ? $"One group conversation with {ViewModel.Recipients.Count} people — everyone sees every reply."
+                : $"Sending to {ViewModel.Recipients.Count} people individually — they won't see each other or each other's replies.")
+        </p>
     }
 
     @if (ViewModel.IsMultiSelecting)

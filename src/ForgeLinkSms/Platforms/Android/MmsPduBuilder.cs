@@ -49,7 +49,7 @@ internal static class MmsPduBuilder
         public required byte[] Data { get; init; }
     }
 
-    public static byte[] BuildSendRequest(string toAddress, string? body, Attachment? attachment, string transactionId, DateTimeOffset date)
+    public static byte[] BuildSendRequest(IReadOnlyList<string> toAddresses, string? body, Attachment? attachment, string transactionId, DateTimeOffset date)
     {
         using var ms = new MemoryStream();
 
@@ -72,8 +72,12 @@ internal static class MmsPduBuilder
         AppendValueLength(ms, 1);
         AppendOctet(ms, FromInsertAddressToken);
 
-        AppendOctet(ms, HeaderTo);
-        AppendEncodedString(ms, CharsetUtf8, toAddress + "/TYPE=PLMN");
+        // One To header per recipient: a group MMS is a single message addressed to everyone.
+        foreach (var toAddress in toAddresses)
+        {
+            AppendOctet(ms, HeaderTo);
+            AppendEncodedString(ms, CharsetUtf8, toAddress + "/TYPE=PLMN");
+        }
 
         AppendOctet(ms, HeaderContentType);
         AppendBody(ms, body, attachment);

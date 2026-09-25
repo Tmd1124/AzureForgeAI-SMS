@@ -13,23 +13,28 @@ namespace ForgeLinkSms.Platforms.Android;
 // like plain SMS sending in SmsService.SendAsync above.
 internal static class MmsSender
 {
-    public static Task SendAsync(long threadId, string address, string? body, string attachmentLocalPath, string attachmentFileName) =>
-        Task.Run(() => SendCore(threadId, address, body, attachmentLocalPath, attachmentFileName));
+    public static Task SendAsync(long threadId, IReadOnlyList<string> addresses, string? body, string? attachmentLocalPath, string? attachmentFileName) =>
+        Task.Run(() => SendCore(threadId, addresses, body, attachmentLocalPath, attachmentFileName));
 
-    private static void SendCore(long threadId, string address, string? body, string attachmentLocalPath, string attachmentFileName)
+    private static void SendCore(long threadId, IReadOnlyList<string> addresses, string? body, string? attachmentLocalPath, string? attachmentFileName)
     {
         var context = AndroidApp.Context;
-        var contentType = GetContentType(attachmentLocalPath);
-        var data = File.ReadAllBytes(attachmentLocalPath);
+        MmsPduBuilder.Attachment? attachment = attachmentLocalPath is null
+            ? null
+            : new MmsPduBuilder.Attachment
+            {
+                ContentType = GetContentType(attachmentLocalPath),
+                FileName = attachmentFileName ?? Path.GetFileName(attachmentLocalPath),
+                Data = File.ReadAllBytes(attachmentLocalPath)
+            };
         var transactionId = Guid.NewGuid().ToString("N");
         var date = DateTimeOffset.UtcNow;
+        if (threadId == 0)
+        {
+            threadId = global::Android.Provider.Telephony.Threads.GetOrCreateThreadId(context, addresses.ToList());
+        }
 
-        var pdu = MmsPduBuilder.BuildSendRequest(
-            address,
-            body,
-            new MmsPduBuilder.Attachment { ContentType = contentType, FileName = attachmentFileName, Data = data },
-            transactionId,
-            date);
+        var pdu = MmsPduBuilder.BuildSendRequest(addresses, body, attachment, transactionId, date);
 
         var pduFile = new Java.IO.File(context.CacheDir, $"mms_send_{transactionId}.dat");
         using (var stream = new FileStream(pduFile.AbsolutePath!, FileMode.Create))
@@ -47,14 +52,14 @@ internal static class MmsSender
 
         AndroidSmsManager.Default!.SendMultimediaMessage(context, pduUri, null, null, null);
 
-        InsertSentMessage(context, threadId, address, body, date, contentType, attachmentFileName, data);
+        InsertSentMessage(context, threadId, addresses, body, date, attachment);
     }
 
     // Mirrors MmsReader's read-side schema exactly (content://mms, .../addr, .../part with the
     // same raw column names) so a message this app just sent renders identically to one it read
     // back from a real received/sent MMS.
-    private static void InsertSentMessage(AndroidContext context, long threadId, string address, string? body,
-        DateTimeOffset date, string attachmentContentType, string attachmentFileName, byte[] attachmentData)
+    private static void InsertSentMessage(AndroidContext context, long threadId, IReadOnlyList<string> addresses, string? body,
+        DateTimeOffset date, MmsPduBuilder.Attachment? attachment)
     {
         var resolver = context.ContentResolver!;
 
@@ -70,11 +75,14 @@ internal static class MmsSender
             return;
         }
 
-        var addrValues = new AndroidContentValues();
-        addrValues.Put("address", address);
-        addrValues.Put("type", 151); // MmsReader.AddressTypeTo
-        addrValues.Put("charset", 106); // UTF-8
-        resolver.Insert(AndroidUri.Parse($"content://mms/{msgId}/addr")!, addrValues);
+        foreach (var address in addresses)
+        {
+            var addrValues = new AndroidContentValues();
+            addrValues.Put("address", address);
+            addrValues.Put("type", 151); // MmsReader.AddressTypeTo
+            addrValues.Put("charset", 106); // UTF-8
+            resolver.Insert(AndroidUri.Parse($"content://mms/{msgId}/addr")!, addrValues);
+        }
 
         if (!string.IsNullOrEmpty(body))
         {
@@ -84,14 +92,18 @@ internal static class MmsSender
             resolver.Insert(AndroidUri.Parse($"content://mms/{msgId}/part")!, textValues);
         }
 
+        if (attachment is null)
+        {
+            return;
+        }
         var partValues = new AndroidContentValues();
-        partValues.Put("ct", attachmentContentType);
-        partValues.Put("name", attachmentFileName);
+        partValues.Put("ct", attachment.ContentType);
+        partValues.Put("name", attachment.FileName);
         var partUri = resolver.Insert(AndroidUri.Parse($"content://mms/{msgId}/part")!, partValues);
         if (partUri is not null)
         {
             using var output = resolver.OpenOutputStream(partUri);
-            output?.Write(attachmentData, 0, attachmentData.Length);
+            output?.Write(attachment.Data, 0, attachment.Data.Length);
         }
     }
 

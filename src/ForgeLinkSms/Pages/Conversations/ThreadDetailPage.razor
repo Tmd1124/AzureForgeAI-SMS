@@ -83,6 +83,10 @@
                         var isImageOnlyMessage = string.IsNullOrEmpty(message.Body) && message.Attachments.Count > 0
                             && message.Attachments.All(a => a.DataUri is not null);
                     }
+                    @if (ViewModel.IsGroup && !message.IsOutgoing)
+                    {
+                        <div style="font-size:0.75em;color:#94a3b8;margin:0 0 2px 10px;">@SenderName(message.Address)</div>
+                    }
                     <div style="display:flex;width:100%;align-items:center;gap:8px;flex-direction:@(message.IsOutgoing ? "row-reverse" : "row");">
                     <div @onpointerdown="() => OnMessagePointerDown(message)"
                          @onpointerup="CancelMessageLongPress"
@@ -292,6 +296,7 @@
     private CancellationTokenSource? _saveToastCts;
     private readonly HashSet<long> _savedAttachmentPartIds = new();
     private IContactService? _contactService;
+    private readonly Dictionary<string, string> _memberNames = new();
     private Microsoft.JSInterop.DotNetObjectReference<ThreadDetailPage>? _dotNetRef;
 
     private async Task SendOrSchedule()
@@ -306,7 +311,13 @@
         }
         else if (_scheduledSendTime is { } sendAt)
         {
-            await ViewModel!.ScheduleSendCommand.ExecuteAsync(sendAt);
+            if (ViewModel!.IsGroup)
+            {
+                _scheduledSendTime = null;
+                ShowSaveToast("Scheduling isn't available in group chats yet");
+                return;
+            }
+            await ViewModel.ScheduleSendCommand.ExecuteAsync(sendAt);
             _scheduledSendTime = null;
         }
         else
@@ -339,9 +350,20 @@
             DisplayName = contact.DisplayName;
         }
 
+        var participants = await Services.GetRequiredService<IThreadService>().GetParticipantsAsync(ThreadId);
+        if (participants.Count > 1)
+        {
+            foreach (var participant in participants)
+            {
+                var member = await _contactService.LookupAsync(participant);
+                _memberNames[PhoneNumberFormatter.ToComparableDigits(participant)] = member?.DisplayName ?? PhoneNumberFormatter.ToDisplayFormat(participant);
+            }
+            DisplayName = GroupNames.Format(participants.Select(p => _memberNames[PhoneNumberFormatter.ToComparableDigits(p)]).ToList());
+        }
+
         var smsService = Services.GetRequiredService<ISmsService>();
         var scheduler = Services.GetRequiredService<IMessageSchedulerService>();
-        ViewModel = new ThreadDetailViewModel(smsService, scheduler, ThreadId, Address);
+        ViewModel = new ThreadDetailViewModel(smsService, scheduler, ThreadId, Address, participants: participants);
         await ViewModel.LoadCommand.ExecuteAsync(null);
 
         // Fire-and-forget: flipping the read flag is best-effort housekeeping, not something the
@@ -567,8 +589,15 @@
         }
     }
 
+    private string SenderName(string address) =>
+        _memberNames.TryGetValue(PhoneNumberFormatter.ToComparableDigits(address), out var name) ? name : PhoneNumberFormatter.ToDisplayFormat(address);
+
     private async Task OpenContact()
     {
+        if (ViewModel is { IsGroup: true })
+        {
+            return;
+        }
         if (_contactService is not null)
         {
             await _contactService.OpenContactAsync(Address);

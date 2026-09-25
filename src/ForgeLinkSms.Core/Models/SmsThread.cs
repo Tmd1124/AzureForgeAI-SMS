@@ -11,6 +11,8 @@ public class SmsThread
     public string? PhotoUri { get; init; }
     public bool IsFavorite { get; set; }
     public bool HasOutgoing { get; init; }
+    public IReadOnlyList<string> Participants { get; init; } = Array.Empty<string>();
+    public bool IsGroup => Participants.Count > 1;
     public IReadOnlyList<long> FilterIds { get; set; } = Array.Empty<long>();
 
     public string DisplayNameOrAddress => string.IsNullOrWhiteSpace(DisplayName) ? Address : DisplayName;

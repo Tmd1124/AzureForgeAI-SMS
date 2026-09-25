@@ -30,9 +30,12 @@ public partial class ThreadDetailViewModel : ObservableObject
     private readonly long _threadId;
     private readonly string _address;
     private readonly TimeSpan _undoSendWindow;
+    private readonly IReadOnlyList<string> _participants;
     private PendingSend? _pendingSend;
 
     public ObservableCollection<Models.SmsMessage> Messages { get; } = new();
+
+    public bool IsGroup => _participants.Count > 1;
 
     [ObservableProperty]
     private string _composeText = string.Empty;
@@ -66,8 +69,9 @@ public partial class ThreadDetailViewModel : ObservableObject
     private DateTimeOffset? _oldestLoadedTimestamp;
     private DateTimeOffset? _newestLoadedTimestamp;
 
-    public ThreadDetailViewModel(ISmsService smsService, IMessageSchedulerService scheduler, long threadId, string address, TimeSpan? undoSendWindow = null)
+    public ThreadDetailViewModel(ISmsService smsService, IMessageSchedulerService scheduler, long threadId, string address, TimeSpan? undoSendWindow = null, IReadOnlyList<string>? participants = null)
     {
+        _participants = participants ?? Array.Empty<string>();
         _smsService = smsService;
         _scheduler = scheduler;
         _threadId = threadId;
@@ -335,7 +339,11 @@ public partial class ThreadDetailViewModel : ObservableObject
             return;
         }
 
-        if (attachment is not null)
+        if (IsGroup)
+        {
+            await _smsService.SendGroupAsync(_threadId, _participants, string.IsNullOrEmpty(outgoingText) ? null : outgoingText, attachment);
+        }
+        else if (attachment is not null)
         {
             await _smsService.SendMmsAsync(_threadId, _address, string.IsNullOrEmpty(outgoingText) ? null : outgoingText, attachment);
         }
@@ -365,7 +373,9 @@ public partial class ThreadDetailViewModel : ObservableObject
     private async Task ScheduleSend(DateTimeOffset sendAtUtc)
     {
         var text = ComposeText.Trim();
-        if (string.IsNullOrEmpty(text))
+        // The scheduler sends plain one-to-one texts, which would split a group reply into
+        // separate private messages, so scheduling isn't offered in group conversations.
+        if (string.IsNullOrEmpty(text) || IsGroup)
         {
             return;
         }
@@ -378,7 +388,15 @@ public partial class ThreadDetailViewModel : ObservableObject
     [RelayCommand]
     private async Task SendReaction((string Emoji, string TargetMessageBody) reaction)
     {
-        await _smsService.SendAsync(_address, FormatReaction(reaction.Emoji, reaction.TargetMessageBody));
+        var reactionText = FormatReaction(reaction.Emoji, reaction.TargetMessageBody);
+        if (IsGroup)
+        {
+            await _smsService.SendGroupAsync(_threadId, _participants, reactionText, null);
+        }
+        else
+        {
+            await _smsService.SendAsync(_address, reactionText);
+        }
         await Load();
     }
 

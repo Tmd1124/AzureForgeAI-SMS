@@ -540,4 +540,71 @@ public class ThreadDetailViewModelTests
 
         Assert.Single(viewModel.Messages);
     }
+
+    [Fact]
+    public async Task SendCommand_in_a_group_sends_one_group_message_to_everyone()
+    {
+        var sms = new Mock<ISmsService>();
+        var group = new[] { "+14707583374", "+16782628755" };
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 3, address: "+14707583374", undoSendWindow: TimeSpan.Zero, participants: group)
+        {
+            ComposeText = "On my way"
+        };
+
+        await viewModel.SendCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsGroup);
+        sms.Verify(s => s.SendGroupAsync(3, It.Is<IReadOnlyList<string>>(a => a.SequenceEqual(group)), "On my way", null), Times.Once);
+        sms.Verify(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SendCommand_in_a_group_sends_an_attachment_to_everyone()
+    {
+        var sms = new Mock<ISmsService>();
+        var group = new[] { "+14707583374", "+16782628755" };
+        var attachment = new PickedAttachment { FileName = "photo.jpg", LocalPath = "/tmp/photo.jpg", Kind = AttachmentKind.Image };
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 3, address: "+14707583374", undoSendWindow: TimeSpan.Zero, participants: group);
+
+        await viewModel.SendCommand.ExecuteAsync(attachment);
+
+        sms.Verify(s => s.SendGroupAsync(3, It.IsAny<IReadOnlyList<string>>(), null, attachment), Times.Once);
+        sms.Verify(s => s.SendMmsAsync(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<PickedAttachment>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SendReactionCommand_in_a_group_goes_to_everyone()
+    {
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.GetMessagesAsync(3, null, It.IsAny<int>())).ReturnsAsync(new List<SmsMessage>());
+        var group = new[] { "+14707583374", "+16782628755" };
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 3, address: "+14707583374", participants: group);
+
+        await viewModel.SendReactionCommand.ExecuteAsync(("👍", "hi"));
+
+        sms.Verify(s => s.SendGroupAsync(3, It.IsAny<IReadOnlyList<string>>(), "👍 to \"hi\"", null), Times.Once);
+    }
+
+    [Fact]
+    public async Task ScheduleSendCommand_in_a_group_does_not_schedule_individual_texts()
+    {
+        var scheduler = new Mock<IMessageSchedulerService>();
+        var viewModel = new ThreadDetailViewModel(new Mock<ISmsService>().Object, scheduler.Object, threadId: 3, address: "+14707583374", participants: new[] { "+14707583374", "+16782628755" })
+        {
+            ComposeText = "later"
+        };
+
+        await viewModel.ScheduleSendCommand.ExecuteAsync(DateTimeOffset.UtcNow.AddHours(1));
+
+        scheduler.Verify(s => s.ScheduleAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>()), Times.Never);
+        Assert.Equal("later", viewModel.ComposeText);
+    }
+
+    [Fact]
+    public void A_single_participant_thread_is_not_a_group()
+    {
+        var viewModel = new ThreadDetailViewModel(new Mock<ISmsService>().Object, new Mock<IMessageSchedulerService>().Object, threadId: 3, address: "555", participants: new[] { "555" });
+
+        Assert.False(viewModel.IsGroup);
+    }
 }
