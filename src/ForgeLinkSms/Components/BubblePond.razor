@@ -1,0 +1,115 @@
+@using ForgeLinkSms.Core.Models
+@using ForgeLinkSms.Core.Utils
+
+<div id="bubble-pond" class="bubble-pond">
+    @for (var i = 0; i < Threads.Count; i++)
+    {
+        var thread = Threads[i];
+        var (xPercent, y) = Slots[i];
+        var size = Sizes[i];
+        var color = PondSelector.ColorFor(thread.Address);
+        <div @key="thread.Id"
+             class="pond-bubble @(thread.UnreadCount > 0 ? "unread" : "")"
+             style="left:calc(@(xPercent)% - @(size / 2)px);top:@(y - size / 2)px;width:@(size)px;height:@(size)px;--rim:@color;animation-delay:@((i * 0.37).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture))s;"
+             @onpointerdown="() => StartPress(thread)"
+             @onpointerup="() => EndPress(thread)"
+             @onpointerleave="CancelPress"
+             @onpointercancel="CancelPress">
+            @if (!string.IsNullOrEmpty(thread.PhotoUri))
+            {
+                <img src="@thread.PhotoUri" alt="" draggable="false" />
+            }
+            else
+            {
+                <span class="initials" style="background:@color">@thread.Initials</span>
+            }
+            @if (thread.UnreadCount > 0)
+            {
+                <span class="count">@thread.UnreadCount</span>
+            }
+            <span class="name">@FirstName(thread)</span>
+        </div>
+    }
+</div>
+
+<div id="bubble-pond-mini" class="bubble-pond-mini">
+    @foreach (var thread in Threads)
+    {
+        var color = PondSelector.ColorFor(thread.Address);
+        <div @key="thread.Id" class="mini-bubble @(thread.UnreadCount > 0 ? "unread" : "")" style="--rim:@color"
+             @onclick="() => OnOpen.InvokeAsync(thread)">
+            @if (!string.IsNullOrEmpty(thread.PhotoUri))
+            {
+                <img src="@thread.PhotoUri" alt="@thread.DisplayNameOrAddress" draggable="false" />
+            }
+            else
+            {
+                <span class="initials" style="background:@color">@thread.Initials</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<SmsThread> Threads { get; set; } = Array.Empty<SmsThread>();
+    [Parameter] public EventCallback<SmsThread> OnOpen { get; set; }
+    [Parameter] public EventCallback<SmsThread> OnLongPress { get; set; }
+
+    // Hand-tuned bubble centers (x as % of pond width, y in px) for rank order, spaced so
+    // the rank sizes below never overlap, even with names underneath. Fewer than 8 bubbles
+    // use the first N slots.
+    private static readonly (double XPercent, int Y)[] Slots =
+    {
+        (22, 60), (58, 42), (84, 96), (44, 134), (14, 168), (70, 178), (40, 206), (92, 196)
+    };
+
+    private static readonly int[] Sizes = { 88, 80, 74, 68, 62, 56, 52, 48 };
+
+    private CancellationTokenSource? _pressCts;
+    private long? _pressedThreadId;
+    private bool _longPressed;
+
+    private void StartPress(SmsThread thread)
+    {
+        _pressCts?.Cancel();
+        _pressedThreadId = thread.Id;
+        _longPressed = false;
+        _pressCts = new CancellationTokenSource();
+        var token = _pressCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(500, token);
+                _longPressed = true;
+                await InvokeAsync(() => OnLongPress.InvokeAsync(thread));
+            }
+            catch (TaskCanceledException)
+            {
+                // released, scrolled, or left the bubble before the long-press threshold
+            }
+        });
+    }
+
+    private async Task EndPress(SmsThread thread)
+    {
+        _pressCts?.Cancel();
+        // A pointerup without our own pointerdown (e.g. an overlay closing mid-gesture) isn't a tap.
+        if (_pressedThreadId != thread.Id || _longPressed)
+        {
+            _pressedThreadId = null;
+            return;
+        }
+        _pressedThreadId = null;
+        await OnOpen.InvokeAsync(thread);
+    }
+
+    private void CancelPress()
+    {
+        _pressCts?.Cancel();
+        _pressedThreadId = null;
+    }
+
+    private static string FirstName(SmsThread thread) =>
+        thread.DisplayNameOrAddress.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? thread.DisplayNameOrAddress;
+}

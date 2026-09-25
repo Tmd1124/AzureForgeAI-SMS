@@ -9,6 +9,7 @@
 @inject ForgeLinkSms.Core.Services.IIncomingMessageNotifier IncomingMessageNotifier
 @inject ForgeLinkSms.Core.Services.NavigationHistoryTracker HistoryTracker
 @inject NavigationManager Nav
+@inject Microsoft.JSInterop.IJSRuntime JS
 @using ForgeLinkSms.Core.Utils
 @using ForgeLinkSms.Core.Models
 @using ForgeLinkSms.Components
@@ -32,7 +33,7 @@
     }
     else
     {
-        <div style="position:sticky;top:0;z-index:10;background:var(--surface-color);display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:6px 0;">
+        <div id="conversations-header" style="position:sticky;top:0;z-index:10;background:var(--surface-color);display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:6px 0;">
             <div style="display:flex;align-items:center;gap:16px;">
                 <button @onclick="ToggleUnreadFilter"
                         style="width:40px;height:40px;border-radius:50%;border:none;padding:0;display:flex;align-items:center;justify-content:center;background:@(ViewModel.ShowUnreadOnly ? "var(--accent-color)" : "#e2e8f0");color:@(ViewModel.ShowUnreadOnly ? "white" : "#1e293b");">
@@ -107,6 +108,13 @@
         {
             <div style="color:#94a3b8;font-size:0.85em;margin:0 4px 8px;">Automated texts from businesses, grouped by topic. They arrive without a notification, except verification codes.</div>
         }
+    }
+
+    @if (_selectedThreadIds.Count == 0 && ViewModel.PondThreads.Count > 0)
+    {
+        <BubblePond Threads="ViewModel.PondThreads"
+                    OnOpen="t => OpenThread(t.Id, t.Address)"
+                    OnLongPress="SelectFromPond" />
     }
 
     @if (_isLoading)
@@ -417,6 +425,10 @@
     {
         AppResumeNotifier.Resumed -= OnAppResumed;
         IncomingMessageNotifier.MessageReceived -= OnMessageReceived;
+
+        // Fire-and-forget: the WebView may already be tearing down, and a leftover listener only
+        // looks up elements that no longer exist.
+        _ = JS.InvokeVoidAsync("forgeLinkBubblePond.dispose").AsTask().ContinueWith(_ => { }, TaskScheduler.Default);
         _undoToastCts?.Cancel();
         _codeExpiryCts.Cancel();
 
@@ -431,6 +443,10 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("forgeLinkBubblePond.observe", "bubble-pond", "bubble-pond-mini", "conversations-header");
+        }
         if (_shouldFocusSearch)
         {
             _shouldFocusSearch = false;
@@ -581,6 +597,8 @@
 
     private void CloseActionSheet() => _actionSheetThreadId = null;
 
+    private void SelectFromPond(SmsThread thread) => _selectedThreadIds.Add(thread.Id);
+
     private IEnumerable<(ConversationLane Lane, string Label, int Count)> LaneTabs()
     {
         yield return (ConversationLane.Conversations, "Chats", 0);
@@ -594,7 +612,9 @@
     {
         if (ViewModel.Lane != ConversationLane.Updates || !string.IsNullOrWhiteSpace(ViewModel.SearchText))
         {
-            foreach (var thread in ViewModel.Threads)
+            // While selecting, the pond hides, so every thread (pond ones included) must be in the list.
+            var rows = _selectedThreadIds.Count == 0 && ViewModel.PondThreads.Count > 0 ? ViewModel.ListThreads : ViewModel.Threads;
+            foreach (var thread in rows)
             {
                 yield return (null, thread);
             }

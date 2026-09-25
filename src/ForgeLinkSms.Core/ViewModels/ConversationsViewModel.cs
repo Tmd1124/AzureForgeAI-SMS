@@ -52,6 +52,10 @@ public partial class ConversationsViewModel : ObservableObject
         .Select(g => (g.Key, (IReadOnlyList<SmsThread>)g.OrderByDescending(t => t.LastMessageTimestamp).ToList()))
         .ToList();
 
+    public IReadOnlyList<SmsThread> PondThreads { get; private set; } = Array.Empty<SmsThread>();
+
+    public IReadOnlyList<SmsThread> ListThreads { get; private set; } = Array.Empty<SmsThread>();
+
     private ConversationLane LaneOf(SmsThread thread) => SenderScreening.LaneFor(thread, _allowedSenders);
 
     public ConversationsViewModel(
@@ -441,5 +445,13 @@ public partial class ConversationsViewModel : ObservableObject
         }
         OnPropertyChanged(nameof(ScreenerCount));
         OnPropertyChanged(nameof(UpdatesCount));
+
+        var showPond = Lane == ConversationLane.Conversations && string.IsNullOrEmpty(query)
+            && !ShowUnreadOnly && ActiveFilterIds.Count == 0;
+        PondThreads = showPond ? PondSelector.Select(Threads) : Array.Empty<SmsThread>();
+        var pondIds = PondThreads.Select(t => t.Id).ToHashSet();
+        ListThreads = Threads.Where(t => !pondIds.Contains(t.Id)).ToList();
+        OnPropertyChanged(nameof(PondThreads));
+        OnPropertyChanged(nameof(ListThreads));
     }
 }

@@ -1112,4 +1112,77 @@ public class ConversationsViewModelTests
         Assert.Equal(ConversationLane.Conversations, viewModel.Lane);
         Assert.Single(viewModel.Threads);
     }
+
+    private static List<SmsThread> FiveNamedChats() => new()
+    {
+        MakeThread(1, "5550000001", "Ana", "a", DateTimeOffset.UtcNow.AddMinutes(-1)),
+        MakeThread(2, "5550000002", "Ben", "b", DateTimeOffset.UtcNow.AddMinutes(-2)),
+        MakeThread(3, "5550000003", "Cal", "c", DateTimeOffset.UtcNow.AddMinutes(-3)),
+        MakeThread(4, "5550000004", "Dee", "d", DateTimeOffset.UtcNow.AddMinutes(-4)),
+        MakeThread(5, "5550000005", null, "e", DateTimeOffset.UtcNow.AddMinutes(-5))
+    };
+
+    [Fact]
+    public async Task PondThreads_holds_named_chats_in_rank_order()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(FiveNamedChats());
+        var favorites = MakeEmptyFavoriteRepository();
+        favorites.Setup(r => r.GetFavoriteThreadIdsAsync()).ReturnsAsync(new List<long> { 4 });
+        var viewModel = MakeViewModel(threadService, favoriteRepository: favorites);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Equal(new long[] { 4, 1, 2, 3 }, viewModel.PondThreads.Select(t => t.Id));
+    }
+
+    [Fact]
+    public async Task ListThreads_excludes_pond_threads()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(FiveNamedChats());
+        var viewModel = MakeViewModel(threadService);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Equal(new long[] { 5 }, viewModel.ListThreads.Select(t => t.Id));
+        Assert.Empty(viewModel.PondThreads.Select(t => t.Id).Intersect(viewModel.ListThreads.Select(t => t.Id)));
+    }
+
+    [Fact]
+    public async Task Pond_is_hidden_while_searching_filtering_or_off_the_chats_lane()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(FiveNamedChats());
+        var viewModel = MakeViewModel(threadService);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        viewModel.SearchText = "a";
+        Assert.Empty(viewModel.PondThreads);
+        Assert.Equal(viewModel.Threads.Select(t => t.Id), viewModel.ListThreads.Select(t => t.Id));
+        viewModel.SearchText = string.Empty;
+
+        viewModel.ShowUnreadOnly = true;
+        Assert.Empty(viewModel.PondThreads);
+        viewModel.ShowUnreadOnly = false;
+
+        viewModel.Lane = ConversationLane.Updates;
+        Assert.Empty(viewModel.PondThreads);
+        viewModel.Lane = ConversationLane.Conversations;
+
+        Assert.NotEmpty(viewModel.PondThreads);
+    }
+
+    [Fact]
+    public async Task Pond_refills_after_a_pond_thread_is_archived()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(FiveNamedChats());
+        var viewModel = MakeViewModel(threadService);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.ArchiveThreadCommand.ExecuteAsync(1L);
+
+        Assert.Equal(new long[] { 2, 3, 4 }, viewModel.PondThreads.Select(t => t.Id));
+    }
 }

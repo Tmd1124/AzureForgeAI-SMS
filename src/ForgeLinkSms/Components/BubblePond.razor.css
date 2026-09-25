@@ -1,0 +1,138 @@
+.bubble-pond {
+    position: relative;
+    height: 250px;
+    margin: 4px 0 8px;
+}
+
+.pond-bubble {
+    position: absolute;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 3px solid var(--rim);
+    cursor: pointer;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    animation: pond-bob 3s ease-in-out infinite;
+}
+
+.pond-bubble.unread {
+    animation: pond-bob 2.4s ease-in-out infinite, pond-pulse 1.8s infinite;
+}
+
+.pond-bubble img,
+.pond-bubble .initials,
+.mini-bubble img,
+.mini-bubble .initials {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+.count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    background: #facc15;
+    color: #111;
+    font-size: 0.72em;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.name {
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    transform: translateX(-50%);
+    margin-top: 3px;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.72em;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.bubble-pond-mini {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 52px;
+    z-index: 9;
+    display: flex;
+    gap: 8px;
+    padding: 6px 12px;
+    overflow-x: auto;
+    background: var(--surface-color);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+}
+
+.bubble-pond-mini.show {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+}
+
+.mini-bubble {
+    position: relative;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 2px solid var(--rim);
+    cursor: pointer;
+}
+
+.mini-bubble.unread::after {
+    content: "";
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #facc15;
+}
+
+@keyframes pond-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+@keyframes pond-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pond-bubble,
+    .pond-bubble.unread {
+        animation: none;
+    }
+
+    .bubble-pond-mini {
+        transition: none;
+    }
+}
