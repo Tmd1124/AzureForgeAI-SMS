@@ -10,6 +10,7 @@
 @inject ForgeLinkSms.Core.Services.NavigationHistoryTracker HistoryTracker
 @inject NavigationManager Nav
 @using ForgeLinkSms.Core.Utils
+@using ForgeLinkSms.Core.Models
 @using ForgeLinkSms.Components
 
 <div style="padding:12px;">
@@ -85,21 +86,26 @@
         </div>
     }
 
-    @if (_selectedThreadIds.Count == 0 && string.IsNullOrWhiteSpace(ViewModel.SearchText) && (ViewModel.ScreenerCount > 0 || ViewModel.ShowScreener))
+    @if (_selectedThreadIds.Count == 0 && string.IsNullOrWhiteSpace(ViewModel.SearchText)
+         && (ViewModel.ScreenerCount > 0 || ViewModel.UpdatesCount > 0 || ViewModel.Lane != ConversationLane.Conversations))
     {
         <div style="display:flex;gap:6px;margin-bottom:8px;">
-            <button @onclick="() => ViewModel.ShowScreener = false"
-                    style="flex:1;border:none;border-radius:999px;padding:8px 0;font-weight:600;background:@(ViewModel.ShowScreener ? "#e2e8f0" : "var(--accent-color)");color:@(ViewModel.ShowScreener ? "#1e293b" : "white");">
-                Conversations
-            </button>
-            <button @onclick="() => ViewModel.ShowScreener = true"
-                    style="flex:1;border:none;border-radius:999px;padding:8px 0;font-weight:600;background:@(ViewModel.ShowScreener ? "var(--accent-color)" : "#e2e8f0");color:@(ViewModel.ShowScreener ? "white" : "#1e293b");">
-                Screener @(ViewModel.ScreenerCount > 0 ? $"({ViewModel.ScreenerCount})" : "")
-            </button>
+            @foreach (var (lane, label, count) in LaneTabs())
+            {
+                var isActive = ViewModel.Lane == lane;
+                <button @onclick="() => ViewModel.Lane = lane"
+                        style="flex:1;min-width:0;border:none;border-radius:999px;padding:8px 4px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:@(isActive ? "var(--accent-color)" : "#e2e8f0");color:@(isActive ? "white" : "#1e293b");">
+                    @label @(count > 0 ? $"({count})" : "")
+                </button>
+            }
         </div>
-        @if (ViewModel.ShowScreener)
+        @if (ViewModel.Lane == ConversationLane.Screener)
         {
             <div style="color:#94a3b8;font-size:0.85em;margin:0 4px 8px;">Texts from numbers that aren't in your contacts. They arrive without a notification (except verification codes) until you allow them.</div>
+        }
+        else if (ViewModel.Lane == ConversationLane.Updates)
+        {
+            <div style="color:#94a3b8;font-size:0.85em;margin:0 4px 8px;">Automated texts from businesses, grouped by topic. They arrive without a notification, except verification codes.</div>
         }
     }
 
@@ -108,13 +114,34 @@
     }
     else if (ViewModel.Threads.Count == 0)
     {
-        <p>@(ViewModel.ShowScreener ? "Nothing waiting in the Screener." : "No conversations yet.")</p>
+        <p>@(ViewModel.Lane switch
+        {
+            ConversationLane.Screener => "Nothing waiting in the Screener.",
+            ConversationLane.Updates => "No updates.",
+            _ => "No conversations yet."
+        })</p>
     }
     else
     {
-        @foreach (var thread in ViewModel.Threads)
+        @foreach (var (group, thread) in VisibleRows())
         {
-            <div @onpointerdown="e => OnPointerDown(thread.Id, e)"
+            @if (group is { } g)
+            {
+                var isExpanded = _expandedUpdateGroups.Contains(g.Category);
+                var latest = g.Threads[0];
+                <div @key="@($"group-{g.Category}")" @onclick="() => ToggleUpdateGroup(g.Category)"
+                     style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #eee;cursor:pointer;background:@(g.Threads.Any(t => t.UnreadCount > 0) ? "rgba(234,179,8,0.15)" : "transparent");">
+                    <div style="width:40px;height:40px;border-radius:10px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:1.3em;flex-shrink:0;">@CategoryIcon(g.Category)</div>
+                    <div style="flex:1;min-width:0;">
+                        <strong>@CategoryName(g.Category)</strong>
+                        <span style="display:inline-block;margin-left:6px;padding:0 8px;border-radius:999px;background:#e2e8f0;color:#1e293b;font-size:0.8em;">@g.Threads.Count</span>
+                        <div style="color:#94a3b8;font-size:0.85em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@latest.DisplayNameOrAddress · @latest.PreviewText</div>
+                    </div>
+                    <span style="color:#94a3b8;flex-shrink:0;">@(isExpanded ? "▾" : "▸")</span>
+                </div>
+                continue;
+            }
+            <div @key="thread!.Id" @onpointerdown="e => OnPointerDown(thread.Id, e)"
                  @onpointerup="e => OnPointerUp(thread.Id, thread.Address, e)"
                  @onpointermove="OnPointerMove"
                  @onpointerleave="CancelLongPress"
@@ -161,7 +188,7 @@
                     }
                     <div style="color:#94a3b8;font-size:0.85em;">@thread.PreviewText</div>
                 </div>
-                @if (_selectedThreadIds.Count == 0 && ViewModel.ShowScreener && string.IsNullOrWhiteSpace(ViewModel.SearchText))
+                @if (_selectedThreadIds.Count == 0 && ViewModel.Lane != ConversationLane.Conversations && string.IsNullOrWhiteSpace(ViewModel.SearchText))
                 {
                     <div style="display:flex;gap:6px;flex-shrink:0;">
                         <button @onclick="() => AllowSender(thread.Address)" @onclick:stopPropagation="true"
@@ -275,6 +302,7 @@
     private CancellationTokenSource? _undoToastCts;
     private ForgeLinkSms.Core.Models.OneTimeCode? _copiedCode;
     private long? _snoozeThreadId;
+    private readonly HashSet<UpdateCategory> _expandedUpdateGroups = new();
     private DateTime? _customSnoozeTime;
     private readonly CancellationTokenSource _codeExpiryCts = new();
 
@@ -552,6 +580,67 @@
     }
 
     private void CloseActionSheet() => _actionSheetThreadId = null;
+
+    private IEnumerable<(ConversationLane Lane, string Label, int Count)> LaneTabs()
+    {
+        yield return (ConversationLane.Conversations, "Chats", 0);
+        yield return (ConversationLane.Updates, "Updates", ViewModel.UpdatesCount);
+        yield return (ConversationLane.Screener, "Screener", ViewModel.ScreenerCount);
+    }
+
+    // The Updates lane shows one header row per topic with its threads underneath only when
+    // expanded; every other lane (and any search) is the plain thread list.
+    private IEnumerable<((UpdateCategory Category, IReadOnlyList<SmsThread> Threads)? Group, SmsThread? Thread)> VisibleRows()
+    {
+        if (ViewModel.Lane != ConversationLane.Updates || !string.IsNullOrWhiteSpace(ViewModel.SearchText))
+        {
+            foreach (var thread in ViewModel.Threads)
+            {
+                yield return (null, thread);
+            }
+            yield break;
+        }
+
+        foreach (var group in ViewModel.UpdateGroups)
+        {
+            yield return (group, null);
+            if (_expandedUpdateGroups.Contains(group.Category))
+            {
+                foreach (var thread in group.Threads)
+                {
+                    yield return (null, thread);
+                }
+            }
+        }
+    }
+
+    private void ToggleUpdateGroup(UpdateCategory category)
+    {
+        if (!_expandedUpdateGroups.Remove(category))
+        {
+            _expandedUpdateGroups.Add(category);
+        }
+    }
+
+    private static string CategoryIcon(UpdateCategory category) => category switch
+    {
+        UpdateCategory.Codes => "🔑",
+        UpdateCategory.Appointments => "📅",
+        UpdateCategory.Deliveries => "📦",
+        UpdateCategory.Banking => "💳",
+        UpdateCategory.Promotions => "🏷️",
+        _ => "📨"
+    };
+
+    private static string CategoryName(UpdateCategory category) => category switch
+    {
+        UpdateCategory.Codes => "Codes",
+        UpdateCategory.Appointments => "Appointments",
+        UpdateCategory.Deliveries => "Deliveries",
+        UpdateCategory.Banking => "Banking",
+        UpdateCategory.Promotions => "Promotions",
+        _ => "Other"
+    };
 
     private async Task AllowSender(string address)
     {

@@ -999,7 +999,7 @@ public class ConversationsViewModelTests
         threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
         {
             MakeThread(1, "5551112222", "Mom", "hi", hasOutgoing: false),
-            MakeThread(2, "8552014477", null, "Package on hold", hasOutgoing: false),
+            MakeThread(2, "3125550147", null, "Package on hold", hasOutgoing: false),
             MakeThread(3, "5553334444", null, "Thanks for the quote", hasOutgoing: true)
         });
         var viewModel = MakeViewModel(threadService);
@@ -1009,7 +1009,7 @@ public class ConversationsViewModelTests
         Assert.Equal(new long[] { 1, 3 }, viewModel.Threads.Select(t => t.Id).OrderBy(id => id));
         Assert.Equal(1, viewModel.ScreenerCount);
 
-        viewModel.ShowScreener = true;
+        viewModel.Lane = ConversationLane.Screener;
 
         Assert.Equal(new long[] { 2 }, viewModel.Threads.Select(t => t.Id));
     }
@@ -1020,10 +1020,10 @@ public class ConversationsViewModelTests
         var threadService = new Mock<IThreadService>();
         threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
         {
-            MakeThread(2, "(855) 201-4477", null, "Your table is ready", hasOutgoing: false)
+            MakeThread(2, "(312) 555-0147", null, "Your table is ready", hasOutgoing: false)
         });
         var allowed = MakeEmptyAllowedSenderRepository();
-        allowed.Setup(r => r.GetAllAsync()).ReturnsAsync(new HashSet<string> { "8552014477" });
+        allowed.Setup(r => r.GetAllAsync()).ReturnsAsync(new HashSet<string> { "3125550147" });
         var viewModel = MakeViewModel(threadService, allowedSenderRepository: allowed);
 
         await viewModel.LoadCommand.ExecuteAsync(null);
@@ -1038,19 +1038,19 @@ public class ConversationsViewModelTests
         var threadService = new Mock<IThreadService>();
         threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
         {
-            MakeThread(2, "(855) 201-4477", null, "Your table is ready", hasOutgoing: false)
+            MakeThread(2, "(312) 555-0147", null, "Your table is ready", hasOutgoing: false)
         });
         var allowed = MakeEmptyAllowedSenderRepository();
         var undoStack = new Mock<IUndoStack>();
         var viewModel = MakeViewModel(threadService, undoStack: undoStack, allowedSenderRepository: allowed);
         await viewModel.LoadCommand.ExecuteAsync(null);
-        viewModel.ShowScreener = true;
+        viewModel.Lane = ConversationLane.Screener;
 
-        await viewModel.AllowSenderCommand.ExecuteAsync("(855) 201-4477");
+        await viewModel.AllowSenderCommand.ExecuteAsync("(312) 555-0147");
 
-        allowed.Verify(r => r.AllowAsync("8552014477"), Times.Once);
+        allowed.Verify(r => r.AllowAsync("3125550147"), Times.Once);
         undoStack.Verify(u => u.Push(It.IsAny<AllowSenderUndoAction>()), Times.Once);
-        Assert.False(viewModel.ShowScreener);
+        Assert.Equal(ConversationLane.Conversations, viewModel.Lane);
         Assert.Equal(new long[] { 2 }, viewModel.Threads.Select(t => t.Id));
     }
 
@@ -1060,13 +1060,56 @@ public class ConversationsViewModelTests
         var threadService = new Mock<IThreadService>();
         threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
         {
-            MakeThread(2, "8552014477", null, "Your table is ready", hasOutgoing: false)
+            MakeThread(2, "3125550147", null, "Your table is ready", hasOutgoing: false)
         });
         var viewModel = MakeViewModel(threadService);
         await viewModel.LoadCommand.ExecuteAsync(null);
 
         viewModel.SearchText = "table";
 
+        Assert.Single(viewModel.Threads);
+    }
+
+    [Fact]
+    public async Task LoadCommand_puts_automated_senders_in_updates_grouped_by_topic()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5551112222", "Mom", "hi", now),
+            MakeThread(2, "69877", null, "UPS: out for delivery", now.AddMinutes(-5)),
+            MakeThread(3, "AMAZON", null, "Your order has shipped", now.AddMinutes(-30)),
+            MakeThread(4, "24273", null, "Chase: $42.18 purchase on your card", now.AddMinutes(-10))
+        });
+        var viewModel = MakeViewModel(threadService);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Equal(new long[] { 1 }, viewModel.Threads.Select(t => t.Id));
+        Assert.Equal(3, viewModel.UpdatesCount);
+
+        viewModel.Lane = ConversationLane.Updates;
+
+        var groups = viewModel.UpdateGroups;
+        Assert.Equal(new[] { UpdateCategory.Deliveries, UpdateCategory.Banking }, groups.Select(g => g.Category));
+        Assert.Equal(new long[] { 2, 3 }, groups[0].Threads.Select(t => t.Id));
+    }
+
+    [Fact]
+    public async Task AllowSenderCommand_on_an_update_moves_it_to_conversations()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(2, "69877", null, "UPS: out for delivery")
+        });
+        var viewModel = MakeViewModel(threadService);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+        viewModel.Lane = ConversationLane.Updates;
+
+        await viewModel.AllowSenderCommand.ExecuteAsync("69877");
+
+        Assert.Equal(ConversationLane.Conversations, viewModel.Lane);
         Assert.Single(viewModel.Threads);
     }
 }

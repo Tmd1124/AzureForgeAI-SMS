@@ -39,9 +39,20 @@ public partial class ConversationsViewModel : ObservableObject
     private bool _showUnreadOnly;
 
     [ObservableProperty]
-    private bool _showScreener;
+    private ConversationLane _lane = ConversationLane.Conversations;
 
-    public int ScreenerCount => _allThreads.Count(t => SenderScreening.IsScreened(t, _allowedSenders));
+    public int ScreenerCount => _allThreads.Count(t => LaneOf(t) == ConversationLane.Screener);
+
+    public int UpdatesCount => _allThreads.Count(t => LaneOf(t) == ConversationLane.Updates);
+
+    // Groups the visible Updates threads by what their latest text is about, busiest-recent first.
+    public IReadOnlyList<(UpdateCategory Category, IReadOnlyList<SmsThread> Threads)> UpdateGroups => Threads
+        .GroupBy(t => UpdateCategorizer.Categorize(t.LastMessageBody, t.DisplayNameOrAddress))
+        .OrderByDescending(g => g.Max(t => t.LastMessageTimestamp))
+        .Select(g => (g.Key, (IReadOnlyList<SmsThread>)g.OrderByDescending(t => t.LastMessageTimestamp).ToList()))
+        .ToList();
+
+    private ConversationLane LaneOf(SmsThread thread) => SenderScreening.LaneFor(thread, _allowedSenders);
 
     public ConversationsViewModel(
         IThreadService threadService,
@@ -309,9 +320,9 @@ public partial class ConversationsViewModel : ObservableObject
         await _allowedSenderRepository.AllowAsync(normalizedAddress);
         _undoStack.Push(new AllowSenderUndoAction(normalizedAddress, _allowedSenderRepository));
         _allowedSenders = _allowedSenders.Append(normalizedAddress).ToHashSet();
-        if (ScreenerCount == 0)
+        if ((Lane == ConversationLane.Screener && ScreenerCount == 0) || (Lane == ConversationLane.Updates && UpdatesCount == 0))
         {
-            ShowScreener = false;
+            Lane = ConversationLane.Conversations;
         }
         ApplyFilter();
     }
@@ -401,7 +412,7 @@ public partial class ConversationsViewModel : ObservableObject
 
     partial void OnShowUnreadOnlyChanged(bool value) => ApplyFilter();
 
-    partial void OnShowScreenerChanged(bool value) => ApplyFilter();
+    partial void OnLaneChanged(ConversationLane value) => ApplyFilter();
 
     private void ApplyFilter()
     {
@@ -409,7 +420,7 @@ public partial class ConversationsViewModel : ObservableObject
         var query = SearchText.Trim();
         // Search deliberately spans both lanes so a screened sender is still findable by name or text.
         var matches = string.IsNullOrEmpty(query)
-            ? _allThreads.Where(t => SenderScreening.IsScreened(t, _allowedSenders) == ShowScreener)
+            ? _allThreads.Where(t => LaneOf(t) == Lane)
             : _allThreads.Where(t =>
                 t.DisplayNameOrAddress.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                 t.LastMessageBody.Contains(query, StringComparison.OrdinalIgnoreCase));
@@ -429,5 +440,6 @@ public partial class ConversationsViewModel : ObservableObject
             Threads.Add(thread);
         }
         OnPropertyChanged(nameof(ScreenerCount));
+        OnPropertyChanged(nameof(UpdatesCount));
     }
 }

@@ -4,16 +4,56 @@ namespace ForgeLinkSms.Core.Utils;
 
 public static class SenderScreening
 {
-    // A sender is "known" once they're a contact, the user has ever texted them, favorited the
-    // conversation, or explicitly allowed them; everyone else waits in the Screener.
-    public static bool IsScreened(SmsThread thread, IReadOnlySet<string> allowedAddresses) =>
-        string.IsNullOrWhiteSpace(thread.DisplayName)
-        && !thread.HasOutgoing
-        && !thread.IsFavorite
-        && !allowedAddresses.Contains(PhoneNumberFormatter.ToComparableDigits(thread.Address));
+    private static readonly HashSet<string> TollFreeAreaCodes = new() { "800", "833", "844", "855", "866", "877", "888" };
 
-    // Screened texts arrive silently, except one-time codes: the user is usually waiting on
-    // those right now, and they almost always come from numbers that aren't contacts.
-    public static bool ShouldNotify(bool isContact, bool isAllowed, bool hasOutgoing, string body) =>
-        isContact || isAllowed || hasOutgoing || OneTimeCodeDetector.Extract(body) is not null;
+    // Short codes (e.g. 72975), alphanumeric sender IDs (e.g. "AMAZON"), and toll-free numbers
+    // are how businesses send automated texts; ordinary people text from 10-digit numbers.
+    public static bool IsAutomatedSender(string address)
+    {
+        // An email address is a person texting from their mail app, not a business sender ID.
+        if (address.Contains('@'))
+        {
+            return false;
+        }
+
+        if (address.Any(char.IsLetter))
+        {
+            return true;
+        }
+
+        var digits = PhoneNumberFormatter.ToComparableDigits(address);
+        if (digits.Length is 5 or 6)
+        {
+            return true;
+        }
+
+        return digits.Length == 10 && TollFreeAreaCodes.Contains(digits[..3]);
+    }
+
+    public static ConversationLane LaneFor(SmsThread thread, IReadOnlySet<string> allowedAddresses) => LaneFor(
+        isContact: !string.IsNullOrWhiteSpace(thread.DisplayName),
+        isFavorite: thread.IsFavorite,
+        isAllowed: allowedAddresses.Contains(PhoneNumberFormatter.ToComparableDigits(thread.Address)),
+        hasOutgoing: thread.HasOutgoing,
+        address: thread.Address);
+
+    // Replying to an automated sender (e.g. "Y" to confirm an appointment) doesn't make it a
+    // person, so the automated check comes before hasOutgoing.
+    public static ConversationLane LaneFor(bool isContact, bool isFavorite, bool isAllowed, bool hasOutgoing, string address)
+    {
+        if (isContact || isFavorite || isAllowed)
+        {
+            return ConversationLane.Conversations;
+        }
+        if (IsAutomatedSender(address))
+        {
+            return ConversationLane.Updates;
+        }
+        return hasOutgoing ? ConversationLane.Conversations : ConversationLane.Screener;
+    }
+
+    // Updates and screened texts arrive silently, except one-time codes: the user is usually
+    // waiting on those right now, and they almost always come from automated senders.
+    public static bool ShouldNotify(ConversationLane lane, string body) =>
+        lane == ConversationLane.Conversations || OneTimeCodeDetector.Extract(body) is not null;
 }

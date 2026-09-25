@@ -7,7 +7,7 @@ public class SenderScreeningTests
 {
     private static readonly IReadOnlySet<string> NoneAllowed = new HashSet<string>();
 
-    private static SmsThread MakeThread(string? name = null, bool hasOutgoing = false, bool isFavorite = false, string address = "(855) 201-4477") => new()
+    private static SmsThread MakeThread(string? name = null, bool hasOutgoing = false, bool isFavorite = false, string address = "(312) 555-0147") => new()
     {
         Id = 1,
         Address = address,
@@ -19,49 +19,77 @@ public class SenderScreeningTests
         IsFavorite = isFavorite
     };
 
-    [Fact]
-    public void IsScreened_is_true_for_an_unknown_sender_you_never_replied_to()
+    [Theory]
+    [InlineData("72975")]
+    [InlineData("262966")]
+    [InlineData("AMAZON")]
+    [InlineData("(855) 201-4477")]
+    [InlineData("+1 800-555-0199")]
+    public void IsAutomatedSender_recognizes_business_senders(string address)
     {
-        Assert.True(SenderScreening.IsScreened(MakeThread(), NoneAllowed));
-    }
-
-    [Fact]
-    public void IsScreened_is_false_for_a_contact()
-    {
-        Assert.False(SenderScreening.IsScreened(MakeThread(name: "Mom"), NoneAllowed));
-    }
-
-    [Fact]
-    public void IsScreened_is_false_once_you_have_texted_them()
-    {
-        Assert.False(SenderScreening.IsScreened(MakeThread(hasOutgoing: true), NoneAllowed));
-    }
-
-    [Fact]
-    public void IsScreened_is_false_for_a_favorite()
-    {
-        Assert.False(SenderScreening.IsScreened(MakeThread(isFavorite: true), NoneAllowed));
-    }
-
-    [Fact]
-    public void IsScreened_is_false_for_an_allowed_number_in_any_format()
-    {
-        Assert.False(SenderScreening.IsScreened(MakeThread(address: "+1 855-201-4477"), new HashSet<string> { "8552014477" }));
+        Assert.True(SenderScreening.IsAutomatedSender(address));
     }
 
     [Theory]
-    [InlineData(true, false, false, "hi")]
-    [InlineData(false, true, false, "hi")]
-    [InlineData(false, false, true, "hi")]
-    [InlineData(false, false, false, "Your verification code is 482913")]
-    public void ShouldNotify_for_known_senders_and_codes(bool isContact, bool isAllowed, bool hasOutgoing, string body)
+    [InlineData("(312) 555-0147")]
+    [InlineData("+1 312-555-0147")]
+    [InlineData("kevin_r@yahoo.com")]
+    public void IsAutomatedSender_is_false_for_personal_numbers(string address)
     {
-        Assert.True(SenderScreening.ShouldNotify(isContact, isAllowed, hasOutgoing, body));
+        Assert.False(SenderScreening.IsAutomatedSender(address));
     }
 
     [Fact]
-    public void ShouldNotify_is_false_for_an_unknown_sender_without_a_code()
+    public void LaneFor_an_unknown_personal_number_is_the_screener()
     {
-        Assert.False(SenderScreening.ShouldNotify(false, false, false, "USPS: package on hold, confirm address"));
+        Assert.Equal(ConversationLane.Screener, SenderScreening.LaneFor(MakeThread(), NoneAllowed));
+    }
+
+    [Fact]
+    public void LaneFor_a_personal_number_you_have_texted_is_conversations()
+    {
+        Assert.Equal(ConversationLane.Conversations, SenderScreening.LaneFor(MakeThread(hasOutgoing: true), NoneAllowed));
+    }
+
+    [Fact]
+    public void LaneFor_a_short_code_is_updates_even_after_replying_to_it()
+    {
+        Assert.Equal(ConversationLane.Updates, SenderScreening.LaneFor(MakeThread(address: "72975", hasOutgoing: true), NoneAllowed));
+    }
+
+    [Theory]
+    [InlineData("Mom", false, "72975")]
+    [InlineData(null, true, "72975")]
+    public void LaneFor_contacts_and_favorites_are_conversations(string? name, bool isFavorite, string address)
+    {
+        Assert.Equal(ConversationLane.Conversations, SenderScreening.LaneFor(MakeThread(name: name, isFavorite: isFavorite, address: address), NoneAllowed));
+    }
+
+    [Fact]
+    public void LaneFor_an_allowed_number_in_any_format_is_conversations()
+    {
+        Assert.Equal(ConversationLane.Conversations, SenderScreening.LaneFor(MakeThread(address: "+1 855-201-4477"), new HashSet<string> { "8552014477" }));
+    }
+
+    [Fact]
+    public void ShouldNotify_for_conversations()
+    {
+        Assert.True(SenderScreening.ShouldNotify(ConversationLane.Conversations, "hi"));
+    }
+
+    [Theory]
+    [InlineData(ConversationLane.Updates)]
+    [InlineData(ConversationLane.Screener)]
+    public void ShouldNotify_for_codes_in_any_lane(ConversationLane lane)
+    {
+        Assert.True(SenderScreening.ShouldNotify(lane, "Your verification code is 482913"));
+    }
+
+    [Theory]
+    [InlineData(ConversationLane.Updates)]
+    [InlineData(ConversationLane.Screener)]
+    public void ShouldNotify_is_false_for_other_updates_and_screened_texts(ConversationLane lane)
+    {
+        Assert.False(SenderScreening.ShouldNotify(lane, "Your package is out for delivery"));
     }
 }

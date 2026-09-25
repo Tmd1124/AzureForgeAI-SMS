@@ -107,7 +107,8 @@ public class SmsDeliverReceiver : BroadcastReceiver
         var contact = contactService.LookupAsync(address).GetAwaiter().GetResult();
 
         var isAllowed = services.GetRequiredService<IAllowedSenderRepository>().IsAllowedAsync(normalizedAddress).GetAwaiter().GetResult();
-        if (!SenderScreening.ShouldNotify(contact is not null, isAllowed, ThreadHasOutgoing(context, threadId), body))
+        var lane = SenderScreening.LaneFor(contact is not null, isFavorite: false, isAllowed, ThreadHasOutgoing(context, threadId), address);
+        if (!SenderScreening.ShouldNotify(lane, body))
         {
             return;
         }
