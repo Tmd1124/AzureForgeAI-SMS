@@ -25,6 +25,9 @@ public partial class ThreadDetailViewModel : ObservableObject
     // toward "now" again (see IsAtLatest).
     private const int MaxLoadedMessages = 150;
 
+    private const int MaxSearchResults = 100;
+    private const int MinSearchLength = 2;
+
     private readonly ISmsService _smsService;
     private readonly IMessageSchedulerService _scheduler;
     private readonly long _threadId;
@@ -36,6 +39,14 @@ public partial class ThreadDetailViewModel : ObservableObject
     public ObservableCollection<Models.SmsMessage> Messages { get; } = new();
 
     public bool IsGroup => _participants.Count > 1;
+
+    public ObservableCollection<Models.SmsMessage> SearchResults { get; } = new();
+
+    // The message a search result jumped to, so the page can scroll to and flash it.
+    [ObservableProperty]
+    private Models.SmsMessage? _highlightedMessage;
+
+    private int _searchVersion;
 
     [ObservableProperty]
     private string _composeText = string.Empty;
@@ -116,6 +127,76 @@ public partial class ThreadDetailViewModel : ObservableObject
             // Reading a thread (especially one with many MMS attachments) touches several native
             // content providers; a transient failure there shouldn't take down the whole Blazor
             // circuit and force a full app reload — surface a retry affordance instead.
+            LoadFailed = true;
+        }
+        finally
+        {
+            _isLoadingMessages = false;
+        }
+    }
+
+    // Concurrent so each keystroke can start a search; the version check drops results from
+    // an older, slower query that finishes after a newer one.
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task Search(string query)
+    {
+        var version = ++_searchVersion;
+        var trimmed = query.Trim();
+        if (trimmed.Length < MinSearchLength)
+        {
+            SearchResults.Clear();
+            return;
+        }
+
+        var results = await _smsService.SearchMessagesAsync(_threadId, trimmed, MaxSearchResults) ?? Array.Empty<Models.SmsMessage>();
+        if (version != _searchVersion)
+        {
+            return;
+        }
+        SearchResults.Clear();
+        foreach (var message in results.OrderByDescending(m => m.Timestamp))
+        {
+            SearchResults.Add(message);
+        }
+    }
+
+    // Replaces the loaded window with the history around the found message. From there the
+    // normal paging takes over: scrolling up loads older, scrolling down catches back up to now.
+    [RelayCommand]
+    private async Task JumpTo(Models.SmsMessage target)
+    {
+        if (_isLoadingMessages)
+        {
+            return;
+        }
+
+        _isLoadingMessages = true;
+        try
+        {
+            // GetMessagesAsync's cursor is exclusive, so nudge it just past the target to include it.
+            var page = await _smsService.GetMessagesAsync(_threadId, target.Timestamp.AddMilliseconds(1), PageSize) ?? Array.Empty<Models.SmsMessage>();
+            var ordered = page.OrderBy(m => m.Timestamp).ToList();
+            Messages.Clear();
+            foreach (var message in ordered)
+            {
+                Messages.Add(message);
+            }
+            _oldestLoadedTimestamp = ordered.Count > 0 ? ordered[0].Timestamp : null;
+            _newestLoadedTimestamp = ordered.Count > 0 ? ordered[^1].Timestamp : null;
+            HasMoreMessages = page.Count >= PageSize;
+            IsAtLatest = false;
+            HighlightedMessage = target;
+
+            // Also load what came right after, so the found message has context below it instead
+            // of sitting at the very bottom, where the next scroll would trigger this same fetch
+            // and push it out of view.
+            if (_newestLoadedTimestamp is not null)
+            {
+                await AppendNewerMessagesAsync();
+            }
+        }
+        catch (Exception)
+        {
             LoadFailed = true;
         }
         finally

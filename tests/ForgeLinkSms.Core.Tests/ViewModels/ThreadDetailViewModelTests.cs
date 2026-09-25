@@ -607,4 +607,70 @@ public class ThreadDetailViewModelTests
 
         Assert.False(viewModel.IsGroup);
     }
+
+    [Fact]
+    public async Task SearchCommand_lists_matching_messages_newest_first()
+    {
+        var sms = new Mock<ISmsService>();
+        var older = MakeMessage(1, "Practice is Tuesday", DateTimeOffset.UtcNow.AddDays(-3));
+        var newer = MakeMessage(2, "No practice this Tuesday", DateTimeOffset.UtcNow.AddDays(-1));
+        sms.Setup(s => s.SearchMessagesAsync(1, "practice", It.IsAny<int>())).ReturnsAsync(new List<SmsMessage> { newer, older });
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555");
+
+        await viewModel.SearchCommand.ExecuteAsync("  practice ");
+
+        Assert.Equal(new long[] { 2, 1 }, viewModel.SearchResults.Select(m => m.Id));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("a")]
+    public async Task SearchCommand_with_less_than_two_characters_clears_results_without_searching(string query)
+    {
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.SearchMessagesAsync(1, "old", It.IsAny<int>())).ReturnsAsync(new List<SmsMessage> { MakeMessage(1, "old", DateTimeOffset.UtcNow) });
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555");
+        await viewModel.SearchCommand.ExecuteAsync("old");
+
+        await viewModel.SearchCommand.ExecuteAsync(query);
+
+        Assert.Empty(viewModel.SearchResults);
+        sms.Verify(s => s.SearchMessagesAsync(1, It.Is<string>(q => q.Length < 2), It.IsAny<int>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task JumpToCommand_loads_messages_on_both_sides_of_the_found_one_and_highlights_it()
+    {
+        var target = MakeMessage(7, "Practice is Tuesday", DateTimeOffset.UtcNow.AddDays(-30));
+        var earlier = MakeMessage(6, "earlier", target.Timestamp.AddMinutes(-5));
+        var newerPage = Enumerable.Range(1, 50).Select(i => MakeMessage(100 + i, $"later {i}", target.Timestamp.AddMinutes(i))).ToList();
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.GetMessagesAsync(1, target.Timestamp.AddMilliseconds(1), It.IsAny<int>()))
+            .ReturnsAsync(new List<SmsMessage> { target, earlier });
+        sms.Setup(s => s.GetNewerMessagesAsync(1, target.Timestamp, It.IsAny<int>())).ReturnsAsync(newerPage);
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555");
+
+        await viewModel.JumpToCommand.ExecuteAsync(target);
+
+        Assert.Equal(new long[] { 6, 7, 101 }, viewModel.Messages.Take(3).Select(m => m.Id));
+        Assert.Equal(52, viewModel.Messages.Count);
+        Assert.Same(target, viewModel.HighlightedMessage);
+        Assert.False(viewModel.IsAtLatest); // a full newer page means there may be more after it
+    }
+
+    [Fact]
+    public async Task JumpToCommand_to_one_of_the_latest_messages_ends_up_at_latest()
+    {
+        var target = MakeMessage(7, "Practice is Tuesday", DateTimeOffset.UtcNow.AddMinutes(-10));
+        var later = MakeMessage(8, "later", target.Timestamp.AddMinutes(5));
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.GetMessagesAsync(1, target.Timestamp.AddMilliseconds(1), It.IsAny<int>())).ReturnsAsync(new List<SmsMessage> { target });
+        sms.Setup(s => s.GetNewerMessagesAsync(1, target.Timestamp, It.IsAny<int>())).ReturnsAsync(new List<SmsMessage> { later });
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555");
+
+        await viewModel.JumpToCommand.ExecuteAsync(target);
+
+        Assert.Equal(new long[] { 7, 8 }, viewModel.Messages.Select(m => m.Id));
+        Assert.True(viewModel.IsAtLatest);
+    }
 }

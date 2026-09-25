@@ -30,6 +30,8 @@ public static class MauiProgram
 		builder.Services.AddSingleton<ICalendarService, CalendarService>();
 		builder.Services.AddSingleton<ILocationService, LocationService>();
 		builder.Services.AddSingleton<IAttachmentPickerService, AttachmentPickerService>();
+		builder.Services.AddSingleton<IVoiceRecorderService, VoiceRecorderService>();
+		builder.Services.AddSingleton<IAudioPlaybackService, AudioPlaybackService>();
 		builder.Services.AddSingleton<IAttachmentSaveService, AttachmentSaveService>();
 		builder.Services.AddSingleton<IThreadDeletionService, ThreadDeletionService>();
 		builder.Services.AddScoped<INavigationService, NavigationService>();
@@ -59,6 +61,11 @@ public static class MauiProgram
 		archiveRepository.InitializeAsync().GetAwaiter().GetResult();
 		builder.Services.AddSingleton<IArchiveRepository>(archiveRepository);
 		builder.Services.AddTransient<ArchivedViewModel>();
+
+		var quickReplyRepository = new QuickReplyRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
+		quickReplyRepository.InitializeAsync().GetAwaiter().GetResult();
+		builder.Services.AddSingleton<IQuickReplyRepository>(quickReplyRepository);
+		builder.Services.AddTransient<QuickRepliesViewModel>();
 
 		var filterRepository = new FilterRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
 		filterRepository.InitializeAsync().GetAwaiter().GetResult();

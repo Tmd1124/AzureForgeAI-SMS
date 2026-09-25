@@ -12,6 +12,9 @@ public class AttachmentKindClassifierTests
     [InlineData("video/mp4", AttachmentKind.Video)]
     [InlineData("text/x-vcard", AttachmentKind.Contact)]
     [InlineData("text/vcard", AttachmentKind.Contact)]
+    [InlineData("audio/amr", AttachmentKind.Audio)]
+    [InlineData("audio/mp4", AttachmentKind.Audio)]
+    [InlineData("audio/3gpp", AttachmentKind.Audio)]
     [InlineData("application/pdf", AttachmentKind.File)]
     [InlineData(null, AttachmentKind.File)]
     public void FromContentType_classifies_the_content_type(string? contentType, AttachmentKind expected)

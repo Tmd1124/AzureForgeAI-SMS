@@ -215,6 +215,7 @@ public class ThreadService : IThreadService
             AttachmentKind.Image => "📷 Photo",
             AttachmentKind.Gif => "GIF",
             AttachmentKind.Video => "🎬 Video",
+            AttachmentKind.Audio => "🎤 Voice message",
             _ => $"📎 {attachments[0].FileName}"
         };
     }

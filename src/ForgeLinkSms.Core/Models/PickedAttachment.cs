@@ -6,7 +6,8 @@ public enum AttachmentKind
     Video,
     Gif,
     File,
-    Contact
+    Contact,
+    Audio
 }
 
 public class PickedAttachment

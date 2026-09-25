@@ -13,6 +13,9 @@ public interface ISmsService
     /// loaded window back up to the thread's true latest message.
     Task<IReadOnlyList<SmsMessage>> GetNewerMessagesAsync(long threadId, DateTimeOffset afterTimestamp, int pageSize);
 
+    /// Messages in the thread whose text contains query (case-insensitive), newest first.
+    Task<IReadOnlyList<SmsMessage>> SearchMessagesAsync(long threadId, string query, int limit);
+
     Task SendAsync(string address, string body);
 
     Task SendMmsAsync(long threadId, string address, string? body, PickedAttachment attachment);

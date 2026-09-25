@@ -26,6 +26,11 @@ public static class AttachmentKindClassifier
             return AttachmentKind.Video;
         }
 
+        if (contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+        {
+            return AttachmentKind.Audio;
+        }
+
         if (contentType.Equals("text/x-vcard", StringComparison.OrdinalIgnoreCase) ||
             contentType.Equals("text/vcard", StringComparison.OrdinalIgnoreCase))
         {

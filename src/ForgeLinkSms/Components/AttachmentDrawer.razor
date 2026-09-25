@@ -1,6 +1,7 @@
 @inject ForgeLinkSms.Core.Services.IContactService ContactService
 @inject ForgeLinkSms.Core.Services.ILocationService LocationService
 @inject ForgeLinkSms.Core.Services.IAttachmentPickerService AttachmentPickerService
+@inject ForgeLinkSms.Core.ViewModels.QuickRepliesViewModel QuickReplies
 @using ForgeLinkSms.Core.Models
 @using ForgeLinkSms.Core.Utils
 
@@ -75,6 +76,48 @@
         cursor: pointer;
     }
 
+    .quick-reply-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .quick-reply-row .text {
+        flex: 1;
+        min-width: 0;
+        padding: 12px 0;
+        cursor: pointer;
+    }
+
+    .quick-reply-row button,
+    .quick-reply-add button {
+        border: none;
+        background: transparent;
+        color: var(--text-color);
+        font-size: 1.1em;
+        padding: 6px;
+        flex-shrink: 0;
+    }
+
+    .quick-reply-add {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .quick-reply-add input,
+    .quick-reply-row input {
+        flex: 1;
+        min-width: 0;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        font-size: 1em;
+        background: var(--surface-color);
+        color: var(--text-color);
+    }
+
     .drawer-toast {
         position: fixed;
         left: 50%;
@@ -120,6 +163,39 @@
                         <span class="icon">⏰</span>
                         <span>Schedule</span>
                     </div>
+                    <div class="drawer-item" @onclick="OpenQuickReplies">
+                        <span class="icon">💬</span>
+                        <span>Quick replies</span>
+                    </div>
+                </div>
+            }
+            else if (_mode == DrawerMode.QuickReplies)
+            {
+                <div class="drawer-back" @onclick="() => _mode = DrawerMode.Grid">‹ Back</div>
+                @if (QuickReplies.Replies.Count == 0)
+                {
+                    <p style="color:#94a3b8;margin:0;">No quick replies yet. Add one below.</p>
+                }
+                @foreach (var reply in QuickReplies.Replies)
+                {
+                    <div class="quick-reply-row">
+                        @if (_editingReplyId == reply.Id)
+                        {
+                            <input @bind="_editingReplyText" @bind:event="oninput" />
+                            <button @onclick="SaveEditedReply" title="Save">✓</button>
+                            <button @onclick="() => _editingReplyId = null" title="Cancel">✕</button>
+                        }
+                        else
+                        {
+                            <div class="text" @onclick="() => InsertQuickReply(reply.Text)">@reply.Text</div>
+                            <button @onclick="() => StartEditingReply(reply)" title="Edit">✏️</button>
+                            <button @onclick="() => QuickReplies.DeleteCommand.ExecuteAsync(reply.Id)" title="Delete">🗑</button>
+                        }
+                    </div>
+                }
+                <div class="quick-reply-add">
+                    <input placeholder="Add a quick reply" @bind="_newReplyText" @bind:event="oninput" />
+                    <button @onclick="AddQuickReply" disabled="@string.IsNullOrWhiteSpace(_newReplyText)" title="Add">➕</button>
                 </div>
             }
             else if (_mode == DrawerMode.ContactList)
@@ -171,7 +247,7 @@
 }
 
 @code {
-    private enum DrawerMode { Grid, ContactList, Schedule }
+    private enum DrawerMode { Grid, ContactList, Schedule, QuickReplies }
 
     private bool _isOpen;
     private DrawerMode _mode = DrawerMode.Grid;
@@ -182,6 +258,9 @@
     private CancellationTokenSource? _toastCts;
     private DateTime? _scheduleInputValue;
     private DateTime _minScheduleValue;
+    private long? _editingReplyId;
+    private string _editingReplyText = string.Empty;
+    private string _newReplyText = string.Empty;
 
     [Parameter]
     public EventCallback<string> OnInsertText { get; set; }
@@ -266,6 +345,41 @@
 
         Close();
         await OnAttachmentPicked.InvokeAsync(attachment);
+    }
+
+    private async Task OpenQuickReplies()
+    {
+        _editingReplyId = null;
+        _newReplyText = string.Empty;
+        await QuickReplies.LoadCommand.ExecuteAsync(null);
+        _mode = DrawerMode.QuickReplies;
+    }
+
+    private async Task InsertQuickReply(string text)
+    {
+        Close();
+        await OnInsertText.InvokeAsync(text);
+    }
+
+    private void StartEditingReply(QuickReply reply)
+    {
+        _editingReplyId = reply.Id;
+        _editingReplyText = reply.Text;
+    }
+
+    private async Task SaveEditedReply()
+    {
+        if (_editingReplyId is long id)
+        {
+            await QuickReplies.UpdateCommand.ExecuteAsync((id, _editingReplyText));
+        }
+        _editingReplyId = null;
+    }
+
+    private async Task AddQuickReply()
+    {
+        await QuickReplies.AddCommand.ExecuteAsync(_newReplyText);
+        _newReplyText = string.Empty;
     }
 
     private void OpenSchedulePicker()

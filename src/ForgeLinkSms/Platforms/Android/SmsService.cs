@@ -38,6 +38,71 @@ public class SmsService : ISmsService
     public Task<IReadOnlyList<SmsMessage>> GetNewerMessagesAsync(long threadId, DateTimeOffset afterTimestamp, int pageSize) =>
         Task.Run(() => GetMessagesCore(threadId, afterTimestamp, pageSize, ascending: true));
 
+    public Task<IReadOnlyList<SmsMessage>> SearchMessagesAsync(long threadId, string query, int limit) =>
+        Task.Run(() => SearchCore(threadId, query, limit));
+
+    // SQLite's LIKE is already case-insensitive for ASCII; % and _ in the user's text are
+    // escaped so they match literally.
+    private static IReadOnlyList<SmsMessage> SearchCore(long threadId, string query, int limit)
+    {
+        var context = AndroidApp.Context;
+        var pattern = "%" + query.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+
+        var inbox = (int)global::Android.Provider.SmsMessageType.Inbox;
+        var sent = (int)global::Android.Provider.SmsMessageType.Sent;
+        List<SmsMessage> smsMatches;
+        using (var cursor = context.ContentResolver!.Query(
+            AndroidTelephony.Sms.ContentUri!,
+            new[] { "_id", "thread_id", "address", "body", "date", "type", "status" },
+            "thread_id = ? AND (type = ? OR type = ?) AND body LIKE ? ESCAPE '\\'",
+            new[] { threadId.ToString(), inbox.ToString(), sent.ToString(), pattern },
+            "date DESC LIMIT " + limit))
+        {
+            smsMatches = cursor is null ? new List<SmsMessage>() : ReadSmsRows(cursor);
+        }
+
+        var mmsInThread = MmsReader.QueryAll(context, threadId).ToDictionary(m => m.Id);
+        var matchingMmsIds = new HashSet<long>();
+        using (var parts = context.ContentResolver!.Query(
+            global::Android.Net.Uri.Parse("content://mms/part")!,
+            new[] { "mid" },
+            "ct = 'text/plain' AND text LIKE ? ESCAPE '\\'",
+            new[] { pattern },
+            null))
+        {
+            while (parts is not null && parts.MoveToNext())
+            {
+                var mid = parts.GetLong(0);
+                if (mmsInThread.ContainsKey(mid))
+                {
+                    matchingMmsIds.Add(mid);
+                }
+            }
+        }
+
+        var mmsMatches = matchingMmsIds
+            .Select(id => mmsInThread[id])
+            .OrderByDescending(m => m.Date)
+            .Take(limit)
+            .Select(mms =>
+            {
+                var (body, attachments) = MmsReader.GetContent(context, mms.Id, includeAttachmentData: false);
+                return new SmsMessage
+                {
+                    Id = mms.Id,
+                    ThreadId = mms.ThreadId,
+                    Address = MmsReader.GetAddress(context, mms.Id, mms.IsOutgoing),
+                    Body = body,
+                    Timestamp = mms.Date,
+                    IsOutgoing = mms.IsOutgoing,
+                    Status = mms.IsOutgoing ? SmsMessageStatus.Sent : SmsMessageStatus.Delivered,
+                    Attachments = attachments
+                };
+            });
+
+        return smsMatches.Concat(mmsMatches).OrderByDescending(m => m.Timestamp).Take(limit).ToList();
+    }
+
     private static IReadOnlyList<SmsMessage> GetMessagesCore(long threadId, DateTimeOffset? cursor, int pageSize, bool ascending)
     {
         var context = AndroidApp.Context;
@@ -131,11 +196,12 @@ public class SmsService : ISmsService
         var sortOrder = (ascending ? "date ASC LIMIT " : "date DESC LIMIT ") + pageSize;
 
         using var cursor = context.ContentResolver!.Query(AndroidTelephony.Sms.ContentUri!, projection, selection, args, sortOrder);
-        if (cursor is null)
-        {
-            return results;
-        }
+        return cursor is null ? results : ReadSmsRows(cursor);
+    }
 
+    private static List<SmsMessage> ReadSmsRows(global::Android.Database.ICursor cursor)
+    {
+        var results = new List<SmsMessage>();
         var idIdx = cursor.GetColumnIndexOrThrow("_id");
         var threadIdx = cursor.GetColumnIndexOrThrow("thread_id");
         var addressIdx = cursor.GetColumnIndexOrThrow("address");

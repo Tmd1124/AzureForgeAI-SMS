@@ -205,6 +205,7 @@ internal static class MmsDownloader
                 AttachmentKind.Gif => "GIF",
                 AttachmentKind.Video => "🎬 Video",
                 AttachmentKind.Contact => "👤 Contact",
+                AttachmentKind.Audio => "🎤 Voice message",
                 _ => "📎 Attachment"
             };
     }

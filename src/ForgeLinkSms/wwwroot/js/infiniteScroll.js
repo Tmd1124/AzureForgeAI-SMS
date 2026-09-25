@@ -2,6 +2,13 @@
 // reliably fire intersection callbacks for a sentinel inside a flex-direction:column-reverse
 // container (confirmed by observing scrollTop change with no callback), so this sidesteps that
 // entirely with direct scroll-position math instead.
+window.forgeLinkScrollIntoView = function (elementId) {
+    var element = document.getElementById(elementId);
+    if (element) {
+        element.scrollIntoView({ block: "center" });
+    }
+};
+
 window.forgeLinkInfiniteScroll = {
     handlers: new Map(),
     observe: function (containerId, dotNetRef) {

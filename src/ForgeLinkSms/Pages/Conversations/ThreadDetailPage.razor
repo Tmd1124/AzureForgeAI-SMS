@@ -6,6 +6,8 @@
 @inject ForgeLinkSms.Core.Services.NavigationHistoryTracker HistoryTracker
 @inject Microsoft.JSInterop.IJSRuntime JS
 @inject ForgeLinkSms.Core.Services.IIncomingMessageNotifier IncomingMessageNotifier
+@inject ForgeLinkSms.Core.Services.IVoiceRecorderService Recorder
+@inject ForgeLinkSms.Core.Services.IAudioPlaybackService Playback
 @using Microsoft.Extensions.DependencyInjection
 @using ForgeLinkSms.Components
 @using ForgeLinkSms.Core.Models
@@ -14,6 +16,12 @@
 @using ForgeLinkSms.Core.ViewModels
 
 <style>
+    @@keyframes recording-blink {
+        50% { opacity: 0.2; }
+    }
+    .recording-dot {
+        animation: recording-blink 1s step-start infinite;
+    }
     .compose-grow-wrap {
         display: inline-grid;
         vertical-align: bottom;
@@ -42,7 +50,41 @@
 @if (ViewModel is not null)
 {
     <div style="display:flex;flex-direction:column;height:100vh;">
-        <div @onclick="OpenContact" style="padding:10px;background:var(--card-color);border-bottom:1px solid #eee;cursor:pointer;">@DisplayName</div>
+        @if (_isSearchOpen)
+        {
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card-color);border-bottom:1px solid #eee;">
+                <input @ref="_searchInput" placeholder="Search this conversation" value="@_searchQuery" @oninput="OnSearchInput"
+                       style="flex:1;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid #cbd5e1;background:var(--surface-color);color:var(--text-color);font-size:1em;" />
+                <button @onclick="CloseSearch" title="Close search"
+                        style="border:none;background:transparent;color:var(--text-color);font-size:1.2em;padding:4px 6px;">✕</button>
+            </div>
+            @if (_searchQuery.Trim().Length >= 2)
+            {
+                <div style="max-height:50vh;overflow-y:auto;background:var(--card-color);border-bottom:1px solid #eee;">
+                    @if (ViewModel.SearchResults.Count == 0)
+                    {
+                        <div style="padding:12px;color:#94a3b8;">No messages found.</div>
+                    }
+                    @foreach (var result in ViewModel.SearchResults)
+                    {
+                        var (before, match, after) = Snippet(result.Body, _searchQuery.Trim());
+                        <div @key="@($"result-{result.Id}-{result.Timestamp.Ticks}")" @onclick="() => JumpToResult(result)"
+                             style="padding:10px 12px;border-bottom:1px solid rgba(127,127,127,0.2);cursor:pointer;">
+                            <div style="font-size:0.75em;color:#94a3b8;">@(result.IsOutgoing ? "You" : ViewModel.IsGroup ? SenderName(result.Address) : DisplayName) · @FormatResultDate(result.Timestamp)</div>
+                            <div>@before<mark style="background:#facc15;color:#111;border-radius:3px;padding:0 1px;">@match</mark>@after</div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <div style="display:flex;align-items:center;background:var(--card-color);border-bottom:1px solid #eee;">
+                <div @onclick="OpenContact" style="flex:1;min-width:0;padding:10px;cursor:pointer;">@DisplayName</div>
+                <button @onclick="OpenSearch" title="Search this conversation"
+                        style="border:none;background:transparent;font-size:1.1em;padding:8px 12px;">🔍</button>
+            </div>
+        }
         @if (ViewModel.LoadFailed)
         {
             <div style="display:flex;align-items:center;justify-content:center;gap:12px;padding:16px;color:#94a3b8;">
@@ -75,7 +117,7 @@
                genuine collision practically impossible. *@
             @foreach (var (message, showDateSeparator) in MessagesWithDateSeparators().Reverse())
             {
-                <div @key="@($"{message.Id}-{message.Timestamp.Ticks}")" style="display:flex;flex-direction:column;align-items:@(message.IsOutgoing ? "flex-end" : "flex-start");margin:4px 4px;">
+                <div @key="@($"{message.Id}-{message.Timestamp.Ticks}")" id="@MessageDomId(message)" style="display:flex;flex-direction:column;align-items:@(message.IsOutgoing ? "flex-end" : "flex-start");margin:4px 4px;">
                     @{
                         // An image-only message (no body text, every attachment has a decoded thumbnail)
                         // renders the photo edge-to-edge instead of inside the colored bubble — the bubble's
@@ -91,7 +133,7 @@
                     <div @onpointerdown="() => OnMessagePointerDown(message)"
                          @onpointerup="CancelMessageLongPress"
                          @onpointerleave="CancelMessageLongPress"
-                         style="max-width:75%;padding:@(isImageOnlyMessage ? "0" : "8px 12px");border-radius:16px;overflow:hidden;user-select:none;-webkit-user-select:none;background:@(isImageOnlyMessage ? "transparent" : (message.IsOutgoing ? "var(--accent-color)" : "var(--card-color)"));color:@(message.IsOutgoing ? "white" : "var(--text-color)");">
+                         style="max-width:75%;padding:@(isImageOnlyMessage ? "0" : "8px 12px");border-radius:16px;overflow:hidden;box-shadow:@(IsHighlighted(message) ? "0 0 0 3px #facc15" : "none");transition:box-shadow 0.4s;user-select:none;-webkit-user-select:none;background:@(isImageOnlyMessage ? "transparent" : (message.IsOutgoing ? "var(--accent-color)" : "var(--card-color)"));color:@(message.IsOutgoing ? "white" : "var(--text-color)");">
                         @foreach (var segment in MessageLinkParser.Parse(message.Body))
                         {
                             switch (segment.Kind)
@@ -124,6 +166,24 @@
                                             @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"
                                             title="Save"
                                             style="position:absolute;right:8px;bottom:8px;width:32px;height:32px;border-radius:50%;border:none;background:rgba(0,0,0,0.55);color:white;font-size:1em;display:flex;align-items:center;justify-content:center;">
+                                        ⬇
+                                    </button>
+                                </div>
+                            }
+                            else if (attachment.Kind == AttachmentKind.Audio)
+                            {
+                                <div style="display:flex;align-items:center;gap:8px;margin-top:@(string.IsNullOrEmpty(message.Body) ? "0" : "6px");">
+                                    <button @onclick="() => ToggleVoicePlayback(attachment)" @onclick:stopPropagation="true"
+                                            @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"
+                                            title="@(Playback.PlayingPartId == attachment.PartId ? "Stop" : "Play")"
+                                            style="width:36px;height:36px;border-radius:50%;border:none;background:rgba(127,127,127,0.3);color:inherit;font-size:1em;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                        @(Playback.PlayingPartId == attachment.PartId ? "⏹" : "▶")
+                                    </button>
+                                    <span>🎤 Voice message</span>
+                                    <button @onclick="() => SaveAttachment(attachment)" @onclick:stopPropagation="true"
+                                            @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"
+                                            title="Save"
+                                            style="border:none;background:transparent;color:inherit;font-size:1.1em;padding:0 2px;">
                                         ⬇
                                     </button>
                                 </div>
@@ -214,6 +274,26 @@
                         style="border:none;background:transparent;color:#94a3b8;font-size:1.1em;padding:4px;flex-shrink:0;">✕</button>
             </div>
         }
+        @if (_isRecording)
+        {
+            <div style="display:flex;align-items:center;gap:10px;padding:8px;">
+                <button @onclick="CancelRecording" title="Discard recording"
+                        style="width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);font-size:1.1em;flex-shrink:0;">
+                    ✕
+                </button>
+                <div style="flex:1;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:16px;background:var(--card-color);">
+                    <span class="recording-dot" style="color:#ef4444;">●</span>
+                    <span>Recording</span>
+                    <span style="margin-left:auto;font-variant-numeric:tabular-nums;">@VoiceNote.FormatDuration(DateTime.UtcNow - _recordingStartedUtc) / @VoiceNote.FormatDuration(VoiceNote.MaxDuration)</span>
+                </div>
+                <button @onclick="SendRecording" title="Send voice message"
+                        style="width:40px;height:40px;border-radius:50%;border:none;background:#22c55e;color:white;font-size:1.2em;flex-shrink:0;">
+                    ➤
+                </button>
+            </div>
+        }
+        else
+        {
         <div style="display:flex;align-items:flex-end;padding:8px;">
             <button @onclick="() => _drawer?.Open()"
                     style="width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);font-size:1.4em;margin-right:8px;flex-shrink:0;">
@@ -230,7 +310,15 @@
                     ➤
                 </button>
             }
+            else
+            {
+                <button @onclick="StartRecording" title="Record a voice message"
+                        style="width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);font-size:1.2em;margin-left:8px;flex-shrink:0;">
+                    🎤
+                </button>
+            }
         </div>
+        }
     </div>
 }
 
@@ -297,6 +385,15 @@
     private readonly HashSet<long> _savedAttachmentPartIds = new();
     private IContactService? _contactService;
     private readonly Dictionary<string, string> _memberNames = new();
+    private bool _isRecording;
+    private bool _isSearchOpen;
+    private bool _focusSearch;
+    private string _searchQuery = string.Empty;
+    private ElementReference _searchInput;
+    private string? _scrollToMessageId;
+    private DateTime _ignoreNewestEdgeUntilUtc;
+    private DateTime _recordingStartedUtc;
+    private CancellationTokenSource? _recordingTickCts;
     private Microsoft.JSInterop.DotNetObjectReference<ThreadDetailPage>? _dotNetRef;
 
     private async Task SendOrSchedule()
@@ -373,6 +470,7 @@
         _ = MarkThreadAsReadBestEffortAsync();
 
         IncomingMessageNotifier.MessageReceived += OnMessageReceived;
+        Playback.PlaybackChanged += OnPlaybackChanged;
         HistoryTracker.LocalBackHandler = TryCloseOverlayForBack;
     }
 
@@ -413,6 +511,86 @@
             _dotNetRef = Microsoft.JSInterop.DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("forgeLinkInfiniteScroll.observe", "thread-scroll-container", _dotNetRef);
         }
+        if (_focusSearch)
+        {
+            _focusSearch = false;
+            await _searchInput.FocusAsync();
+        }
+        if (_scrollToMessageId is { } messageId)
+        {
+            _scrollToMessageId = null;
+            await JS.InvokeVoidAsync("forgeLinkScrollIntoView", messageId);
+        }
+    }
+
+    private void OpenSearch()
+    {
+        _isSearchOpen = true;
+        _focusSearch = true;
+    }
+
+    private async Task CloseSearch()
+    {
+        _isSearchOpen = false;
+        _searchQuery = string.Empty;
+        await ViewModel!.SearchCommand.ExecuteAsync(string.Empty);
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        _searchQuery = e.Value?.ToString() ?? string.Empty;
+        await ViewModel!.SearchCommand.ExecuteAsync(_searchQuery);
+    }
+
+    private async Task JumpToResult(ForgeLinkSms.Core.Models.SmsMessage result)
+    {
+        await CloseSearch();
+        _ignoreNewestEdgeUntilUtc = DateTime.UtcNow.AddSeconds(2);
+        await ViewModel!.JumpToCommand.ExecuteAsync(result);
+        _scrollToMessageId = MessageDomId(result);
+
+        // Fade the highlight after a moment so it points the message out without lingering.
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(4000);
+            await InvokeAsync(() =>
+            {
+                ViewModel.HighlightedMessage = null;
+                StateHasChanged();
+            });
+        });
+    }
+
+    private static string MessageDomId(ForgeLinkSms.Core.Models.SmsMessage message) => $"msg-{message.Id}-{message.Timestamp.Ticks}";
+
+    private bool IsHighlighted(ForgeLinkSms.Core.Models.SmsMessage message) =>
+        ViewModel?.HighlightedMessage is { } highlighted && highlighted.Id == message.Id && highlighted.Timestamp == message.Timestamp;
+
+    // Up to ~30 characters before the match and ~50 after, so the match is visible in one line.
+    private static (string Before, string Match, string After) Snippet(string body, string query)
+    {
+        var index = body.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+        if (index < 0)
+        {
+            return (body.Length > 80 ? body[..80] + "…" : body, string.Empty, string.Empty);
+        }
+        var start = Math.Max(0, index - 30);
+        var afterStart = index + query.Length;
+        var afterEnd = Math.Min(body.Length, afterStart + 50);
+        return (
+            (start > 0 ? "…" : string.Empty) + body[start..index],
+            body.Substring(index, query.Length),
+            body[afterStart..afterEnd] + (afterEnd < body.Length ? "…" : string.Empty));
+    }
+
+    private static string FormatResultDate(DateTimeOffset timestamp)
+    {
+        var local = timestamp.LocalDateTime;
+        if (local.Date == DateTime.Today)
+        {
+            return local.ToString("h:mm tt");
+        }
+        return local.Year == DateTime.Today.Year ? local.ToString("MMM d") : local.ToString("MMM d, yyyy");
     }
 
     [Microsoft.JSInterop.JSInvokable]
@@ -433,6 +611,13 @@
     [Microsoft.JSInterop.JSInvokable]
     public async Task OnScrolledNearNewestMessage()
     {
+        // Right after a search jump the swapped-in history briefly sits at the bottom edge,
+        // which would otherwise keep fetching newer pages until it caught back up to "now".
+        if (DateTime.UtcNow < _ignoreNewestEdgeUntilUtc)
+        {
+            return;
+        }
+
         if (ViewModel is not null)
         {
             await ViewModel.LoadNewerMessagesCommand.ExecuteAsync(null);
@@ -445,6 +630,13 @@
     // they must be closed here instead of falling through to leaving the thread.
     private bool TryCloseOverlayForBack()
     {
+        if (_isSearchOpen)
+        {
+            _ = CloseSearch();
+            StateHasChanged();
+            return true;
+        }
+
         if (_viewerAttachment is not null)
         {
             CloseImageViewer();
@@ -469,6 +661,14 @@
 
     public void Dispose()
     {
+        Playback.PlaybackChanged -= OnPlaybackChanged;
+        Playback.Stop();
+        if (_isRecording)
+        {
+            _recordingTickCts?.Cancel();
+            Recorder.Cancel();
+        }
+
         // Leaving the thread shouldn't silently drop a text that's still in its undo window.
         ViewModel?.FlushPendingSend();
 
@@ -587,6 +787,79 @@
             await Clipboard.Default.SetTextAsync(body);
             ShowSaveToast("Copied");
         }
+    }
+
+    private void OnPlaybackChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void ToggleVoicePlayback(ForgeLinkSms.Core.Models.MessageAttachment attachment)
+    {
+        if (Playback.PlayingPartId == attachment.PartId)
+        {
+            Playback.Stop();
+        }
+        else
+        {
+            Playback.Play(attachment.PartId);
+        }
+    }
+
+    private async Task StartRecording()
+    {
+        Playback.Stop();
+        if (!await Recorder.StartAsync())
+        {
+            ShowSaveToast("Allow microphone access to record voice messages");
+            return;
+        }
+
+        _isRecording = true;
+        _recordingStartedUtc = DateTime.UtcNow;
+        _recordingTickCts = new CancellationTokenSource();
+        var token = _recordingTickCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(250));
+                while (await timer.WaitForNextTickAsync(token))
+                {
+                    if (DateTime.UtcNow - _recordingStartedUtc >= VoiceNote.MaxDuration)
+                    {
+                        await InvokeAsync(SendRecording);
+                        return;
+                    }
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        });
+    }
+
+    private async Task SendRecording()
+    {
+        if (!_isRecording)
+        {
+            return;
+        }
+        _isRecording = false;
+        _recordingTickCts?.Cancel();
+
+        var recording = await Recorder.StopAsync();
+        if (recording is null)
+        {
+            ShowSaveToast("Too short to send");
+            return;
+        }
+        await ViewModel!.SendCommand.ExecuteAsync(recording);
+    }
+
+    private void CancelRecording()
+    {
+        _isRecording = false;
+        _recordingTickCts?.Cancel();
+        Recorder.Cancel();
     }
 
     private string SenderName(string address) =>
