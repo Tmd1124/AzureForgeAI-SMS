@@ -18,8 +18,13 @@ public partial class ConversationsViewModel : ObservableObject
     private readonly IMarkAsReadService _markAsReadService;
     private readonly IArchiveRepository _archiveRepository;
     private readonly IFilterRepository _filterRepository;
+    private readonly ISnoozeService _snoozeService;
+    private readonly IAllowedSenderRepository _allowedSenderRepository;
+    private IReadOnlySet<string> _allowedSenders = new HashSet<string>();
     private IReadOnlyList<SmsThread> _allThreads = Array.Empty<SmsThread>();
     private bool _isLoadingThreads;
+    private readonly HashSet<(long ThreadId, DateTimeOffset ReceivedAt)> _dismissedCodes = new();
+    private static readonly TimeSpan CodeLifetime = TimeSpan.FromMinutes(10);
 
     public ObservableCollection<SmsThread> Threads { get; } = new();
     public ObservableCollection<Filter> Filters { get; } = new();
@@ -33,6 +38,11 @@ public partial class ConversationsViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Threads))]
     private bool _showUnreadOnly;
 
+    [ObservableProperty]
+    private bool _showScreener;
+
+    public int ScreenerCount => _allThreads.Count(t => SenderScreening.IsScreened(t, _allowedSenders));
+
     public ConversationsViewModel(
         IThreadService threadService,
         ITrashRepository trashRepository,
@@ -41,7 +51,9 @@ public partial class ConversationsViewModel : ObservableObject
         IUndoStack undoStack,
         IMarkAsReadService markAsReadService,
         IArchiveRepository archiveRepository,
-        IFilterRepository filterRepository)
+        IFilterRepository filterRepository,
+        ISnoozeService snoozeService,
+        IAllowedSenderRepository allowedSenderRepository)
     {
         _threadService = threadService;
         _trashRepository = trashRepository;
@@ -51,6 +63,8 @@ public partial class ConversationsViewModel : ObservableObject
         _markAsReadService = markAsReadService;
         _archiveRepository = archiveRepository;
         _filterRepository = filterRepository;
+        _snoozeService = snoozeService;
+        _allowedSenderRepository = allowedSenderRepository;
     }
 
     [RelayCommand]
@@ -69,6 +83,8 @@ public partial class ConversationsViewModel : ObservableObject
         _isLoadingThreads = true;
         try
         {
+            await _snoozeService.WakeExpiredAsync(DateTimeOffset.UtcNow);
+            var snoozed = await _snoozeService.GetSnoozedAsync();
             var threads = await _threadService.GetThreadsAsync();
             var trashedIds = await _trashRepository.GetTrashedThreadIdsAsync();
             var blockedNumbers = await _blockService.GetBlockedNumbersAsync();
@@ -76,6 +92,7 @@ public partial class ConversationsViewModel : ObservableObject
             var archivedIds = await _archiveRepository.GetArchivedThreadIdsAsync();
             var filters = await _filterRepository.GetAllFiltersAsync();
             var assignments = await _filterRepository.GetAllAssignmentsAsync();
+            _allowedSenders = await _allowedSenderRepository.GetAllAsync();
 
             Filters.Clear();
             foreach (var filter in filters)
@@ -85,7 +102,7 @@ public partial class ConversationsViewModel : ObservableObject
             ActiveFilterIds.RemoveWhere(id => Filters.All(f => f.Id != id));
 
             _allThreads = threads
-                .Where(t => !trashedIds.Contains(t.Id) && !blockedNumbers.Contains(t.Address) && !archivedIds.Contains(t.Id))
+                .Where(t => !trashedIds.Contains(t.Id) && !blockedNumbers.Contains(t.Address) && !archivedIds.Contains(t.Id) && !snoozed.ContainsKey(t.Id))
                 .Select(t =>
                 {
                     t.IsFavorite = favoriteIds.Contains(t.Id);
@@ -203,6 +220,14 @@ public partial class ConversationsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task SnoozeThread((long ThreadId, DateTimeOffset UntilUtc) args)
+    {
+        await _snoozeService.SnoozeAsync(args.ThreadId, args.UntilUtc);
+        _undoStack.Push(new SnoozeUndoAction(args.ThreadId, _snoozeService));
+        RemoveThreadsFromList(new[] { args.ThreadId });
+    }
+
+    [RelayCommand]
     private async Task TrashThreads(IReadOnlyList<long> threadIds)
     {
         var undoActions = new List<IUndoableAction>();
@@ -278,6 +303,20 @@ public partial class ConversationsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task AllowSender(string address)
+    {
+        var normalizedAddress = PhoneNumberFormatter.ToComparableDigits(address);
+        await _allowedSenderRepository.AllowAsync(normalizedAddress);
+        _undoStack.Push(new AllowSenderUndoAction(normalizedAddress, _allowedSenderRepository));
+        _allowedSenders = _allowedSenders.Append(normalizedAddress).ToHashSet();
+        if (ScreenerCount == 0)
+        {
+            ShowScreener = false;
+        }
+        ApplyFilter();
+    }
+
+    [RelayCommand]
     private async Task BlockThread(string address)
     {
         var normalizedAddress = PhoneNumberFormatter.ToComparableDigits(address);
@@ -345,16 +384,32 @@ public partial class ConversationsViewModel : ObservableObject
         ApplyFilter();
     }
 
+    // Scans every loaded thread rather than the visible Threads list, so an active search or
+    // unread/filter view never hides a code the user is waiting on.
+    public OneTimeCode? GetActiveCode(DateTimeOffset now) => _allThreads
+        .Where(t => now - t.LastMessageTimestamp <= CodeLifetime)
+        .Where(t => !_dismissedCodes.Contains((t.Id, t.LastMessageTimestamp)))
+        .OrderByDescending(t => t.LastMessageTimestamp)
+        .Select(t => OneTimeCodeDetector.Extract(t.LastMessageBody) is { } code
+            ? new OneTimeCode(code, t.DisplayNameOrAddress, t.Id, t.LastMessageTimestamp)
+            : null)
+        .FirstOrDefault(c => c is not null);
+
+    public void DismissCode(OneTimeCode code) => _dismissedCodes.Add((code.ThreadId, code.ReceivedAt));
+
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
     partial void OnShowUnreadOnlyChanged(bool value) => ApplyFilter();
+
+    partial void OnShowScreenerChanged(bool value) => ApplyFilter();
 
     private void ApplyFilter()
     {
         Threads.Clear();
         var query = SearchText.Trim();
+        // Search deliberately spans both lanes so a screened sender is still findable by name or text.
         var matches = string.IsNullOrEmpty(query)
-            ? _allThreads
+            ? _allThreads.Where(t => SenderScreening.IsScreened(t, _allowedSenders) == ShowScreener)
             : _allThreads.Where(t =>
                 t.DisplayNameOrAddress.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                 t.LastMessageBody.Contains(query, StringComparison.OrdinalIgnoreCase));
@@ -373,5 +428,6 @@ public partial class ConversationsViewModel : ObservableObject
         {
             Threads.Add(thread);
         }
+        OnPropertyChanged(nameof(ScreenerCount));
     }
 }

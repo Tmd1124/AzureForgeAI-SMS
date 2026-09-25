@@ -146,14 +146,23 @@
                     </div>
                     @if (ReferenceEquals(_reactionTargetMessage, message) && !string.IsNullOrEmpty(message.Body))
                     {
-                        @* z-index lifts it above the reaction sheet's full-screen backdrop so it stays tappable while the sheet is open. *@
-                        <button @onclick="CopyMessageText" title="Copy"
-                                style="position:relative;z-index:1;flex-shrink:0;width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="9" y="9" width="13" height="13" rx="2" />
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                            </svg>
-                        </button>
+                        @* z-index lifts these above the reaction sheet's full-screen backdrop so they stay tappable while the sheet is open. *@
+                        <div style="position:relative;z-index:1;display:flex;gap:8px;flex-shrink:0;flex-direction:@(message.IsOutgoing ? "row-reverse" : "row");">
+                            <button @onclick="CopyMessageText" title="Copy"
+                                    style="width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" />
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                </svg>
+                            </button>
+                            <button @onclick="ReplyToMessage" title="Reply"
+                                    style="width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="9 14 4 9 9 4" />
+                                    <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+                                </svg>
+                            </button>
+                        </div>
                     }
                     </div>
                     <div style="font-size:0.75em;color:#94a3b8;margin-top:2px;">
@@ -190,13 +199,24 @@
         </div>
         <PendingAttachmentPreview Attachment="_pendingAttachment" OnRemove="() => _pendingAttachment = null" />
         <ScheduledSendPreview SendAt="_scheduledSendTime" OnRemove="() => _scheduledSendTime = null" />
+        @if (ViewModel.ReplyingTo is { } replyingTo)
+        {
+            <div style="display:flex;align-items:center;gap:10px;margin:0 8px;padding:8px 12px;border-left:3px solid var(--accent-color);background:var(--card-color);border-radius:0 8px 8px 0;">
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:0.75em;color:#94a3b8;">Replying to @(replyingTo.IsOutgoing ? "your message" : DisplayName)</div>
+                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@replyingTo.Body</div>
+                </div>
+                <button @onclick="() => ViewModel!.ReplyingTo = null" title="Cancel reply"
+                        style="border:none;background:transparent;color:#94a3b8;font-size:1.1em;padding:4px;flex-shrink:0;">✕</button>
+            </div>
+        }
         <div style="display:flex;align-items:flex-end;padding:8px;">
             <button @onclick="() => _drawer?.Open()"
                     style="width:40px;height:40px;border-radius:50%;border:none;background:var(--card-color);color:var(--text-color);font-size:1.4em;margin-right:8px;flex-shrink:0;">
                 +
             </button>
             <div class="compose-grow-wrap" data-replicated-value="@ViewModel.ComposeText" style="flex:1;">
-                <textarea placeholder="Text message" rows="1" spellcheck="true" autocorrect="on" autocapitalize="sentences"
+                <textarea @ref="_composeInput" placeholder="Text message" rows="1" spellcheck="true" autocorrect="on" autocapitalize="sentences"
                           @bind="ViewModel.ComposeText" @bind:event="oninput"></textarea>
             </div>
             @if (!string.IsNullOrWhiteSpace(ViewModel.ComposeText) || _pendingAttachment is not null)
@@ -235,6 +255,14 @@
     </div>
 }
 
+@if (ViewModel is { IsSendPending: true })
+{
+    <div style="position:fixed;left:16px;right:16px;bottom:72px;z-index:21;background:#1e293b;color:white;border-radius:8px;padding:8px 8px 8px 16px;box-shadow:0 4px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:space-between;">
+        <span>Sending…</span>
+        <button @onclick="UndoSend" style="border:none;background:transparent;color:#5eead4;font-weight:600;padding:6px 10px;">UNDO</button>
+    </div>
+}
+
 @if (_showSaveToast)
 {
     <div style="position:fixed;left:16px;right:16px;bottom:24px;z-index:21;background:#1e293b;color:white;border-radius:8px;padding:12px 16px;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
@@ -255,6 +283,7 @@
     private ForgeLinkSms.Core.Models.SmsMessage? _reactionTargetMessage;
     private ForgeLinkSms.Core.Models.MessageAttachment? _viewerAttachment;
     private CancellationTokenSource? _messageLongPressCts;
+    private ElementReference _composeInput;
     private ForgeLinkSms.Components.AttachmentDrawer? _drawer;
     private ForgeLinkSms.Core.Models.PickedAttachment? _pendingAttachment;
     private DateTimeOffset? _scheduledSendTime;
@@ -283,6 +312,15 @@
         else
         {
             await ViewModel!.SendCommand.ExecuteAsync(null);
+        }
+    }
+
+    private void UndoSend()
+    {
+        var attachment = ViewModel!.UndoSend();
+        if (attachment is not null)
+        {
+            _pendingAttachment = attachment;
         }
     }
 
@@ -409,6 +447,9 @@
 
     public void Dispose()
     {
+        // Leaving the thread shouldn't silently drop a text that's still in its undo window.
+        ViewModel?.FlushPendingSend();
+
         IncomingMessageNotifier.MessageReceived -= OnMessageReceived;
 
         // Blazor's router can create the next page before disposing this one, so only clear the
@@ -506,6 +547,13 @@
             await ViewModel!.SendReactionCommand.ExecuteAsync((emoji, _reactionTargetMessage.Body));
         }
         CloseReactionBar();
+    }
+
+    private async Task ReplyToMessage()
+    {
+        ViewModel!.ReplyingTo = _reactionTargetMessage;
+        CloseReactionBar();
+        await _composeInput.FocusAsync();
     }
 
     private async Task CopyMessageText()

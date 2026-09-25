@@ -71,6 +71,17 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IMessageSchedulerService, MessageSchedulerService>();
 		builder.Services.AddTransient<ScheduledViewModel>();
 
+		var snoozeRepository = new SnoozeRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
+		snoozeRepository.InitializeAsync().GetAwaiter().GetResult();
+		builder.Services.AddSingleton<ISnoozeRepository>(snoozeRepository);
+		builder.Services.AddSingleton<ISnoozeAlarmScheduler, SnoozeAlarmScheduler>();
+		builder.Services.AddSingleton<ISnoozeService, SnoozeService>();
+		builder.Services.AddTransient<SnoozedViewModel>();
+
+		var allowedSenderRepository = new AllowedSenderRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
+		allowedSenderRepository.InitializeAsync().GetAwaiter().GetResult();
+		builder.Services.AddSingleton<IAllowedSenderRepository>(allowedSenderRepository);
+
 		builder.Services.AddSingleton<IMarkAsReadService, MarkAsReadService>();
 		builder.Services.AddTransient<MenuViewModel>();
 

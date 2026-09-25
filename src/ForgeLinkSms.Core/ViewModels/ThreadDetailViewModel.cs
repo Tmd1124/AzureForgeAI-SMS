@@ -29,6 +29,8 @@ public partial class ThreadDetailViewModel : ObservableObject
     private readonly IMessageSchedulerService _scheduler;
     private readonly long _threadId;
     private readonly string _address;
+    private readonly TimeSpan _undoSendWindow;
+    private PendingSend? _pendingSend;
 
     public ObservableCollection<Models.SmsMessage> Messages { get; } = new();
 
@@ -54,16 +56,23 @@ public partial class ThreadDetailViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoadingNewer;
 
+    [ObservableProperty]
+    private bool _isSendPending;
+
+    [ObservableProperty]
+    private Models.SmsMessage? _replyingTo;
+
     private bool _isLoadingMessages;
     private DateTimeOffset? _oldestLoadedTimestamp;
     private DateTimeOffset? _newestLoadedTimestamp;
 
-    public ThreadDetailViewModel(ISmsService smsService, IMessageSchedulerService scheduler, long threadId, string address)
+    public ThreadDetailViewModel(ISmsService smsService, IMessageSchedulerService scheduler, long threadId, string address, TimeSpan? undoSendWindow = null)
     {
         _smsService = smsService;
         _scheduler = scheduler;
         _threadId = threadId;
         _address = address;
+        _undoSendWindow = undoSendWindow ?? TimeSpan.FromSeconds(5);
     }
 
     [RelayCommand]
@@ -284,7 +293,9 @@ public partial class ThreadDetailViewModel : ObservableObject
         IsAtLatest = page.Count < PageSize;
     }
 
-    [RelayCommand]
+    // A second send while one is still pending must be able to start (and flush the first)
+    // rather than being blocked until the first's undo window runs out.
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task Send(Models.PickedAttachment? attachment)
     {
         var text = ComposeText.Trim();
@@ -293,18 +304,62 @@ public partial class ThreadDetailViewModel : ObservableObject
             return;
         }
 
+        FlushPendingSend();
+        var replyingTo = ReplyingTo;
+        var outgoingText = WithReplyQuote(text, replyingTo);
+        ComposeText = string.Empty;
+        ReplyingTo = null;
+
+        var pending = new PendingSend(attachment);
+        _pendingSend = pending;
+        IsSendPending = true;
+        try
+        {
+            await Task.Delay(_undoSendWindow, pending.Cancellation.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            // Undone, or flushed early by a newer send / the page closing.
+        }
+
+        if (ReferenceEquals(_pendingSend, pending))
+        {
+            _pendingSend = null;
+            IsSendPending = false;
+        }
+
+        if (pending.Undone)
+        {
+            ComposeText = string.IsNullOrEmpty(ComposeText) ? text : $"{text} {ComposeText}";
+            ReplyingTo ??= replyingTo;
+            return;
+        }
+
         if (attachment is not null)
         {
-            await _smsService.SendMmsAsync(_threadId, _address, string.IsNullOrEmpty(text) ? null : text, attachment);
+            await _smsService.SendMmsAsync(_threadId, _address, string.IsNullOrEmpty(outgoingText) ? null : outgoingText, attachment);
         }
         else
         {
-            await _smsService.SendAsync(_address, text);
+            await _smsService.SendAsync(_address, outgoingText);
         }
 
-        ComposeText = string.Empty;
         await Load();
     }
+
+    public Models.PickedAttachment? UndoSend()
+    {
+        if (_pendingSend is not { } pending)
+        {
+            return null;
+        }
+
+        pending.Undone = true;
+        pending.Cancellation.Cancel();
+        return pending.Attachment;
+    }
+
+    public void FlushPendingSend() => _pendingSend?.Cancellation.Cancel();
 
     [RelayCommand]
     private async Task ScheduleSend(DateTimeOffset sendAtUtc)
@@ -315,8 +370,9 @@ public partial class ThreadDetailViewModel : ObservableObject
             return;
         }
 
-        await _scheduler.ScheduleAsync(_address, text, sendAtUtc);
+        await _scheduler.ScheduleAsync(_address, WithReplyQuote(text, ReplyingTo), sendAtUtc);
         ComposeText = string.Empty;
+        ReplyingTo = null;
     }
 
     [RelayCommand]
@@ -329,12 +385,31 @@ public partial class ThreadDetailViewModel : ObservableObject
     // Plain SMS has no reaction/tapback concept, so a reaction is sent as a real new
     // message quoting the target text — the closest a recipient can see without any
     // special client support on their end.
-    private static string FormatReaction(string emoji, string targetMessageBody)
+    private static string FormatReaction(string emoji, string targetMessageBody) =>
+        $"{emoji} to \"{Quote(targetMessageBody)}\"";
+
+    // Same limitation as reactions: SMS has no reply threading, so the quote travels in the text.
+    private static string WithReplyQuote(string text, Models.SmsMessage? replyingTo)
+    {
+        if (replyingTo is null || string.IsNullOrEmpty(replyingTo.Body))
+        {
+            return text;
+        }
+
+        var quote = $"Re: \"{Quote(replyingTo.Body)}\"";
+        return string.IsNullOrEmpty(text) ? quote : $"{quote}\n{text}";
+    }
+
+    private static string Quote(string body)
     {
         const int maxQuoteLength = 40;
-        var quoted = targetMessageBody.Length > maxQuoteLength
-            ? targetMessageBody[..maxQuoteLength] + "…"
-            : targetMessageBody;
-        return $"{emoji} to \"{quoted}\"";
+        return body.Length > maxQuoteLength ? body[..maxQuoteLength] + "…" : body;
+    }
+
+    private sealed class PendingSend(Models.PickedAttachment? attachment)
+    {
+        public Models.PickedAttachment? Attachment { get; } = attachment;
+        public CancellationTokenSource Cancellation { get; } = new();
+        public bool Undone { get; set; }
     }
 }

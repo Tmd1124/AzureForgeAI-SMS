@@ -10,6 +10,7 @@ public class SmsThread
     public required int UnreadCount { get; set; }
     public string? PhotoUri { get; init; }
     public bool IsFavorite { get; set; }
+    public bool HasOutgoing { get; init; }
     public IReadOnlyList<long> FilterIds { get; set; } = Array.Empty<long>();
 
     public string DisplayNameOrAddress => string.IsNullOrWhiteSpace(DisplayName) ? Address : DisplayName;

@@ -8,8 +8,11 @@ namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class ConversationsViewModelTests
 {
-    private static SmsThread MakeThread(long id, string address, string? name, string lastMessage, DateTimeOffset? timestamp = null, int unreadCount = 0) => new()
+    // hasOutgoing defaults to true (an established conversation) so a nameless test thread lands
+    // in the main list rather than the Screener unless a test says otherwise.
+    private static SmsThread MakeThread(long id, string address, string? name, string lastMessage, DateTimeOffset? timestamp = null, int unreadCount = 0, bool hasOutgoing = true) => new()
     {
+        HasOutgoing = hasOutgoing,
         Id = id,
         Address = address,
         DisplayName = name,
@@ -62,7 +65,9 @@ public class ConversationsViewModelTests
         Mock<IUndoStack>? undoStack = null,
         Mock<IMarkAsReadService>? markAsReadService = null,
         Mock<IArchiveRepository>? archiveRepository = null,
-        Mock<IFilterRepository>? filterRepository = null) =>
+        Mock<IFilterRepository>? filterRepository = null,
+        Mock<ISnoozeService>? snoozeService = null,
+        Mock<IAllowedSenderRepository>? allowedSenderRepository = null) =>
         new(
             threadService.Object,
             (trashRepository ?? MakeEmptyTrashRepository()).Object,
@@ -71,7 +76,23 @@ public class ConversationsViewModelTests
             (undoStack ?? new Mock<IUndoStack>()).Object,
             (markAsReadService ?? new Mock<IMarkAsReadService>()).Object,
             (archiveRepository ?? MakeEmptyArchiveRepository()).Object,
-            (filterRepository ?? MakeEmptyFilterRepository()).Object);
+            (filterRepository ?? MakeEmptyFilterRepository()).Object,
+            (snoozeService ?? MakeEmptySnoozeService()).Object,
+            (allowedSenderRepository ?? MakeEmptyAllowedSenderRepository()).Object);
+
+    private static Mock<IAllowedSenderRepository> MakeEmptyAllowedSenderRepository()
+    {
+        var repository = new Mock<IAllowedSenderRepository>();
+        repository.Setup(r => r.GetAllAsync()).ReturnsAsync(new HashSet<string>());
+        return repository;
+    }
+
+    private static Mock<ISnoozeService> MakeEmptySnoozeService()
+    {
+        var service = new Mock<ISnoozeService>();
+        service.Setup(s => s.GetSnoozedAsync()).ReturnsAsync(new Dictionary<long, DateTimeOffset>());
+        return service;
+    }
 
     [Fact]
     public async Task LoadCommand_ignores_a_second_concurrent_call_while_the_first_is_still_running()
@@ -849,5 +870,203 @@ public class ConversationsViewModelTests
         filterRepository.Verify(r => r.AssignFilterAsync(It.IsAny<long>(), It.IsAny<long>()), Times.Never);
         Assert.DoesNotContain(10L, viewModel.Threads.Single(t => t.Id == 1).FilterIds);
         Assert.DoesNotContain(10L, viewModel.Threads.Single(t => t.Id == 2).FilterIds);
+    }
+
+    [Fact]
+    public async Task GetActiveCode_returns_the_newest_recent_code()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "72975", null, "Your verification code is 111111", now.AddMinutes(-4)),
+            MakeThread(2, "Mom", "Mom", "Are you coming Sunday?", now.AddMinutes(-1)),
+            MakeThread(3, "32665", null, "222222 is your login code", now.AddMinutes(-2))
+        });
+        var viewModel = MakeViewModel(threadService);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        var code = viewModel.GetActiveCode(now);
+
+        Assert.NotNull(code);
+        Assert.Equal("222222", code.Code);
+        Assert.Equal(3, code.ThreadId);
+        Assert.Equal("32665", code.Source);
+    }
+
+    [Fact]
+    public async Task GetActiveCode_ignores_codes_older_than_ten_minutes()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "72975", null, "Your verification code is 111111", now.AddMinutes(-11))
+        });
+        var viewModel = MakeViewModel(threadService);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Null(viewModel.GetActiveCode(now));
+    }
+
+    [Fact]
+    public async Task GetActiveCode_skips_a_dismissed_code()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "72975", null, "Your verification code is 111111", now.AddMinutes(-3)),
+            MakeThread(2, "32665", null, "222222 is your login code", now.AddMinutes(-1))
+        });
+        var viewModel = MakeViewModel(threadService);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        viewModel.DismissCode(viewModel.GetActiveCode(now)!);
+
+        Assert.Equal("111111", viewModel.GetActiveCode(now)!.Code);
+    }
+
+    [Fact]
+    public async Task GetActiveCode_still_finds_a_code_hidden_by_the_unread_filter()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "72975", null, "Your verification code is 111111", now.AddMinutes(-1), unreadCount: 0)
+        });
+        var viewModel = MakeViewModel(threadService);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+        viewModel.ShowUnreadOnly = true;
+
+        Assert.Equal("111111", viewModel.GetActiveCode(now)!.Code);
+    }
+
+    [Fact]
+    public async Task LoadCommand_hides_snoozed_threads()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "555", "Mom", "hi"),
+            MakeThread(2, "556", "Jake", "yo")
+        });
+        var snooze = MakeEmptySnoozeService();
+        snooze.Setup(s => s.GetSnoozedAsync()).ReturnsAsync(new Dictionary<long, DateTimeOffset> { [2] = DateTimeOffset.UtcNow.AddHours(1) });
+        var viewModel = MakeViewModel(threadService, snoozeService: snooze);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Equal(new long[] { 1 }, viewModel.Threads.Select(t => t.Id));
+    }
+
+    [Fact]
+    public async Task LoadCommand_wakes_expired_snoozes_before_reading_threads()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>());
+        var snooze = MakeEmptySnoozeService();
+        var viewModel = MakeViewModel(threadService, snoozeService: snooze);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        snooze.Verify(s => s.WakeExpiredAsync(It.IsAny<DateTimeOffset>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SnoozeThreadCommand_snoozes_removes_from_list_and_is_undoable()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread> { MakeThread(1, "555", "Mom", "hi") });
+        var snooze = MakeEmptySnoozeService();
+        var undoStack = new Mock<IUndoStack>();
+        var viewModel = MakeViewModel(threadService, undoStack: undoStack, snoozeService: snooze);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+        var until = DateTimeOffset.UtcNow.AddHours(3);
+
+        await viewModel.SnoozeThreadCommand.ExecuteAsync((1L, until));
+
+        snooze.Verify(s => s.SnoozeAsync(1, until), Times.Once);
+        Assert.Empty(viewModel.Threads);
+        undoStack.Verify(u => u.Push(It.IsAny<SnoozeUndoAction>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task LoadCommand_moves_unknown_senders_into_the_screener()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(1, "5551112222", "Mom", "hi", hasOutgoing: false),
+            MakeThread(2, "8552014477", null, "Package on hold", hasOutgoing: false),
+            MakeThread(3, "5553334444", null, "Thanks for the quote", hasOutgoing: true)
+        });
+        var viewModel = MakeViewModel(threadService);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Equal(new long[] { 1, 3 }, viewModel.Threads.Select(t => t.Id).OrderBy(id => id));
+        Assert.Equal(1, viewModel.ScreenerCount);
+
+        viewModel.ShowScreener = true;
+
+        Assert.Equal(new long[] { 2 }, viewModel.Threads.Select(t => t.Id));
+    }
+
+    [Fact]
+    public async Task LoadCommand_keeps_previously_allowed_senders_out_of_the_screener()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(2, "(855) 201-4477", null, "Your table is ready", hasOutgoing: false)
+        });
+        var allowed = MakeEmptyAllowedSenderRepository();
+        allowed.Setup(r => r.GetAllAsync()).ReturnsAsync(new HashSet<string> { "8552014477" });
+        var viewModel = MakeViewModel(threadService, allowedSenderRepository: allowed);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Single(viewModel.Threads);
+        Assert.Equal(0, viewModel.ScreenerCount);
+    }
+
+    [Fact]
+    public async Task AllowSenderCommand_moves_the_sender_to_the_main_list_and_is_undoable()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(2, "(855) 201-4477", null, "Your table is ready", hasOutgoing: false)
+        });
+        var allowed = MakeEmptyAllowedSenderRepository();
+        var undoStack = new Mock<IUndoStack>();
+        var viewModel = MakeViewModel(threadService, undoStack: undoStack, allowedSenderRepository: allowed);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+        viewModel.ShowScreener = true;
+
+        await viewModel.AllowSenderCommand.ExecuteAsync("(855) 201-4477");
+
+        allowed.Verify(r => r.AllowAsync("8552014477"), Times.Once);
+        undoStack.Verify(u => u.Push(It.IsAny<AllowSenderUndoAction>()), Times.Once);
+        Assert.False(viewModel.ShowScreener);
+        Assert.Equal(new long[] { 2 }, viewModel.Threads.Select(t => t.Id));
+    }
+
+    [Fact]
+    public async Task Search_finds_screened_senders_too()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread>
+        {
+            MakeThread(2, "8552014477", null, "Your table is ready", hasOutgoing: false)
+        });
+        var viewModel = MakeViewModel(threadService);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        viewModel.SearchText = "table";
+
+        Assert.Single(viewModel.Threads);
     }
 }

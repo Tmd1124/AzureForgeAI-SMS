@@ -1,0 +1,51 @@
+@page "/snoozed"
+@inject ForgeLinkSms.Core.ViewModels.SnoozedViewModel ViewModel
+@inject NavigationManager Nav
+
+<div style="padding:12px;">
+    <h3 style="margin:0 0 12px;">Snoozed</h3>
+
+    @if (ViewModel.SnoozedThreads.Count == 0)
+    {
+        <p>No snoozed conversations.</p>
+    }
+    else
+    {
+        @foreach (var (thread, untilUtc) in ViewModel.SnoozedThreads)
+        {
+            <div style="padding:10px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:10px;">
+                <div @onclick="() => OpenThread(thread)" style="flex:1;min-width:0;cursor:pointer;">
+                    <strong>@thread.DisplayNameOrAddress</strong>
+                    <div style="color:#94a3b8;font-size:0.85em;">💤 Until @FormatUntil(untilUtc)</div>
+                    <div style="color:#94a3b8;font-size:0.85em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@thread.PreviewText</div>
+                </div>
+                <button @onclick="() => ViewModel.UnsnoozeCommand.ExecuteAsync(thread.Id)">Unsnooze</button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ViewModel.LoadCommand.ExecuteAsync(null);
+    }
+
+    private void OpenThread(ForgeLinkSms.Core.Models.SmsThread thread) =>
+        Nav.NavigateTo($"/conversations/thread?id={thread.Id}&address={Uri.EscapeDataString(thread.Address)}");
+
+    private static string FormatUntil(DateTimeOffset untilUtc)
+    {
+        var local = untilUtc.LocalDateTime;
+        var today = DateTime.Today;
+        if (local.Date == today)
+        {
+            return $"today {local:h:mm tt}";
+        }
+        if (local.Date == today.AddDays(1))
+        {
+            return $"tomorrow {local:h:mm tt}";
+        }
+        return local.ToString("ddd, MMM d h:mm tt");
+    }
+}

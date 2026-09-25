@@ -6,6 +6,7 @@
 @inject ForgeLinkSms.Core.Services.IProfileService ProfileService
 @inject ForgeLinkSms.Core.Services.IContactService ContactService
 @inject ForgeLinkSms.Core.Services.IAppResumeNotifier AppResumeNotifier
+@inject ForgeLinkSms.Core.Services.IIncomingMessageNotifier IncomingMessageNotifier
 @inject ForgeLinkSms.Core.Services.NavigationHistoryTracker HistoryTracker
 @inject NavigationManager Nav
 @using ForgeLinkSms.Core.Utils
@@ -24,7 +25,7 @@
             <button @onclick="TrashSelectedThreads" style="width:40px;height:40px;flex-shrink:0;border:none;background:transparent;font-size:1.2em;line-height:1;padding:0;">🗑</button>
             @if (_selectedThreadIds.Count == 1)
             {
-                <button @onclick="OpenOverflowForSingleSelection" style="width:40px;height:40px;flex-shrink:0;border:none;background:transparent;font-size:1.2em;line-height:1;padding:0;">⋮</button>
+                <button @onclick="OpenOverflowForSingleSelection" title="More" style="width:40px;height:40px;flex-shrink:0;border:none;background:transparent;color:var(--text-color);font-size:1.6em;font-weight:bold;line-height:1;padding:0;">⋮</button>
             }
         </div>
     }
@@ -68,12 +69,46 @@
         </div>
     }
 
+    @if (_selectedThreadIds.Count == 0 && ViewModel.GetActiveCode(DateTimeOffset.Now) is { } activeCode)
+    {
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;padding:10px 12px;border:1px dashed var(--accent-color);border-radius:12px;background:var(--card-color);">
+            <div style="flex:1;min-width:0;">
+                <div style="font-family:monospace;font-size:1.4em;letter-spacing:0.12em;">@activeCode.Code</div>
+                <div style="font-size:0.8em;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Code from @activeCode.Source · @FormatCodeAge(activeCode.ReceivedAt)</div>
+            </div>
+            <button @onclick="() => CopyCode(activeCode)"
+                    style="border:none;border-radius:8px;padding:8px 14px;background:var(--accent-color);color:white;font-weight:600;flex-shrink:0;">
+                @(_copiedCode == activeCode ? "Copied" : "Copy")
+            </button>
+            <button @onclick="() => DismissCode(activeCode)" title="Dismiss"
+                    style="border:none;background:transparent;color:#94a3b8;font-size:1.1em;padding:4px;flex-shrink:0;">✕</button>
+        </div>
+    }
+
+    @if (_selectedThreadIds.Count == 0 && string.IsNullOrWhiteSpace(ViewModel.SearchText) && (ViewModel.ScreenerCount > 0 || ViewModel.ShowScreener))
+    {
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <button @onclick="() => ViewModel.ShowScreener = false"
+                    style="flex:1;border:none;border-radius:999px;padding:8px 0;font-weight:600;background:@(ViewModel.ShowScreener ? "#e2e8f0" : "var(--accent-color)");color:@(ViewModel.ShowScreener ? "#1e293b" : "white");">
+                Conversations
+            </button>
+            <button @onclick="() => ViewModel.ShowScreener = true"
+                    style="flex:1;border:none;border-radius:999px;padding:8px 0;font-weight:600;background:@(ViewModel.ShowScreener ? "var(--accent-color)" : "#e2e8f0");color:@(ViewModel.ShowScreener ? "white" : "#1e293b");">
+                Screener @(ViewModel.ScreenerCount > 0 ? $"({ViewModel.ScreenerCount})" : "")
+            </button>
+        </div>
+        @if (ViewModel.ShowScreener)
+        {
+            <div style="color:#94a3b8;font-size:0.85em;margin:0 4px 8px;">Texts from numbers that aren't in your contacts. They arrive without a notification (except verification codes) until you allow them.</div>
+        }
+    }
+
     @if (_isLoading)
     {
     }
     else if (ViewModel.Threads.Count == 0)
     {
-        <p>No conversations yet.</p>
+        <p>@(ViewModel.ShowScreener ? "Nothing waiting in the Screener." : "No conversations yet.")</p>
     }
     else
     {
@@ -126,7 +161,18 @@
                     }
                     <div style="color:#94a3b8;font-size:0.85em;">@thread.PreviewText</div>
                 </div>
-                @if (_selectedThreadIds.Count == 0 && PhoneNumberFormatter.IsValidPhoneNumber(thread.Address))
+                @if (_selectedThreadIds.Count == 0 && ViewModel.ShowScreener && string.IsNullOrWhiteSpace(ViewModel.SearchText))
+                {
+                    <div style="display:flex;gap:6px;flex-shrink:0;">
+                        <button @onclick="() => AllowSender(thread.Address)" @onclick:stopPropagation="true"
+                                @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"
+                                style="border:none;border-radius:8px;padding:6px 10px;background:var(--accent-color);color:white;font-weight:600;">Allow</button>
+                        <button @onclick="() => BlockSender(thread.Address)" @onclick:stopPropagation="true"
+                                @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"
+                                style="border:none;border-radius:8px;padding:6px 10px;background:#e2e8f0;color:#b91c1c;font-weight:600;">Block</button>
+                    </div>
+                }
+                else if (_selectedThreadIds.Count == 0 && PhoneNumberFormatter.IsValidPhoneNumber(thread.Address))
                 {
                     <button @onclick="() => PhoneDialer.Default.Open(thread.Address)" @onclick:stopPropagation="true"
                             @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"
@@ -159,8 +205,30 @@
         <div style="background:var(--card-color);width:100%;padding:12px;" @onclick:stopPropagation="true">
             <div @onclick="FavoriteSelectedThread" style="padding:12px;">@(_actionSheetIsFavorite ? "💔 Unfavorite" : "❤️ Favorite")</div>
             <div @onclick="MarkReadSelectedThread" style="padding:12px;display:flex;align-items:center;gap:8px;">@(_actionSheetIsUnread ? EyeOpenIcon : EyeSlashIcon) <span>@(_actionSheetIsUnread ? "Mark as Read" : "Mark as Unread")</span></div>
+            <div @onclick="OpenSnoozeSheet" style="padding:12px;">💤 Snooze</div>
             <div @onclick="TrashSelectedThread" style="padding:12px;">🗑 Trash</div>
             <div @onclick="BlockSelectedThread" style="padding:12px;">🚫 Block</div>
+        </div>
+    </div>
+}
+
+@if (_snoozeThreadId is not null)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;z-index:20;" @onclick="CloseSnoozeSheet">
+        <div style="background:var(--card-color);width:100%;padding:12px;border-radius:16px 16px 0 0;" @onclick:stopPropagation="true">
+            <div style="padding:4px 12px 8px;font-weight:600;">Snooze until…</div>
+            @foreach (var preset in ForgeLinkSms.Core.Utils.SnoozePresets.For(DateTime.Now))
+            {
+                <div @onclick="() => SnoozeUntil(preset.Until)" style="padding:12px;display:flex;justify-content:space-between;cursor:pointer;">
+                    <span>@preset.Label</span>
+                    <span style="color:#94a3b8;">@FormatSnoozeTime(preset.Until)</span>
+                </div>
+            }
+            <div style="padding:12px;display:flex;align-items:center;gap:8px;border-top:1px solid #e2e8f0;">
+                <input type="datetime-local" @bind="_customSnoozeTime" min="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" style="flex:1;min-width:0;" />
+                <button @onclick="SnoozeUntilCustom" disabled="@(_customSnoozeTime is null || _customSnoozeTime <= DateTime.Now)"
+                        style="border:none;border-radius:8px;padding:8px 14px;background:var(--accent-color);color:white;font-weight:600;">Snooze</button>
+            </div>
         </div>
     </div>
 }
@@ -205,6 +273,10 @@
     private bool _showUndoToast;
     private string _undoToastMessage = string.Empty;
     private CancellationTokenSource? _undoToastCts;
+    private ForgeLinkSms.Core.Models.OneTimeCode? _copiedCode;
+    private long? _snoozeThreadId;
+    private DateTime? _customSnoozeTime;
+    private readonly CancellationTokenSource _codeExpiryCts = new();
 
     private string RowBackground(ForgeLinkSms.Core.Models.SmsThread thread)
     {
@@ -221,7 +293,49 @@
         await ViewModel.LoadCommand.ExecuteAsync(null);
         _isLoading = false;
         AppResumeNotifier.Resumed += OnAppResumed;
+        IncomingMessageNotifier.MessageReceived += OnMessageReceived;
         HistoryTracker.LocalBackHandler = TryCloseOverlayForBack;
+        _ = RefreshCodeStripPeriodicallyAsync(_codeExpiryCts.Token);
+    }
+
+    // Raised from the SMS receiver's background thread, hence InvokeAsync.
+    private void OnMessageReceived(long threadId)
+    {
+        _ = InvokeAsync(async () =>
+        {
+            await ViewModel.LoadCommand.ExecuteAsync(null);
+            StateHasChanged();
+        });
+    }
+
+    // Re-renders so the code strip's age label updates and the strip disappears once the code expires.
+    private async Task RefreshCodeStripPeriodicallyAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task CopyCode(ForgeLinkSms.Core.Models.OneTimeCode code)
+    {
+        await Clipboard.Default.SetTextAsync(code.Code);
+        _copiedCode = code;
+    }
+
+    private void DismissCode(ForgeLinkSms.Core.Models.OneTimeCode code) => ViewModel.DismissCode(code);
+
+    private static string FormatCodeAge(DateTimeOffset receivedAt)
+    {
+        var minutes = (int)(DateTimeOffset.Now - receivedAt).TotalMinutes;
+        return minutes < 1 ? "just now" : $"{minutes} min ago";
     }
 
     // The hardware back button is fully intercepted at the native layer (see MainActivity) to fix
@@ -230,6 +344,13 @@
     // multi-select itself instead of falling through to exiting the app.
     private bool TryCloseOverlayForBack()
     {
+        if (_snoozeThreadId is not null)
+        {
+            CloseSnoozeSheet();
+            StateHasChanged();
+            return true;
+        }
+
         if (_filterSheet is { IsOpen: true })
         {
             _filterSheet.Close();
@@ -267,7 +388,9 @@
     public void Dispose()
     {
         AppResumeNotifier.Resumed -= OnAppResumed;
+        IncomingMessageNotifier.MessageReceived -= OnMessageReceived;
         _undoToastCts?.Cancel();
+        _codeExpiryCts.Cancel();
 
         // Blazor's router can create the next page before disposing this one, so only clear the
         // handler if it's still ours — otherwise this would wipe out a registration the next page
@@ -429,6 +552,53 @@
     }
 
     private void CloseActionSheet() => _actionSheetThreadId = null;
+
+    private async Task AllowSender(string address)
+    {
+        await ViewModel.AllowSenderCommand.ExecuteAsync(address);
+        ShowUndoToast("Allowed");
+    }
+
+    private async Task BlockSender(string address)
+    {
+        await ViewModel.BlockThreadCommand.ExecuteAsync(address);
+        ShowUndoToast("Blocked");
+    }
+
+    private void OpenSnoozeSheet()
+    {
+        _snoozeThreadId = _actionSheetThreadId;
+        _customSnoozeTime = null;
+        CloseActionSheet();
+    }
+
+    private void CloseSnoozeSheet() => _snoozeThreadId = null;
+
+    private async Task SnoozeUntil(DateTime untilLocal)
+    {
+        if (_snoozeThreadId is long id)
+        {
+            await ViewModel.SnoozeThreadCommand.ExecuteAsync((id, new DateTimeOffset(untilLocal)));
+            ShowUndoToast($"Snoozed until {FormatSnoozeTime(untilLocal)}");
+        }
+        CloseSnoozeSheet();
+        ClearSelection();
+    }
+
+    private Task SnoozeUntilCustom() => _customSnoozeTime is { } until ? SnoozeUntil(until) : Task.CompletedTask;
+
+    private static string FormatSnoozeTime(DateTime local)
+    {
+        if (local.Date == DateTime.Today)
+        {
+            return local.ToString("h:mm tt");
+        }
+        if (local.Date == DateTime.Today.AddDays(1))
+        {
+            return $"Tomorrow {local:h:mm tt}";
+        }
+        return local.ToString("ddd h:mm tt");
+    }
 
     private async Task TrashSelectedThread()
     {

@@ -23,6 +23,10 @@ public class ThreadService : IThreadService
         public required bool IsUnread { get; init; }
     }
 
+    // Android's SMS "type" column: 1 = inbox; every other value (sent, outbox, failed, queued)
+    // is a message this user wrote.
+    private const int SmsTypeInbox = 1;
+
     public async Task<IReadOnlyList<SmsThread>> GetThreadsAsync()
     {
         var context = AndroidApp.Context;
@@ -39,21 +43,22 @@ public class ThreadService : IThreadService
             // with no shared "conversations" view this app can rely on — so both are read here
             // and merged per thread_id, keeping whichever side is newer.
             var latestByThread = new Dictionary<long, ThreadLatestMessage>();
-            ReadLatestSmsPerThread(context, latestByThread);
-            ReadLatestMmsPerThread(context, latestByThread);
-            return latestByThread.Values.ToList();
+            var threadsWithOutgoing = new HashSet<long>();
+            ReadLatestSmsPerThread(context, latestByThread, threadsWithOutgoing);
+            ReadLatestMmsPerThread(context, latestByThread, threadsWithOutgoing);
+            return (Rows: latestByThread.Values.ToList(), ThreadsWithOutgoing: threadsWithOutgoing);
         });
 
         // Each lookup is dispatched via Task.Run so the contact-provider query (a blocking
         // call) for every thread runs on its own thread-pool thread instead of one at a time —
         // with dozens of conversations, sequential awaits here were the dominant cost of loading
         // the list.
-        var contacts = await Task.WhenAll(rawRows.Select(row => Task.Run(() => _contactService.LookupAsync(row.Address))));
+        var contacts = await Task.WhenAll(rawRows.Rows.Select(row => Task.Run(() => _contactService.LookupAsync(row.Address))));
 
-        var results = new List<SmsThread>(rawRows.Count);
-        for (var i = 0; i < rawRows.Count; i++)
+        var results = new List<SmsThread>(rawRows.Rows.Count);
+        for (var i = 0; i < rawRows.Rows.Count; i++)
         {
-            var row = rawRows[i];
+            var row = rawRows.Rows[i];
             var contact = contacts[i];
             results.Add(new SmsThread
             {
@@ -63,16 +68,17 @@ public class ThreadService : IThreadService
                 PhotoUri = contact?.PhotoUri,
                 LastMessageBody = row.Body,
                 LastMessageTimestamp = DateTimeOffset.FromUnixTimeMilliseconds(row.DateMillis),
-                UnreadCount = row.IsUnread ? 1 : 0
+                UnreadCount = row.IsUnread ? 1 : 0,
+                HasOutgoing = rawRows.ThreadsWithOutgoing.Contains(row.ThreadId)
             });
         }
 
         return results;
     }
 
-    private static void ReadLatestSmsPerThread(global::Android.Content.Context context, Dictionary<long, ThreadLatestMessage> latestByThread)
+    private static void ReadLatestSmsPerThread(global::Android.Content.Context context, Dictionary<long, ThreadLatestMessage> latestByThread, HashSet<long> threadsWithOutgoing)
     {
-        var projection = new[] { "thread_id", "address", "body", "date", "read" };
+        var projection = new[] { "thread_id", "address", "body", "date", "read", "type" };
         using var cursor = context.ContentResolver!.Query(AndroidTelephony.Sms.ContentUri!, projection, null, null, "date DESC");
         if (cursor is null)
         {
@@ -84,10 +90,15 @@ public class ThreadService : IThreadService
         var bodyIdx = cursor.GetColumnIndexOrThrow("body");
         var dateIdx = cursor.GetColumnIndexOrThrow("date");
         var readIdx = cursor.GetColumnIndexOrThrow("read");
+        var typeIdx = cursor.GetColumnIndexOrThrow("type");
 
         while (cursor.MoveToNext())
         {
             var threadId = cursor.GetLong(threadIdIdx);
+            if (cursor.GetInt(typeIdx) != SmsTypeInbox)
+            {
+                threadsWithOutgoing.Add(threadId);
+            }
             var dateMillis = cursor.GetLong(dateIdx);
             if (latestByThread.TryGetValue(threadId, out var existing) && existing.DateMillis >= dateMillis)
             {
@@ -105,9 +116,12 @@ public class ThreadService : IThreadService
         }
     }
 
-    private static void ReadLatestMmsPerThread(global::Android.Content.Context context, Dictionary<long, ThreadLatestMessage> latestByThread)
+    private static void ReadLatestMmsPerThread(global::Android.Content.Context context, Dictionary<long, ThreadLatestMessage> latestByThread, HashSet<long> threadsWithOutgoing)
     {
-        var latestMmsPerThread = MmsReader.QueryAll(context)
+        var allMms = MmsReader.QueryAll(context);
+        threadsWithOutgoing.UnionWith(allMms.Where(m => m.IsOutgoing).Select(m => m.ThreadId));
+
+        var latestMmsPerThread = allMms
             .GroupBy(m => m.ThreadId)
             .Select(g => g.OrderByDescending(m => m.Date).First());
 

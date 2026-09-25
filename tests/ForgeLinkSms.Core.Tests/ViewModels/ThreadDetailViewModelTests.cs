@@ -281,7 +281,7 @@ public class ThreadDetailViewModelTests
     public async Task SendCommand_does_nothing_when_ComposeText_is_blank()
     {
         var sms = new Mock<ISmsService>();
-        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555")
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555", undoSendWindow: TimeSpan.Zero)
         {
             ComposeText = "   "
         };
@@ -295,7 +295,7 @@ public class ThreadDetailViewModelTests
     public async Task SendCommand_sends_and_clears_ComposeText()
     {
         var sms = new Mock<ISmsService>();
-        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890")
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890", undoSendWindow: TimeSpan.Zero)
         {
             ComposeText = "See you then"
         };
@@ -312,7 +312,7 @@ public class ThreadDetailViewModelTests
         var sms = new Mock<ISmsService>();
         sms.Setup(s => s.GetMessagesAsync(1, null, It.IsAny<int>())).ReturnsAsync(new List<SmsMessage>());
         var attachment = new PickedAttachment { FileName = "photo.jpg", LocalPath = "/tmp/photo.jpg", Kind = AttachmentKind.Image };
-        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890")
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890", undoSendWindow: TimeSpan.Zero)
         {
             ComposeText = "Check this out"
         };
@@ -330,11 +330,174 @@ public class ThreadDetailViewModelTests
         var sms = new Mock<ISmsService>();
         sms.Setup(s => s.GetMessagesAsync(1, null, It.IsAny<int>())).ReturnsAsync(new List<SmsMessage>());
         var attachment = new PickedAttachment { FileName = "photo.jpg", LocalPath = "/tmp/photo.jpg", Kind = AttachmentKind.Image };
-        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890");
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890", undoSendWindow: TimeSpan.Zero);
 
         await viewModel.SendCommand.ExecuteAsync(attachment);
 
         sms.Verify(s => s.SendMmsAsync(1, "5550148890", null, attachment), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendCommand_waits_out_the_undo_window_before_sending()
+    {
+        var sms = new Mock<ISmsService>();
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890", undoSendWindow: TimeSpan.FromMinutes(1))
+        {
+            ComposeText = "See you then"
+        };
+
+        var sending = viewModel.SendCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsSendPending);
+        Assert.Equal(string.Empty, viewModel.ComposeText);
+        sms.Verify(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+
+        viewModel.FlushPendingSend();
+        await sending;
+
+        sms.Verify(s => s.SendAsync("5550148890", "See you then"), Times.Once);
+        Assert.False(viewModel.IsSendPending);
+    }
+
+    [Fact]
+    public async Task UndoSend_cancels_the_send_and_restores_the_text()
+    {
+        var sms = new Mock<ISmsService>();
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890", undoSendWindow: TimeSpan.FromMinutes(1))
+        {
+            ComposeText = "Oops wrong person"
+        };
+
+        var sending = viewModel.SendCommand.ExecuteAsync(null);
+        viewModel.UndoSend();
+        await sending;
+
+        sms.Verify(s => s.SendAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        Assert.Equal("Oops wrong person", viewModel.ComposeText);
+        Assert.False(viewModel.IsSendPending);
+    }
+
+    [Fact]
+    public async Task UndoSend_returns_the_attachment_so_it_can_be_restored()
+    {
+        var sms = new Mock<ISmsService>();
+        var attachment = new PickedAttachment { FileName = "photo.jpg", LocalPath = "/tmp/photo.jpg", Kind = AttachmentKind.Image };
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890", undoSendWindow: TimeSpan.FromMinutes(1));
+
+        var sending = viewModel.SendCommand.ExecuteAsync(attachment);
+        var restored = viewModel.UndoSend();
+        await sending;
+
+        Assert.Same(attachment, restored);
+        sms.Verify(s => s.SendMmsAsync(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<PickedAttachment>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UndoSend_keeps_text_typed_after_sending()
+    {
+        var sms = new Mock<ISmsService>();
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890", undoSendWindow: TimeSpan.FromMinutes(1))
+        {
+            ComposeText = "first"
+        };
+
+        var sending = viewModel.SendCommand.ExecuteAsync(null);
+        viewModel.ComposeText = "second";
+        viewModel.UndoSend();
+        await sending;
+
+        Assert.Equal("first second", viewModel.ComposeText);
+    }
+
+    [Fact]
+    public async Task Sending_again_during_the_undo_window_sends_the_earlier_message_right_away()
+    {
+        var sms = new Mock<ISmsService>();
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890", undoSendWindow: TimeSpan.FromMinutes(1))
+        {
+            ComposeText = "one"
+        };
+
+        var first = viewModel.SendCommand.ExecuteAsync(null);
+        viewModel.ComposeText = "two";
+        var second = viewModel.SendCommand.ExecuteAsync(null);
+        await first;
+
+        sms.Verify(s => s.SendAsync("5550148890", "one"), Times.Once);
+        sms.Verify(s => s.SendAsync("5550148890", "two"), Times.Never);
+        Assert.True(viewModel.IsSendPending);
+
+        viewModel.FlushPendingSend();
+        await second;
+        sms.Verify(s => s.SendAsync("5550148890", "two"), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendCommand_quotes_the_message_being_replied_to()
+    {
+        var sms = new Mock<ISmsService>();
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890", undoSendWindow: TimeSpan.Zero)
+        {
+            ComposeText = "Yes, see you there",
+            ReplyingTo = MakeMessage(7, "Are you still coming Sunday?", DateTimeOffset.UtcNow)
+        };
+
+        await viewModel.SendCommand.ExecuteAsync(null);
+
+        sms.Verify(s => s.SendAsync("5550148890", "Re: \"Are you still coming Sunday?\"\nYes, see you there"), Times.Once);
+        Assert.Null(viewModel.ReplyingTo);
+    }
+
+    [Fact]
+    public async Task SendCommand_truncates_a_long_quoted_reply()
+    {
+        var sms = new Mock<ISmsService>();
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890", undoSendWindow: TimeSpan.Zero)
+        {
+            ComposeText = "ok",
+            ReplyingTo = MakeMessage(7, new string('a', 60), DateTimeOffset.UtcNow)
+        };
+
+        await viewModel.SendCommand.ExecuteAsync(null);
+
+        sms.Verify(s => s.SendAsync("5550148890", $"Re: \"{new string('a', 40)}…\"\nok"), Times.Once);
+    }
+
+    [Fact]
+    public async Task UndoSend_restores_the_reply_target_and_unquoted_text()
+    {
+        var sms = new Mock<ISmsService>();
+        var target = MakeMessage(7, "Are you still coming Sunday?", DateTimeOffset.UtcNow);
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "5550148890", undoSendWindow: TimeSpan.FromMinutes(1))
+        {
+            ComposeText = "Yes",
+            ReplyingTo = target
+        };
+
+        var sending = viewModel.SendCommand.ExecuteAsync(null);
+        Assert.Null(viewModel.ReplyingTo);
+        viewModel.UndoSend();
+        await sending;
+
+        Assert.Equal("Yes", viewModel.ComposeText);
+        Assert.Same(target, viewModel.ReplyingTo);
+    }
+
+    [Fact]
+    public async Task ScheduleSendCommand_quotes_the_message_being_replied_to()
+    {
+        var scheduler = new Mock<IMessageSchedulerService>();
+        var sendAt = DateTimeOffset.UtcNow.AddHours(1);
+        var viewModel = new ThreadDetailViewModel(new Mock<ISmsService>().Object, scheduler.Object, threadId: 1, address: "5550148890")
+        {
+            ComposeText = "Yes",
+            ReplyingTo = MakeMessage(7, "Coming Sunday?", DateTimeOffset.UtcNow)
+        };
+
+        await viewModel.ScheduleSendCommand.ExecuteAsync(sendAt);
+
+        scheduler.Verify(s => s.ScheduleAsync("5550148890", "Re: \"Coming Sunday?\"\nYes", sendAt), Times.Once);
+        Assert.Null(viewModel.ReplyingTo);
     }
 
     [Fact]

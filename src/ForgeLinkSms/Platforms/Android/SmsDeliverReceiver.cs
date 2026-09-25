@@ -97,13 +97,39 @@ public class SmsDeliverReceiver : BroadcastReceiver
                 trashRepository.RestoreThreadAsync(threadId).GetAwaiter().GetResult();
             }
 
+            // Same idea as email snooze: a new message means the conversation needs attention now.
+            services.GetRequiredService<ISnoozeService>().UnsnoozeAsync(threadId).GetAwaiter().GetResult();
+
             services.GetRequiredService<IIncomingMessageNotifier>().NotifyMessageReceived(threadId);
         }
 
         var contactService = services.GetRequiredService<IContactService>();
         var contact = contactService.LookupAsync(address).GetAwaiter().GetResult();
 
+        var isAllowed = services.GetRequiredService<IAllowedSenderRepository>().IsAllowedAsync(normalizedAddress).GetAwaiter().GetResult();
+        if (!SenderScreening.ShouldNotify(contact is not null, isAllowed, ThreadHasOutgoing(context, threadId), body))
+        {
+            return;
+        }
+
         var notificationService = services.GetRequiredService<INotificationService>();
         notificationService.NotifyIncomingMessage(contact?.DisplayName ?? address, body, threadId, address);
+    }
+
+    private static bool ThreadHasOutgoing(Context context, long threadId)
+    {
+        if (threadId == 0L)
+        {
+            return false;
+        }
+
+        using var cursor = context.ContentResolver!.Query(
+            AndroidTelephony.Sms.ContentUri!, new[] { "_id" }, "thread_id = ? AND type != 1", new[] { threadId.ToString() }, null);
+        if (cursor is not null && cursor.Count > 0)
+        {
+            return true;
+        }
+
+        return MmsReader.QueryAll(context, threadId).Any(m => m.IsOutgoing);
     }
 }
