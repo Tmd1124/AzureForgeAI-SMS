@@ -1,0 +1,36 @@
+@inject ForgeLinkSms.Core.Services.LinkPreviewService Previews
+
+@if (_preview is not null)
+{
+    <div @onclick="Open" @onclick:stopPropagation="true" @onpointerdown:stopPropagation="true" @onpointerup:stopPropagation="true"
+         style="margin-top:8px;border-radius:10px;overflow:hidden;background:rgba(0,0,0,0.12);cursor:pointer;">
+        @if (_preview.ImageUrl is not null)
+        {
+            <img src="@_preview.ImageUrl" alt="" referrerpolicy="no-referrer" loading="lazy"
+                 style="display:block;width:100%;max-height:150px;object-fit:cover;" />
+        }
+        <div style="padding:6px 10px 8px;">
+            <div style="font-weight:600;font-size:0.9em;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">@_preview.Title</div>
+            <div style="font-size:0.75em;opacity:0.75;margin-top:2px;">@_preview.SiteName</div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Url { get; set; } = string.Empty;
+
+    private ForgeLinkSms.Core.Utils.LinkPreview? _preview;
+    private string? _loadedFor;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == Url)
+        {
+            return;
+        }
+        _loadedFor = Url;
+        _preview = await Previews.GetAsync(Url);
+    }
+
+    private async Task Open() => await Launcher.Default.OpenAsync(new Uri(Url));
+}

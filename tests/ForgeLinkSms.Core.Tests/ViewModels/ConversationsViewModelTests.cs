@@ -67,7 +67,10 @@ public class ConversationsViewModelTests
         Mock<IArchiveRepository>? archiveRepository = null,
         Mock<IFilterRepository>? filterRepository = null,
         Mock<ISnoozeService>? snoozeService = null,
-        Mock<IAllowedSenderRepository>? allowedSenderRepository = null) =>
+        Mock<IAllowedSenderRepository>? allowedSenderRepository = null,
+        Mock<IDraftRepository>? draftRepository = null,
+        Mock<IMuteRepository>? muteRepository = null,
+        Mock<ISmsService>? smsService = null) =>
         new(
             threadService.Object,
             (trashRepository ?? MakeEmptyTrashRepository()).Object,
@@ -78,7 +81,24 @@ public class ConversationsViewModelTests
             (archiveRepository ?? MakeEmptyArchiveRepository()).Object,
             (filterRepository ?? MakeEmptyFilterRepository()).Object,
             (snoozeService ?? MakeEmptySnoozeService()).Object,
-            (allowedSenderRepository ?? MakeEmptyAllowedSenderRepository()).Object);
+            (allowedSenderRepository ?? MakeEmptyAllowedSenderRepository()).Object,
+            (draftRepository ?? MakeEmptyDraftRepository()).Object,
+            (muteRepository ?? MakeEmptyMuteRepository()).Object,
+            (smsService ?? new Mock<ISmsService>()).Object);
+
+    private static Mock<IMuteRepository> MakeEmptyMuteRepository()
+    {
+        var repository = new Mock<IMuteRepository>();
+        repository.Setup(r => r.GetMutedThreadIdsAsync(It.IsAny<DateTimeOffset>())).ReturnsAsync(new HashSet<long>());
+        return repository;
+    }
+
+    private static Mock<IDraftRepository> MakeEmptyDraftRepository()
+    {
+        var repository = new Mock<IDraftRepository>();
+        repository.Setup(r => r.GetAllAsync()).ReturnsAsync(new Dictionary<long, string>());
+        return repository;
+    }
 
     private static Mock<IAllowedSenderRepository> MakeEmptyAllowedSenderRepository()
     {
@@ -1184,5 +1204,129 @@ public class ConversationsViewModelTests
         await viewModel.ArchiveThreadCommand.ExecuteAsync(1L);
 
         Assert.Equal(new long[] { 2, 3, 4 }, viewModel.PondThreads.Select(t => t.Id));
+    }
+
+    [Fact]
+    public async Task LoadCommand_marks_conversations_that_have_a_draft()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread> { MakeThread(1, "555", "Mom", "hi"), MakeThread(2, "556", "Jake", "yo") });
+        var drafts = MakeEmptyDraftRepository();
+        drafts.Setup(d => d.GetAllAsync()).ReturnsAsync(new Dictionary<long, string> { [2] = "Are you" });
+        var viewModel = MakeViewModel(threadService, draftRepository: drafts);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Null(viewModel.Threads.Single(t => t.Id == 1).DraftText);
+        Assert.Equal("Are you", viewModel.Threads.Single(t => t.Id == 2).DraftText);
+    }
+
+    [Fact]
+    public async Task LoadCommand_marks_muted_conversations()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread> { MakeThread(1, "555", "Mom", "hi"), MakeThread(2, "556", "Group", "yo") });
+        var mutes = MakeEmptyMuteRepository();
+        mutes.Setup(m => m.GetMutedThreadIdsAsync(It.IsAny<DateTimeOffset>())).ReturnsAsync(new HashSet<long> { 2 });
+        var viewModel = MakeViewModel(threadService, muteRepository: mutes);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.False(viewModel.Threads.Single(t => t.Id == 1).IsMuted);
+        Assert.True(viewModel.Threads.Single(t => t.Id == 2).IsMuted);
+    }
+
+    [Fact]
+    public async Task MuteThreadCommand_mutes_and_UnmuteThreadCommand_unmutes()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread> { MakeThread(1, "555", "Mom", "hi") });
+        var mutes = MakeEmptyMuteRepository();
+        var viewModel = MakeViewModel(threadService, muteRepository: mutes);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+        var until = DateTimeOffset.UtcNow.AddHours(8);
+
+        await viewModel.MuteThreadCommand.ExecuteAsync((1L, (DateTimeOffset?)until));
+
+        mutes.Verify(m => m.MuteAsync(1, until), Times.Once);
+        Assert.True(viewModel.Threads[0].IsMuted);
+
+        await viewModel.UnmuteThreadCommand.ExecuteAsync(1L);
+
+        mutes.Verify(m => m.UnmuteAsync(1), Times.Once);
+        Assert.False(viewModel.Threads[0].IsMuted);
+    }
+
+    [Fact]
+    public async Task MuteThreadCommand_can_be_undone()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread> { MakeThread(1, "555", "Mom", "hi") });
+        var mutes = MakeEmptyMuteRepository();
+        var undoStack = new Mock<IUndoStack>();
+        IUndoableAction? pushed = null;
+        undoStack.Setup(u => u.Push(It.IsAny<IUndoableAction>())).Callback<IUndoableAction>(a => pushed = a);
+        var viewModel = MakeViewModel(threadService, undoStack: undoStack, muteRepository: mutes);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.MuteThreadCommand.ExecuteAsync((1L, (DateTimeOffset?)null));
+        await pushed!.UndoAsync();
+
+        mutes.Verify(m => m.UnmuteAsync(1), Times.Once);
+    }
+
+    private static SmsMessage MakeMessage(long id, long threadId, string body) => new()
+    {
+        Id = id,
+        ThreadId = threadId,
+        Address = "555",
+        Body = body,
+        Timestamp = DateTimeOffset.UtcNow.AddMinutes(-id),
+        IsOutgoing = false,
+        Status = SmsMessageStatus.Delivered
+    };
+
+    [Fact]
+    public async Task SearchMessagesCommand_finds_messages_in_any_conversation()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread> { MakeThread(1, "555", "Mom", "hi"), MakeThread(2, "556", "Jake", "yo") });
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.SearchAllMessagesAsync("practice", It.IsAny<int>())).ReturnsAsync(new List<SmsMessage> { MakeMessage(10, 2, "practice at 7"), MakeMessage(11, 1, "no practice") });
+        var viewModel = MakeViewModel(threadService, smsService: sms);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.SearchMessagesCommand.ExecuteAsync(" practice ");
+
+        Assert.Equal(new long[] { 10, 11 }, viewModel.MessageResults.Select(m => m.Id));
+        Assert.Equal("Jake", viewModel.ConversationNameFor(viewModel.MessageResults[0]));
+    }
+
+    [Fact]
+    public async Task SearchMessagesCommand_with_a_short_query_clears_results()
+    {
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.SearchAllMessagesAsync("hi", It.IsAny<int>())).ReturnsAsync(new List<SmsMessage> { MakeMessage(1, 1, "hi") });
+        var viewModel = MakeViewModel(new Mock<IThreadService>(), smsService: sms);
+        await viewModel.SearchMessagesCommand.ExecuteAsync("hi");
+
+        await viewModel.SearchMessagesCommand.ExecuteAsync("h");
+
+        Assert.Empty(viewModel.MessageResults);
+    }
+
+    [Fact]
+    public async Task SearchMessagesCommand_leaves_out_trashed_blocked_and_archived_conversations()
+    {
+        var threadService = new Mock<IThreadService>();
+        threadService.Setup(s => s.GetThreadsAsync()).ReturnsAsync(new List<SmsThread> { MakeThread(1, "555", "Mom", "hi") });
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.SearchAllMessagesAsync("dinner", It.IsAny<int>())).ReturnsAsync(new List<SmsMessage> { MakeMessage(10, 1, "dinner?"), MakeMessage(11, 99, "dinner is ready") });
+        var viewModel = MakeViewModel(threadService, smsService: sms);
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.SearchMessagesCommand.ExecuteAsync("dinner");
+
+        Assert.Equal(new long[] { 10 }, viewModel.MessageResults.Select(m => m.Id));
     }
 }

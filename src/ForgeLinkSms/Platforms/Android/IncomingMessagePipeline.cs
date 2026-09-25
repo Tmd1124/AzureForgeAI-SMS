@@ -39,6 +39,11 @@ internal static class IncomingMessagePipeline
             services.GetRequiredService<IIncomingMessageNotifier>().NotifyMessageReceived(threadId);
         }
 
+        if (threadId != 0 && services.GetRequiredService<IMuteRepository>().IsMutedAsync(threadId, DateTimeOffset.UtcNow).GetAwaiter().GetResult())
+        {
+            return;
+        }
+
         var contact = services.GetRequiredService<IContactService>().LookupAsync(senderAddress).GetAwaiter().GetResult();
         var normalizedAddress = PhoneNumberFormatter.ToComparableDigits(senderAddress);
         var isAllowed = services.GetRequiredService<IAllowedSenderRepository>().IsAllowedAsync(normalizedAddress).GetAwaiter().GetResult();

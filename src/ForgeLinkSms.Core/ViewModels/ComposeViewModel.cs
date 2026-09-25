@@ -137,23 +137,32 @@ public partial class ComposeViewModel : ObservableObject
         _allContacts.FirstOrDefault(c => PhoneNumberFormatter.ToComparableDigits(c.PhoneNumber) == phoneNumberDigits);
 
     [RelayCommand]
-    private async Task Send()
+    private async Task Send(PickedAttachment? attachment)
     {
         var text = MessageBody.Trim();
-        if (string.IsNullOrEmpty(text) || Recipients.Count == 0)
+        if ((string.IsNullOrEmpty(text) && attachment is null) || Recipients.Count == 0)
         {
             return;
         }
 
+        var body = string.IsNullOrEmpty(text) ? null : text;
         if (IsGroupSend && SendAsGroup)
         {
-            await _smsService.SendGroupAsync(0, Recipients.ToList(), text, null);
+            await _smsService.SendGroupAsync(0, Recipients.ToList(), body, attachment);
         }
         else
         {
+            // An attachment always needs a picture message; a group send of one is exactly that.
             foreach (var recipient in Recipients)
             {
-                await _smsService.SendAsync(recipient, text);
+                if (attachment is not null)
+                {
+                    await _smsService.SendGroupAsync(0, new[] { recipient }, body, attachment);
+                }
+                else
+                {
+                    await _smsService.SendAsync(recipient, text);
+                }
             }
         }
         MessageBody = string.Empty;
@@ -168,9 +177,16 @@ public partial class ComposeViewModel : ObservableObject
             return;
         }
 
-        foreach (var recipient in Recipients)
+        if (IsGroupSend && SendAsGroup)
         {
-            await _scheduler.ScheduleAsync(recipient, text, sendAtUtc);
+            await _scheduler.ScheduleGroupAsync(0, Recipients.ToList(), text, sendAtUtc);
+        }
+        else
+        {
+            foreach (var recipient in Recipients)
+            {
+                await _scheduler.ScheduleAsync(recipient, text, sendAtUtc);
+            }
         }
         MessageBody = string.Empty;
     }

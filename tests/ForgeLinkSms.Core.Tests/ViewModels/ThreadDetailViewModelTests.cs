@@ -1,4 +1,5 @@
 using Moq;
+using ForgeLinkSms.Core.Data;
 using ForgeLinkSms.Core.Models;
 using ForgeLinkSms.Core.Services;
 using ForgeLinkSms.Core.ViewModels;
@@ -586,18 +587,21 @@ public class ThreadDetailViewModelTests
     }
 
     [Fact]
-    public async Task ScheduleSendCommand_in_a_group_does_not_schedule_individual_texts()
+    public async Task ScheduleSendCommand_in_a_group_schedules_one_group_message()
     {
         var scheduler = new Mock<IMessageSchedulerService>();
-        var viewModel = new ThreadDetailViewModel(new Mock<ISmsService>().Object, scheduler.Object, threadId: 3, address: "+14707583374", participants: new[] { "+14707583374", "+16782628755" })
+        var group = new[] { "+14707583374", "+16782628755" };
+        var sendAt = DateTimeOffset.UtcNow.AddHours(1);
+        var viewModel = new ThreadDetailViewModel(new Mock<ISmsService>().Object, scheduler.Object, threadId: 3, address: "+14707583374", participants: group)
         {
             ComposeText = "later"
         };
 
-        await viewModel.ScheduleSendCommand.ExecuteAsync(DateTimeOffset.UtcNow.AddHours(1));
+        await viewModel.ScheduleSendCommand.ExecuteAsync(sendAt);
 
+        scheduler.Verify(s => s.ScheduleGroupAsync(3, It.Is<IReadOnlyList<string>>(a => a.SequenceEqual(group)), "later", sendAt), Times.Once);
         scheduler.Verify(s => s.ScheduleAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>()), Times.Never);
-        Assert.Equal("later", viewModel.ComposeText);
+        Assert.Equal(string.Empty, viewModel.ComposeText);
     }
 
     [Fact]
@@ -672,5 +676,92 @@ public class ThreadDetailViewModelTests
 
         Assert.Equal(new long[] { 7, 8 }, viewModel.Messages.Select(m => m.Id));
         Assert.True(viewModel.IsAtLatest);
+    }
+
+    [Fact]
+    public async Task LoadCommand_restores_an_unsent_draft()
+    {
+        var sms = new Mock<ISmsService>();
+        var drafts = new Mock<IDraftRepository>();
+        drafts.Setup(d => d.GetAsync(1)).ReturnsAsync("See you at");
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555", drafts: drafts.Object);
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Equal("See you at", viewModel.ComposeText);
+    }
+
+    [Fact]
+    public async Task LoadCommand_does_not_overwrite_text_already_typed()
+    {
+        var drafts = new Mock<IDraftRepository>();
+        drafts.Setup(d => d.GetAsync(1)).ReturnsAsync("old draft");
+        var viewModel = new ThreadDetailViewModel(new Mock<ISmsService>().Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555", drafts: drafts.Object)
+        {
+            ComposeText = "typed now"
+        };
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Equal("typed now", viewModel.ComposeText);
+    }
+
+    [Fact]
+    public async Task SaveDraftAsync_saves_the_compose_text()
+    {
+        var drafts = new Mock<IDraftRepository>();
+        var viewModel = new ThreadDetailViewModel(new Mock<ISmsService>().Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555", drafts: drafts.Object)
+        {
+            ComposeText = "half a thought"
+        };
+
+        await viewModel.SaveDraftAsync();
+
+        drafts.Verify(d => d.SaveAsync(1, "half a thought"), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendCommand_clears_the_draft()
+    {
+        var drafts = new Mock<IDraftRepository>();
+        var viewModel = new ThreadDetailViewModel(new Mock<ISmsService>().Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555", undoSendWindow: TimeSpan.Zero, drafts: drafts.Object)
+        {
+            ComposeText = "done"
+        };
+
+        await viewModel.SendCommand.ExecuteAsync(null);
+
+        drafts.Verify(d => d.SaveAsync(1, string.Empty), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteMessageCommand_deletes_it_and_removes_it_from_the_conversation()
+    {
+        var keep = MakeMessage(1, "keep", DateTimeOffset.UtcNow.AddMinutes(-2));
+        var remove = MakeMessage(2, "oops", DateTimeOffset.UtcNow.AddMinutes(-1));
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.GetMessagesAsync(1, null, It.IsAny<int>())).ReturnsAsync(new List<SmsMessage> { remove, keep });
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555");
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        await viewModel.DeleteMessageCommand.ExecuteAsync(remove);
+
+        sms.Verify(s => s.DeleteMessageAsync(remove), Times.Once);
+        Assert.Equal(new long[] { 1 }, viewModel.Messages.Select(m => m.Id));
+    }
+
+    [Fact]
+    public async Task LoadCommand_shows_reaction_texts_as_badges()
+    {
+        var original = MakeMessage(1, "Sounds good", DateTimeOffset.UtcNow.AddMinutes(-2), isOutgoing: true);
+        var reaction = MakeMessage(2, "Loved “Sounds good”", DateTimeOffset.UtcNow.AddMinutes(-1));
+        var sms = new Mock<ISmsService>();
+        sms.Setup(s => s.GetMessagesAsync(1, null, It.IsAny<int>())).ReturnsAsync(new List<SmsMessage> { reaction, original });
+        var viewModel = new ThreadDetailViewModel(sms.Object, new Mock<IMessageSchedulerService>().Object, threadId: 1, address: "555");
+
+        await viewModel.LoadCommand.ExecuteAsync(null);
+
+        Assert.Equal(new[] { "❤️" }, viewModel.Messages[0].Reactions);
+        Assert.True(viewModel.Messages[1].IsHiddenReaction);
     }
 }

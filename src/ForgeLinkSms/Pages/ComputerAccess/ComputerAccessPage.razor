@@ -1,0 +1,87 @@
+@page "/computer-access"
+@implements IDisposable
+@inject ForgeLinkSms.Core.ViewModels.ComputerAccessViewModel ViewModel
+@inject ForgeLinkSms.Core.Web.IComputerAccessController Controller
+
+<div style="padding:16px;display:flex;flex-direction:column;gap:16px;">
+    <h3 style="margin:0;">💻 Computer access</h3>
+    <p style="margin:0;color:#94a3b8;">Read and send your texts from a web browser on a computer that's on the same Wi-Fi as this phone.</p>
+
+    <button @onclick="() => ViewModel.ToggleCommand.ExecuteAsync(null)"
+            style="border:none;border-radius:12px;padding:14px;font-size:1.05em;font-weight:600;background:@(ViewModel.IsRunning ? "#ef4444" : "var(--accent-color)");color:white;">
+        @(ViewModel.IsRunning ? "Turn off" : "Turn on")
+    </button>
+
+    @if (ViewModel.Message is not null)
+    {
+        <p style="margin:0;color:#ef4444;">@ViewModel.Message</p>
+    }
+
+    @if (ViewModel.IsRunning)
+    {
+        <div style="background:var(--card-color);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;">
+            <div>
+                <div style="color:#94a3b8;font-size:0.85em;">1. On your computer, open</div>
+                <div style="font-family:monospace;font-size:1.25em;word-break:break-all;user-select:all;-webkit-user-select:all;">@ViewModel.Address</div>
+            </div>
+            <div>
+                <div style="color:#94a3b8;font-size:0.85em;">2. Enter this code</div>
+                <div style="font-family:monospace;font-size:2.2em;letter-spacing:0.2em;">@ViewModel.Code</div>
+            </div>
+        </div>
+        <p style="margin:0;color:#b45309;font-size:0.9em;">⚠️ Only use this on your home Wi-Fi. On public Wi-Fi (hotels, cafés), someone else on the network could see your messages.</p>
+    }
+
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Paired browsers: <strong>@ViewModel.PairedCount</strong></span>
+        @if (ViewModel.PairedCount > 0)
+        {
+            <button @onclick="() => ViewModel.UnpairAllCommand.ExecuteAsync(null)"
+                    style="border:none;border-radius:8px;padding:8px 12px;background:#e2e8f0;color:#b91c1c;font-weight:600;">Unpair all</button>
+        }
+    </div>
+</div>
+
+@code {
+    private CancellationTokenSource? _refreshCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Controller.StateChanged += OnStateChanged;
+        await ViewModel.RefreshCommand.ExecuteAsync(null);
+
+        // The code changes after each pairing and the paired count grows, so keep the screen current.
+        _refreshCts = new CancellationTokenSource();
+        var token = _refreshCts.Token;
+        _ = Task.Run(async () =>
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+            try
+            {
+                while (await timer.WaitForNextTickAsync(token))
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await ViewModel.RefreshCommand.ExecuteAsync(null);
+                        StateHasChanged();
+                    });
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        });
+    }
+
+    private void OnStateChanged() => _ = InvokeAsync(async () =>
+    {
+        await ViewModel.RefreshCommand.ExecuteAsync(null);
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        Controller.StateChanged -= OnStateChanged;
+        _refreshCts?.Cancel();
+    }
+}

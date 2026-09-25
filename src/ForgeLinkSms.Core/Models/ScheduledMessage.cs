@@ -12,4 +12,18 @@ public class ScheduledMessage
     public string Body { get; set; } = string.Empty;
 
     public DateTimeOffset SendAtUtc { get; set; }
+
+    /// The conversation a group message belongs to; 0 lets the sender find or create it.
+    public long ThreadId { get; set; }
+
+    /// Comma-separated recipients of a group message; empty for a plain one-to-one text.
+    public string GroupAddresses { get; set; } = string.Empty;
+
+    [Ignore]
+    public bool IsGroup => !string.IsNullOrEmpty(GroupAddresses);
+
+    [Ignore]
+    public IReadOnlyList<string> Recipients => IsGroup
+        ? GroupAddresses.Split(',', StringSplitOptions.RemoveEmptyEntries)
+        : new[] { Address };
 }

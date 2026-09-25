@@ -1,0 +1,214 @@
+@page "/conversations/media"
+@implements IDisposable
+@inject ForgeLinkSms.Core.Services.ISmsService SmsService
+@inject ForgeLinkSms.Core.Services.IMediaThumbnailService Thumbnails
+@inject ForgeLinkSms.Core.Services.IAttachmentSaveService AttachmentSaver
+@inject ForgeLinkSms.Core.Services.NavigationHistoryTracker HistoryTracker
+@using ForgeLinkSms.Core.Models
+@using ForgeLinkSms.Core.ViewModels
+
+<div style="display:flex;flex-direction:column;min-height:100vh;">
+    <div style="padding:10px;background:var(--card-color);border-bottom:1px solid #eee;">
+        <div style="font-weight:600;">Photos &amp; links</div>
+        <div style="font-size:0.8em;color:#94a3b8;">@Name</div>
+    </div>
+    <div style="display:flex;gap:6px;padding:8px 12px;">
+        <button @onclick="() => _showLinks = false"
+                style="flex:1;border:none;border-radius:999px;padding:8px 0;font-weight:600;background:@(_showLinks ? "#e2e8f0" : "var(--accent-color)");color:@(_showLinks ? "#1e293b" : "white");">
+            Photos &amp; videos @(_viewModel.Media.Count > 0 ? $"({_viewModel.Media.Count})" : "")
+        </button>
+        <button @onclick="() => _showLinks = true"
+                style="flex:1;border:none;border-radius:999px;padding:8px 0;font-weight:600;background:@(_showLinks ? "var(--accent-color)" : "#e2e8f0");color:@(_showLinks ? "white" : "#1e293b");">
+            Links @(_viewModel.Links.Count > 0 ? $"({_viewModel.Links.Count})" : "")
+        </button>
+    </div>
+
+    @if (_isLoading)
+    {
+        <p style="text-align:center;color:#94a3b8;">Loading…</p>
+    }
+    else if (!_showLinks)
+    {
+        @if (_viewModel.Media.Count == 0)
+        {
+            <p style="text-align:center;color:#94a3b8;">No photos or videos in this conversation.</p>
+        }
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:3px;padding:0 3px;">
+            @foreach (var item in _viewModel.Media.Take(_visibleCount))
+            {
+                <div @key="item.PartId" @onclick="() => OpenMedia(item)"
+                     style="aspect-ratio:1;max-width:100%;background:var(--card-color);display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;position:relative;">
+                    @if (item.Kind == AttachmentKind.Video)
+                    {
+                        <span style="font-size:1.8em;">🎬</span>
+                        <span style="position:absolute;bottom:4px;left:4px;right:4px;font-size:0.65em;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@item.FileName</span>
+                    }
+                    else if (_thumbnails.TryGetValue(item.PartId, out var thumbnail) && thumbnail is not null)
+                    {
+                        <img src="@thumbnail" alt="@item.FileName" style="width:100%;height:100%;object-fit:cover;" />
+                    }
+                    else
+                    {
+                        <span style="color:#94a3b8;">🖼️</span>
+                    }
+                </div>
+            }
+        </div>
+        @if (_viewModel.Media.Count > _visibleCount)
+        {
+            <button @onclick="ShowMore" style="margin:12px auto;border:none;border-radius:999px;padding:8px 18px;background:var(--card-color);color:var(--text-color);">
+                Show more
+            </button>
+        }
+    }
+    else
+    {
+        @if (_viewModel.Links.Count == 0)
+        {
+            <p style="text-align:center;color:#94a3b8;">No links in this conversation.</p>
+        }
+        @foreach (var link in _viewModel.Links)
+        {
+            <div @onclick="() => OpenLink(link)" style="padding:10px 12px;border-bottom:1px solid #eee;cursor:pointer;">
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <strong style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🔗 @link.Domain</strong>
+                    <span style="color:#94a3b8;font-size:0.8em;flex-shrink:0;">@(link.IsOutgoing ? "You · " : "")@link.Timestamp.LocalDateTime.ToString("MMM d, yyyy")</span>
+                </div>
+                <div style="color:#94a3b8;font-size:0.85em;word-break:break-all;">@link.Text</div>
+            </div>
+        }
+    }
+</div>
+
+@if (_viewerItem is not null)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:25;display:flex;align-items:center;justify-content:center;" @onclick="CloseViewer">
+        @if (_viewerImage is not null)
+        {
+            <img src="@_viewerImage" alt="@_viewerItem.FileName" style="max-width:100%;max-height:100%;object-fit:contain;" @onclick:stopPropagation="true" />
+        }
+        else
+        {
+            <span style="color:white;">Loading…</span>
+        }
+        <button @onclick="SaveViewerItem" @onclick:stopPropagation="true" title="Save"
+                style="position:absolute;top:16px;left:16px;width:40px;height:40px;border-radius:50%;border:none;background:rgba(255,255,255,0.15);color:white;font-size:1.1em;">⬇</button>
+        <button @onclick="CloseViewer" title="Close"
+                style="position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;border:none;background:rgba(255,255,255,0.15);color:white;font-size:1.3em;">✕</button>
+    </div>
+}
+
+@if (_toast is not null)
+{
+    <div style="position:fixed;left:16px;right:16px;bottom:24px;z-index:30;background:#1e293b;color:white;border-radius:8px;padding:12px 16px;">@_toast</div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "id")]
+    public long ThreadId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "name")]
+    public string Name { get; set; } = string.Empty;
+
+    private const int PageSize = 90;
+    private const int ThumbnailSize = 240;
+    private const int ViewerSize = 1600;
+
+    private ConversationMediaViewModel _viewModel = null!;
+    private readonly Dictionary<long, string?> _thumbnails = new();
+    private readonly CancellationTokenSource _cts = new();
+    private bool _isLoading = true;
+    private bool _showLinks;
+    private int _visibleCount = PageSize;
+    private SharedMedia? _viewerItem;
+    private string? _viewerImage;
+    private string? _toast;
+
+    protected override async Task OnInitializedAsync()
+    {
+        HistoryTracker.LocalBackHandler = TryCloseViewerForBack;
+        _viewModel = new ConversationMediaViewModel(SmsService, ThreadId);
+        await _viewModel.LoadCommand.ExecuteAsync(null);
+        _isLoading = false;
+        _ = LoadThumbnailsAsync(_cts.Token);
+    }
+
+    // A few at a time, redrawing after each batch, so the first rows appear quickly.
+    private async Task LoadThumbnailsAsync(CancellationToken token)
+    {
+        var pending = _viewModel.Media.Take(_visibleCount)
+            .Where(m => m.Kind != AttachmentKind.Video && !_thumbnails.ContainsKey(m.PartId))
+            .ToList();
+        foreach (var batch in pending.Chunk(6))
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+            var images = await Task.WhenAll(batch.Select(m => Thumbnails.GetImageDataUriAsync(m.PartId, ThumbnailSize)));
+            for (var i = 0; i < batch.Length; i++)
+            {
+                _thumbnails[batch[i].PartId] = images[i];
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ShowMore()
+    {
+        _visibleCount += PageSize;
+        _ = LoadThumbnailsAsync(_cts.Token);
+    }
+
+    private async Task OpenMedia(SharedMedia item)
+    {
+        if (item.Kind == AttachmentKind.Video)
+        {
+            await Save(item);
+            return;
+        }
+        _viewerItem = item;
+        _viewerImage = null;
+        StateHasChanged();
+        _viewerImage = await Thumbnails.GetImageDataUriAsync(item.PartId, ViewerSize);
+    }
+
+    private void CloseViewer()
+    {
+        _viewerItem = null;
+        _viewerImage = null;
+    }
+
+    private bool TryCloseViewerForBack()
+    {
+        if (_viewerItem is null)
+        {
+            return false;
+        }
+        CloseViewer();
+        StateHasChanged();
+        return true;
+    }
+
+    private Task SaveViewerItem() => _viewerItem is { } item ? Save(item) : Task.CompletedTask;
+
+    private async Task Save(SharedMedia item)
+    {
+        var saved = await AttachmentSaver.SaveToDeviceAsync(new MessageAttachment { FileName = item.FileName, Kind = item.Kind, PartId = item.PartId });
+        _toast = saved ? (item.Kind == AttachmentKind.Video ? "Video saved to Movies/ForgeLink SMS" : "Saved to Pictures/ForgeLink SMS") : "Couldn't save it";
+        StateHasChanged();
+        await Task.Delay(2000);
+        _toast = null;
+    }
+
+    private static async Task OpenLink(SharedLink link) => await Launcher.Default.OpenAsync(new Uri(link.Url));
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        if (HistoryTracker.LocalBackHandler == TryCloseViewerForBack)
+        {
+            HistoryTracker.LocalBackHandler = null;
+        }
+    }
+}

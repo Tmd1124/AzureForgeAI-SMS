@@ -81,6 +81,8 @@
         {
             <div style="display:flex;align-items:center;background:var(--card-color);border-bottom:1px solid #eee;">
                 <div @onclick="OpenContact" style="flex:1;min-width:0;padding:10px;cursor:pointer;">@DisplayName</div>
+                <button @onclick="OpenMedia" title="Photos &amp; links"
+                        style="border:none;background:transparent;font-size:1.1em;padding:8px 6px;">🖼️</button>
                 <button @onclick="OpenSearch" title="Search this conversation"
                         style="border:none;background:transparent;font-size:1.1em;padding:8px 12px;">🔍</button>
             </div>
@@ -154,6 +156,10 @@
                                     @segment.Text
                                     break;
                             }
+                        }
+                        @if (AllowLinkPreviews(message) && FirstLink(message.Body) is { } previewUrl)
+                        {
+                            <LinkPreviewCard Url="@previewUrl" />
                         }
                         @foreach (var attachment in message.Attachments)
                         {
@@ -229,6 +235,14 @@
                         </div>
                     }
                     </div>
+                    @if (message.Reactions.Count > 0)
+                    {
+                        <div style="margin:-6px 8px 0;position:relative;z-index:1;">
+                            <span title="Reactions" style="display:inline-block;background:var(--card-color);border:1px solid rgba(127,127,127,0.35);border-radius:999px;padding:0 8px;font-size:0.85em;line-height:1.6;">
+                                @ReactionSummary(message)
+                            </span>
+                        </div>
+                    }
                     <div style="font-size:0.75em;color:#94a3b8;margin-top:2px;">
                         @message.Timestamp.LocalDateTime.ToString("h:mm tt")
                         @if (message.Attachments.Any(a => _savedAttachmentPartIds.Contains(a.PartId)))
@@ -301,7 +315,7 @@
             </button>
             <div class="compose-grow-wrap" data-replicated-value="@ViewModel.ComposeText" style="flex:1;">
                 <textarea @ref="_composeInput" placeholder="Text message" rows="1" spellcheck="true" autocorrect="on" autocapitalize="sentences"
-                          @bind="ViewModel.ComposeText" @bind:event="oninput"></textarea>
+                          @bind="ViewModel.ComposeText" @bind:event="oninput" @bind:after="SaveDraftSoon"></textarea>
             </div>
             @if (!string.IsNullOrWhiteSpace(ViewModel.ComposeText) || _pendingAttachment is not null)
             {
@@ -327,10 +341,27 @@
 @if (_reactionTargetMessage is not null)
 {
     <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;" @onclick="CloseReactionBar">
-        <div style="background:var(--card-color);width:100%;padding:16px;border-radius:16px 16px 0 0;display:flex;justify-content:space-around;" @onclick:stopPropagation="true">
-            @foreach (var emoji in ReactionEmojis)
+        <div style="background:var(--card-color);width:100%;padding:16px;border-radius:16px 16px 0 0;" @onclick:stopPropagation="true">
+            @if (_confirmingDelete)
             {
-                <button @onclick="() => SendReaction(emoji)" style="border:none;background:transparent;font-size:2em;">@emoji</button>
+                <div style="padding:4px 4px 12px;">Delete this message? It can't be undone.</div>
+                <div style="display:flex;gap:10px;">
+                    <button @onclick="() => _confirmingDelete = false" style="flex:1;padding:10px;border:none;border-radius:10px;background:var(--surface-color);color:var(--text-color);font-size:1em;">Cancel</button>
+                    <button @onclick="DeleteTargetMessage" style="flex:1;padding:10px;border:none;border-radius:10px;background:#ef4444;color:white;font-size:1em;font-weight:600;">Delete</button>
+                </div>
+            }
+            else
+            {
+                <div style="display:flex;justify-content:space-around;">
+                    @foreach (var emoji in ReactionEmojis)
+                    {
+                        <button @onclick="() => SendReaction(emoji)" style="border:none;background:transparent;font-size:2em;">@emoji</button>
+                    }
+                </div>
+                <div style="display:flex;gap:10px;margin-top:12px;border-top:1px solid rgba(127,127,127,0.25);padding-top:12px;">
+                    <button @onclick="ForwardTargetMessage" style="flex:1;padding:10px;border:none;border-radius:10px;background:var(--surface-color);color:var(--text-color);font-size:1em;">↪ Forward</button>
+                    <button @onclick="() => _confirmingDelete = true" style="flex:1;padding:10px;border:none;border-radius:10px;background:var(--surface-color);color:#ef4444;font-size:1em;">🗑 Delete</button>
+                </div>
             }
         </div>
     </div>
@@ -369,6 +400,13 @@
     [SupplyParameterFromQuery(Name = "address")]
     public string Address { get; set; } = string.Empty;
 
+    // Set when opened from a search on the conversation list: the message to jump to.
+    [SupplyParameterFromQuery(Name = "jumpId")]
+    public long? JumpId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "jumpTicks")]
+    public long? JumpTicks { get; set; }
+
     private ThreadDetailViewModel? ViewModel;
     private string DisplayName = string.Empty;
     private static readonly string[] ReactionEmojis = { "👍", "❤️", "😂", "😮", "😢", "🙏" };
@@ -386,6 +424,9 @@
     private IContactService? _contactService;
     private readonly Dictionary<string, string> _memberNames = new();
     private bool _isRecording;
+    private bool _isKnownContact;
+    private bool _confirmingDelete;
+    private CancellationTokenSource? _draftSaveCts;
     private bool _isSearchOpen;
     private bool _focusSearch;
     private string _searchQuery = string.Empty;
@@ -408,13 +449,7 @@
         }
         else if (_scheduledSendTime is { } sendAt)
         {
-            if (ViewModel!.IsGroup)
-            {
-                _scheduledSendTime = null;
-                ShowSaveToast("Scheduling isn't available in group chats yet");
-                return;
-            }
-            await ViewModel.ScheduleSendCommand.ExecuteAsync(sendAt);
+            await ViewModel!.ScheduleSendCommand.ExecuteAsync(sendAt);
             _scheduledSendTime = null;
         }
         else
@@ -445,6 +480,7 @@
         if (contact is not null)
         {
             DisplayName = contact.DisplayName;
+            _isKnownContact = true;
         }
 
         var participants = await Services.GetRequiredService<IThreadService>().GetParticipantsAsync(ThreadId);
@@ -460,8 +496,22 @@
 
         var smsService = Services.GetRequiredService<ISmsService>();
         var scheduler = Services.GetRequiredService<IMessageSchedulerService>();
-        ViewModel = new ThreadDetailViewModel(smsService, scheduler, ThreadId, Address, participants: participants);
+        ViewModel = new ThreadDetailViewModel(smsService, scheduler, ThreadId, Address, participants: participants,
+            drafts: Services.GetRequiredService<ForgeLinkSms.Core.Data.IDraftRepository>());
         await ViewModel.LoadCommand.ExecuteAsync(null);
+        if (JumpId is long jumpId && JumpTicks is long jumpTicks)
+        {
+            await JumpToMessage(new ForgeLinkSms.Core.Models.SmsMessage
+            {
+                Id = jumpId,
+                ThreadId = ThreadId,
+                Address = Address,
+                Body = string.Empty,
+                Timestamp = new DateTimeOffset(jumpTicks, TimeSpan.Zero),
+                IsOutgoing = false,
+                Status = ForgeLinkSms.Core.Models.SmsMessageStatus.Delivered
+            });
+        }
 
         // Fire-and-forget: flipping the read flag is best-effort housekeeping, not something the
         // thread's messages should ever wait on to render — Blazor doesn't paint the updated
@@ -523,6 +573,17 @@
         }
     }
 
+    // Fetching a preview visits the link, which would tell a stranger's link your number is
+    // active, so previews only load for your own messages, contacts, and group chats.
+    private bool AllowLinkPreviews(ForgeLinkSms.Core.Models.SmsMessage message) =>
+        message.IsOutgoing || _isKnownContact || ViewModel!.IsGroup;
+
+    private static string? FirstLink(string body) =>
+        string.IsNullOrEmpty(body) ? null : MessageLinkParser.Parse(body).FirstOrDefault(s => s.Kind == MessageLinkKind.Url)?.Data as string;
+
+    private void OpenMedia() =>
+        Services.GetRequiredService<NavigationManager>().NavigateTo($"/conversations/media?id={ThreadId}&name={Uri.EscapeDataString(DisplayName)}");
+
     private void OpenSearch()
     {
         _isSearchOpen = true;
@@ -545,6 +606,11 @@
     private async Task JumpToResult(ForgeLinkSms.Core.Models.SmsMessage result)
     {
         await CloseSearch();
+        await JumpToMessage(result);
+    }
+
+    private async Task JumpToMessage(ForgeLinkSms.Core.Models.SmsMessage result)
+    {
         _ignoreNewestEdgeUntilUtc = DateTime.UtcNow.AddSeconds(2);
         await ViewModel!.JumpToCommand.ExecuteAsync(result);
         _scrollToMessageId = MessageDomId(result);
@@ -560,6 +626,10 @@
             });
         });
     }
+
+    // "❤️👍" or "❤️2" when the same reaction came more than once (e.g. in a group).
+    private static string ReactionSummary(ForgeLinkSms.Core.Models.SmsMessage message) =>
+        string.Concat(message.Reactions.GroupBy(r => r).Select(g => g.Count() > 1 ? $"{g.Key}{g.Count()}" : g.Key));
 
     private static string MessageDomId(ForgeLinkSms.Core.Models.SmsMessage message) => $"msg-{message.Id}-{message.Timestamp.Ticks}";
 
@@ -671,6 +741,8 @@
 
         // Leaving the thread shouldn't silently drop a text that's still in its undo window.
         ViewModel?.FlushPendingSend();
+        _draftSaveCts?.Cancel();
+        _ = ViewModel?.SaveDraftAsync();
 
         IncomingMessageNotifier.MessageReceived -= OnMessageReceived;
 
@@ -703,7 +775,8 @@
     private IEnumerable<(ForgeLinkSms.Core.Models.SmsMessage Message, bool ShowDateSeparator)> MessagesWithDateSeparators()
     {
         DateOnly? lastDate = null;
-        foreach (var message in ViewModel!.Messages)
+        // Reaction texts already shown as a badge on their message aren't rendered on their own.
+        foreach (var message in ViewModel!.Messages.Where(m => !m.IsHiddenReaction))
         {
             var date = DateOnly.FromDateTime(message.Timestamp.LocalDateTime);
             yield return (message, date != lastDate);
@@ -760,7 +833,38 @@
 
     private void CancelMessageLongPress() => _messageLongPressCts?.Cancel();
 
-    private void CloseReactionBar() => _reactionTargetMessage = null;
+    private void CloseReactionBar()
+    {
+        _reactionTargetMessage = null;
+        _confirmingDelete = false;
+    }
+
+    private async Task DeleteTargetMessage()
+    {
+        if (_reactionTargetMessage is { } message)
+        {
+            await ViewModel!.DeleteMessageCommand.ExecuteAsync(message);
+            ShowSaveToast("Message deleted");
+        }
+        CloseReactionBar();
+    }
+
+    private async Task ForwardTargetMessage()
+    {
+        if (_reactionTargetMessage is not { } message)
+        {
+            return;
+        }
+        CloseReactionBar();
+
+        ForgeLinkSms.Core.Models.PickedAttachment? attachment = null;
+        if (message.Attachments.FirstOrDefault() is { } source)
+        {
+            attachment = await Services.GetRequiredService<IAttachmentSaveService>().CopyForSendingAsync(source);
+        }
+        Services.GetRequiredService<ForwardRequestStore>().Set(string.IsNullOrEmpty(message.Body) ? null : message.Body, attachment);
+        Services.GetRequiredService<NavigationManager>().NavigateTo("/compose");
+    }
 
     private async Task SendReaction(string emoji)
     {
@@ -787,6 +891,26 @@
             await Clipboard.Default.SetTextAsync(body);
             ShowSaveToast("Copied");
         }
+    }
+
+    // Saves the draft shortly after typing pauses, so the conversation list already shows it
+    // when the user goes back (the list can load before this page finishes disposing).
+    private void SaveDraftSoon()
+    {
+        _draftSaveCts?.Cancel();
+        _draftSaveCts = new CancellationTokenSource();
+        var token = _draftSaveCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(400, token);
+                await ViewModel!.SaveDraftAsync();
+            }
+            catch (TaskCanceledException)
+            {
+            }
+        });
     }
 
     private void OnPlaybackChanged() => _ = InvokeAsync(StateHasChanged);

@@ -16,6 +16,14 @@ public interface ISmsService
     /// Messages in the thread whose text contains query (case-insensitive), newest first.
     Task<IReadOnlyList<SmsMessage>> SearchMessagesAsync(long threadId, string query, int limit);
 
+    /// Messages in any conversation whose text contains query (case-insensitive), newest first.
+    Task<IReadOnlyList<SmsMessage>> SearchAllMessagesAsync(string query, int limit);
+
+    /// Every photo and video in the conversation (metadata only; images load separately).
+    Task<IReadOnlyList<SharedMedia>> GetSharedMediaAsync(long threadId);
+
+    Task DeleteMessageAsync(SmsMessage message);
+
     Task SendAsync(string address, string body);
 
     Task SendMmsAsync(long threadId, string address, string? body, PickedAttachment attachment);

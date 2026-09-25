@@ -9,4 +9,7 @@ public interface IAttachmentSaveService
     /// data). Returns false on any failure rather than throwing, so the caller can show a plain
     /// "couldn't save" toast without needing to inspect an exception.
     Task<bool> SaveToDeviceAsync(MessageAttachment attachment);
+
+    /// Copies a received attachment into the app's own storage so it can be sent again (forwarding).
+    Task<PickedAttachment?> CopyForSendingAsync(MessageAttachment attachment);
 }

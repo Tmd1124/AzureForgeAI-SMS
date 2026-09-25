@@ -71,4 +71,23 @@ public class ScheduledMessageRepositoryTests : IDisposable
 
         Assert.Equal(["sooner", "later"], all.Select(m => m.Body));
     }
+
+    [Fact]
+    public async Task A_group_message_keeps_its_conversation_and_recipients()
+    {
+        var id = await _repository.AddAsync(new ScheduledMessage
+        {
+            Address = "5551234567",
+            Body = "hi all",
+            SendAtUtc = DateTimeOffset.UtcNow.AddHours(1),
+            ThreadId = 7,
+            GroupAddresses = "5551234567,5559876543"
+        });
+
+        var stored = await _repository.GetAsync(id);
+
+        Assert.Equal(7, stored!.ThreadId);
+        Assert.Equal(new[] { "5551234567", "5559876543" }, stored.Recipients);
+        Assert.True(stored.IsGroup);
+    }
 }

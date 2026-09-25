@@ -17,6 +17,15 @@ public class SmsMessage
     public required DateTimeOffset Timestamp { get; init; }
     public required bool IsOutgoing { get; init; }
     public required SmsMessageStatus Status { get; init; }
+
+    /// SMS and MMS live in separate tables with overlapping ids, so deleting needs to know which.
+    public bool IsMms { get; init; }
+
+    /// Reactions other people sent to this message (from texts like "Loved “…”").
+    public List<string> Reactions { get; } = new();
+
+    /// True for a reaction text already shown as a badge on the message it quotes.
+    public bool IsHiddenReaction { get; set; }
     public IReadOnlyList<MessageAttachment> Attachments { get; init; } = Array.Empty<MessageAttachment>();
 
     /// Only outgoing messages have a status to show — SMS has no concept

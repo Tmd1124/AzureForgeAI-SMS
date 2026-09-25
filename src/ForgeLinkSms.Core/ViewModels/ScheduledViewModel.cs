@@ -31,9 +31,9 @@ public partial class ScheduledViewModel : ObservableObject
         foreach (var message in await _repository.GetAllAsync())
         {
             ScheduledMessages.Add(message);
-            if (!_displayNames.ContainsKey(message.Address))
+            foreach (var recipient in message.Recipients.Where(r => !_displayNames.ContainsKey(r)))
             {
-                _displayNames[message.Address] = (await _contactService.LookupAsync(message.Address))?.DisplayName ?? message.Address;
+                _displayNames[recipient] = (await _contactService.LookupAsync(recipient))?.DisplayName ?? recipient;
             }
         }
     }

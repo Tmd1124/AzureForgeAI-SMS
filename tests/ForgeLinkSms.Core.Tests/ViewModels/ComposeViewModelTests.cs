@@ -7,14 +7,14 @@ namespace ForgeLinkSms.Core.Tests.ViewModels;
 
 public class ComposeViewModelTests
 {
-    private static ComposeViewModel CreateViewModel(Mock<ISmsService>? sms = null, Mock<IContactService>? contacts = null)
+    private static ComposeViewModel CreateViewModel(Mock<ISmsService>? sms = null, Mock<IContactService>? contacts = null, Mock<IMessageSchedulerService>? scheduler = null)
     {
         if (contacts is null)
         {
             contacts = new Mock<IContactService>();
             contacts.Setup(c => c.GetAllContactsAsync()).ReturnsAsync(Array.Empty<ContactInfo>());
         }
-        return new ComposeViewModel((sms ?? new Mock<ISmsService>()).Object, contacts.Object, new Mock<IMessageSchedulerService>().Object);
+        return new ComposeViewModel((sms ?? new Mock<ISmsService>()).Object, contacts.Object, (scheduler ?? new Mock<IMessageSchedulerService>()).Object);
     }
 
     [Fact]
@@ -267,5 +267,51 @@ public class ComposeViewModelTests
         Assert.False(viewModel.IsMultiSelecting);
         Assert.Equal(0, viewModel.SelectedCount);
         Assert.Empty(viewModel.Recipients);
+    }
+
+    [Fact]
+    public async Task SendCommand_with_an_attachment_to_one_person_sends_a_picture_message()
+    {
+        var sms = new Mock<ISmsService>();
+        var viewModel = CreateViewModel(sms);
+        var photo = new PickedAttachment { FileName = "photo.jpg", LocalPath = "/tmp/photo.jpg", Kind = AttachmentKind.Image };
+        viewModel.AddRecipientCommand.Execute("5550148890");
+
+        await viewModel.SendCommand.ExecuteAsync(photo);
+
+        sms.Verify(s => s.SendGroupAsync(0, It.Is<IReadOnlyList<string>>(a => a.SequenceEqual(new[] { "5550148890" })), null, photo), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendCommand_with_an_attachment_as_separate_texts_sends_one_picture_message_each()
+    {
+        var sms = new Mock<ISmsService>();
+        var viewModel = CreateViewModel(sms);
+        viewModel.SendAsGroup = false;
+        viewModel.MessageBody = "look";
+        var photo = new PickedAttachment { FileName = "photo.jpg", LocalPath = "/tmp/photo.jpg", Kind = AttachmentKind.Image };
+        viewModel.AddRecipientCommand.Execute("5550148890");
+        viewModel.AddRecipientCommand.Execute("5550142231");
+
+        await viewModel.SendCommand.ExecuteAsync(photo);
+
+        sms.Verify(s => s.SendGroupAsync(0, It.Is<IReadOnlyList<string>>(a => a.SequenceEqual(new[] { "5550148890" })), "look", photo), Times.Once);
+        sms.Verify(s => s.SendGroupAsync(0, It.Is<IReadOnlyList<string>>(a => a.SequenceEqual(new[] { "5550142231" })), "look", photo), Times.Once);
+    }
+
+    [Fact]
+    public async Task ScheduleSendCommand_for_a_group_chat_schedules_one_group_message()
+    {
+        var scheduler = new Mock<IMessageSchedulerService>();
+        var viewModel = CreateViewModel(scheduler: scheduler);
+        var sendAt = DateTimeOffset.UtcNow.AddHours(2);
+        viewModel.MessageBody = "Dinner at 7";
+        viewModel.AddRecipientCommand.Execute("5550148890");
+        viewModel.AddRecipientCommand.Execute("5550142231");
+
+        await viewModel.ScheduleSendCommand.ExecuteAsync(sendAt);
+
+        scheduler.Verify(s => s.ScheduleGroupAsync(0, It.Is<IReadOnlyList<string>>(a => a.SequenceEqual(new[] { "5550148890", "5550142231" })), "Dinner at 7", sendAt), Times.Once);
+        scheduler.Verify(s => s.ScheduleAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTimeOffset>()), Times.Never);
     }
 }

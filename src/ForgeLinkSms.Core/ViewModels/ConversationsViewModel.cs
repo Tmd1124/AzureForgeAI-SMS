@@ -20,6 +20,11 @@ public partial class ConversationsViewModel : ObservableObject
     private readonly IFilterRepository _filterRepository;
     private readonly ISnoozeService _snoozeService;
     private readonly IAllowedSenderRepository _allowedSenderRepository;
+    private readonly IDraftRepository _draftRepository;
+    private readonly IMuteRepository _muteRepository;
+    private readonly ISmsService _smsService;
+    private int _messageSearchVersion;
+    private const int MaxMessageResults = 50;
     private IReadOnlySet<string> _allowedSenders = new HashSet<string>();
     private IReadOnlyList<SmsThread> _allThreads = Array.Empty<SmsThread>();
     private bool _isLoadingThreads;
@@ -68,7 +73,10 @@ public partial class ConversationsViewModel : ObservableObject
         IArchiveRepository archiveRepository,
         IFilterRepository filterRepository,
         ISnoozeService snoozeService,
-        IAllowedSenderRepository allowedSenderRepository)
+        IAllowedSenderRepository allowedSenderRepository,
+        IDraftRepository draftRepository,
+        IMuteRepository muteRepository,
+        ISmsService smsService)
     {
         _threadService = threadService;
         _trashRepository = trashRepository;
@@ -80,6 +88,43 @@ public partial class ConversationsViewModel : ObservableObject
         _filterRepository = filterRepository;
         _snoozeService = snoozeService;
         _allowedSenderRepository = allowedSenderRepository;
+        _draftRepository = draftRepository;
+        _muteRepository = muteRepository;
+        _smsService = smsService;
+    }
+
+    /// Messages from any conversation matching the search, shown under the matching conversations.
+    public ObservableCollection<SmsMessage> MessageResults { get; } = new();
+
+    public string ConversationNameFor(SmsMessage message) =>
+        _allThreads.FirstOrDefault(t => t.Id == message.ThreadId)?.DisplayNameOrAddress ?? PhoneNumberFormatter.ToDisplayFormat(message.Address);
+
+    // Concurrent so each keystroke can start a search; the version check drops results from an
+    // older, slower query that finishes after a newer one.
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task SearchMessages(string query)
+    {
+        var version = ++_messageSearchVersion;
+        var trimmed = query.Trim();
+        if (trimmed.Length < 2)
+        {
+            MessageResults.Clear();
+            return;
+        }
+
+        var results = await _smsService.SearchAllMessagesAsync(trimmed, MaxMessageResults) ?? Array.Empty<SmsMessage>();
+        if (version != _messageSearchVersion)
+        {
+            return;
+        }
+
+        // Only conversations the list would show: not trashed, archived, blocked, or snoozed.
+        var visibleThreadIds = _allThreads.Select(t => t.Id).ToHashSet();
+        MessageResults.Clear();
+        foreach (var message in results.Where(m => visibleThreadIds.Contains(m.ThreadId)).OrderByDescending(m => m.Timestamp))
+        {
+            MessageResults.Add(message);
+        }
     }
 
     [RelayCommand]
@@ -108,6 +153,8 @@ public partial class ConversationsViewModel : ObservableObject
             var filters = await _filterRepository.GetAllFiltersAsync();
             var assignments = await _filterRepository.GetAllAssignmentsAsync();
             _allowedSenders = await _allowedSenderRepository.GetAllAsync();
+            var drafts = await _draftRepository.GetAllAsync();
+            var muted = await _muteRepository.GetMutedThreadIdsAsync(DateTimeOffset.UtcNow);
 
             Filters.Clear();
             foreach (var filter in filters)
@@ -122,6 +169,8 @@ public partial class ConversationsViewModel : ObservableObject
                 {
                     t.IsFavorite = favoriteIds.Contains(t.Id);
                     t.FilterIds = assignments.TryGetValue(t.Id, out var ids) ? ids : new List<long>();
+                    t.DraftText = drafts.TryGetValue(t.Id, out var draft) ? draft : null;
+                    t.IsMuted = muted.Contains(t.Id);
                     return t;
                 })
                 .ToList();
@@ -315,6 +364,30 @@ public partial class ConversationsViewModel : ObservableObject
 
         SortThreads();
         ApplyFilter();
+    }
+
+    [RelayCommand]
+    private async Task MuteThread((long ThreadId, DateTimeOffset? UntilUtc) args)
+    {
+        await _muteRepository.MuteAsync(args.ThreadId, args.UntilUtc);
+        _undoStack.Push(new MuteUndoAction(args.ThreadId, _muteRepository));
+        SetMuted(args.ThreadId, true);
+    }
+
+    [RelayCommand]
+    private async Task UnmuteThread(long threadId)
+    {
+        await _muteRepository.UnmuteAsync(threadId);
+        SetMuted(threadId, false);
+    }
+
+    private void SetMuted(long threadId, bool isMuted)
+    {
+        if (_allThreads.FirstOrDefault(t => t.Id == threadId) is { } thread)
+        {
+            thread.IsMuted = isMuted;
+            ApplyFilter();
+        }
     }
 
     [RelayCommand]

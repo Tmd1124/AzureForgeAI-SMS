@@ -34,6 +34,7 @@ public partial class ThreadDetailViewModel : ObservableObject
     private readonly string _address;
     private readonly TimeSpan _undoSendWindow;
     private readonly IReadOnlyList<string> _participants;
+    private readonly Data.IDraftRepository? _drafts;
     private PendingSend? _pendingSend;
 
     public ObservableCollection<Models.SmsMessage> Messages { get; } = new();
@@ -80,8 +81,9 @@ public partial class ThreadDetailViewModel : ObservableObject
     private DateTimeOffset? _oldestLoadedTimestamp;
     private DateTimeOffset? _newestLoadedTimestamp;
 
-    public ThreadDetailViewModel(ISmsService smsService, IMessageSchedulerService scheduler, long threadId, string address, TimeSpan? undoSendWindow = null, IReadOnlyList<string>? participants = null)
+    public ThreadDetailViewModel(ISmsService smsService, IMessageSchedulerService scheduler, long threadId, string address, TimeSpan? undoSendWindow = null, IReadOnlyList<string>? participants = null, Data.IDraftRepository? drafts = null)
     {
+        _drafts = drafts;
         _participants = participants ?? Array.Empty<string>();
         _smsService = smsService;
         _scheduler = scheduler;
@@ -104,6 +106,10 @@ public partial class ThreadDetailViewModel : ObservableObject
 
         _isLoadingMessages = true;
         LoadFailed = false;
+        if (_drafts is not null && string.IsNullOrEmpty(ComposeText) && await _drafts.GetAsync(_threadId) is { } draft)
+        {
+            ComposeText = draft;
+        }
         Messages.Clear();
         _oldestLoadedTimestamp = null;
         _newestLoadedTimestamp = null;
@@ -121,6 +127,7 @@ public partial class ThreadDetailViewModel : ObservableObject
             _oldestLoadedTimestamp = ordered.Count > 0 ? ordered[0].Timestamp : null;
             _newestLoadedTimestamp = ordered.Count > 0 ? ordered[^1].Timestamp : null;
             HasMoreMessages = page.Count >= PageSize;
+            Utils.ReactionAttacher.Apply(Messages);
         }
         catch (Exception)
         {
@@ -186,6 +193,7 @@ public partial class ThreadDetailViewModel : ObservableObject
             HasMoreMessages = page.Count >= PageSize;
             IsAtLatest = false;
             HighlightedMessage = target;
+            Utils.ReactionAttacher.Apply(Messages);
 
             // Also load what came right after, so the found message has context below it instead
             // of sitting at the very bottom, where the next scroll would trigger this same fetch
@@ -264,6 +272,7 @@ public partial class ThreadDetailViewModel : ObservableObject
             }
 
             HasMoreMessages = page.Count >= PageSize;
+            Utils.ReactionAttacher.Apply(Messages);
         }
         catch (Exception)
         {
@@ -376,6 +385,7 @@ public partial class ThreadDetailViewModel : ObservableObject
         // Fewer than a full page means there's nothing newer left in the provider — the
         // window's newest message is genuinely the thread's latest again.
         IsAtLatest = page.Count < PageSize;
+        Utils.ReactionAttacher.Apply(Messages);
     }
 
     // A second send while one is still pending must be able to start (and flush the first)
@@ -390,6 +400,10 @@ public partial class ThreadDetailViewModel : ObservableObject
         }
 
         FlushPendingSend();
+        if (_drafts is not null)
+        {
+            await _drafts.SaveAsync(_threadId, string.Empty);
+        }
         var replyingTo = ReplyingTo;
         var outgoingText = WithReplyQuote(text, replyingTo);
         ComposeText = string.Empty;
@@ -436,6 +450,17 @@ public partial class ThreadDetailViewModel : ObservableObject
         await Load();
     }
 
+    [RelayCommand]
+    private async Task DeleteMessage(Models.SmsMessage message)
+    {
+        await _smsService.DeleteMessageAsync(message);
+        Messages.Remove(message);
+        SearchResults.Remove(message);
+    }
+
+    // Called when leaving the conversation, so unsent text is still there next time.
+    public Task SaveDraftAsync() => _drafts?.SaveAsync(_threadId, ComposeText) ?? Task.CompletedTask;
+
     public Models.PickedAttachment? UndoSend()
     {
         if (_pendingSend is not { } pending)
@@ -454,14 +479,20 @@ public partial class ThreadDetailViewModel : ObservableObject
     private async Task ScheduleSend(DateTimeOffset sendAtUtc)
     {
         var text = ComposeText.Trim();
-        // The scheduler sends plain one-to-one texts, which would split a group reply into
-        // separate private messages, so scheduling isn't offered in group conversations.
-        if (string.IsNullOrEmpty(text) || IsGroup)
+        if (string.IsNullOrEmpty(text))
         {
             return;
         }
 
-        await _scheduler.ScheduleAsync(_address, WithReplyQuote(text, ReplyingTo), sendAtUtc);
+        var outgoingText = WithReplyQuote(text, ReplyingTo);
+        if (IsGroup)
+        {
+            await _scheduler.ScheduleGroupAsync(_threadId, _participants, outgoingText, sendAtUtc);
+        }
+        else
+        {
+            await _scheduler.ScheduleAsync(_address, outgoingText, sendAtUtc);
+        }
         ComposeText = string.Empty;
         ReplyingTo = null;
     }

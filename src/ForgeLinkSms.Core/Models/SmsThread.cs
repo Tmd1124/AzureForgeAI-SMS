@@ -12,6 +12,8 @@ public class SmsThread
     public bool IsFavorite { get; set; }
     public bool HasOutgoing { get; init; }
     public IReadOnlyList<string> Participants { get; init; } = Array.Empty<string>();
+    public string? DraftText { get; set; }
+    public bool IsMuted { get; set; }
     public bool IsGroup => Participants.Count > 1;
     public IReadOnlyList<long> FilterIds { get; set; } = Array.Empty<long>();
 

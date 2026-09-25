@@ -2,6 +2,8 @@ using ForgeLinkSms.Core.Services;
 using PickedAttachment = ForgeLinkSms.Core.Models.PickedAttachment;
 using SmsMessage = ForgeLinkSms.Core.Models.SmsMessage;
 using SmsMessageStatus = ForgeLinkSms.Core.Models.SmsMessageStatus;
+using SharedMedia = ForgeLinkSms.Core.Models.SharedMedia;
+using AttachmentKindClassifier = ForgeLinkSms.Core.Utils.AttachmentKindClassifier;
 using AndroidApp = global::Android.App.Application;
 using AndroidTelephony = global::Android.Provider.Telephony;
 using AndroidSmsManager = global::Android.Telephony.SmsManager;
@@ -38,12 +40,46 @@ public class SmsService : ISmsService
     public Task<IReadOnlyList<SmsMessage>> GetNewerMessagesAsync(long threadId, DateTimeOffset afterTimestamp, int pageSize) =>
         Task.Run(() => GetMessagesCore(threadId, afterTimestamp, pageSize, ascending: true));
 
+    public Task<IReadOnlyList<SharedMedia>> GetSharedMediaAsync(long threadId) => Task.Run<IReadOnlyList<SharedMedia>>(() =>
+    {
+        var context = AndroidApp.Context;
+        var mmsInThread = MmsReader.QueryAll(context, threadId).ToDictionary(m => m.Id);
+        var media = new List<SharedMedia>();
+        using var parts = context.ContentResolver!.Query(
+            global::Android.Net.Uri.Parse("content://mms/part")!,
+            new[] { "_id", "mid", "ct", "name", "cl" },
+            "ct LIKE 'image/%' OR ct LIKE 'video/%'",
+            null,
+            null);
+        while (parts is not null && parts.MoveToNext())
+        {
+            if (!mmsInThread.TryGetValue(parts.GetLong(1), out var mms))
+            {
+                continue;
+            }
+            var partId = parts.GetLong(0);
+            var fileName = parts.GetString(3) ?? parts.GetString(4) ?? $"attachment-{partId}";
+            media.Add(new SharedMedia(partId, AttachmentKindClassifier.FromContentType(parts.GetString(2)), fileName, mms.Date, mms.IsOutgoing));
+        }
+        return media;
+    });
+
+    public Task DeleteMessageAsync(SmsMessage message) => Task.Run(() =>
+    {
+        var uri = message.IsMms ? $"content://mms/{message.Id}" : $"content://sms/{message.Id}";
+        AndroidApp.Context.ContentResolver!.Delete(global::Android.Net.Uri.Parse(uri)!, null, null);
+    });
+
     public Task<IReadOnlyList<SmsMessage>> SearchMessagesAsync(long threadId, string query, int limit) =>
         Task.Run(() => SearchCore(threadId, query, limit));
 
+    public Task<IReadOnlyList<SmsMessage>> SearchAllMessagesAsync(string query, int limit) =>
+        Task.Run(() => SearchCore(null, query, limit));
+
     // SQLite's LIKE is already case-insensitive for ASCII; % and _ in the user's text are
     // escaped so they match literally.
-    private static IReadOnlyList<SmsMessage> SearchCore(long threadId, string query, int limit)
+    // threadId null searches every conversation.
+    private static IReadOnlyList<SmsMessage> SearchCore(long? threadId, string query, int limit)
     {
         var context = AndroidApp.Context;
         var pattern = "%" + query.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
@@ -54,8 +90,8 @@ public class SmsService : ISmsService
         using (var cursor = context.ContentResolver!.Query(
             AndroidTelephony.Sms.ContentUri!,
             new[] { "_id", "thread_id", "address", "body", "date", "type", "status" },
-            "thread_id = ? AND (type = ? OR type = ?) AND body LIKE ? ESCAPE '\\'",
-            new[] { threadId.ToString(), inbox.ToString(), sent.ToString(), pattern },
+            (threadId is null ? "" : "thread_id = ? AND ") + "(type = ? OR type = ?) AND body LIKE ? ESCAPE '\\'",
+            (threadId is null ? Array.Empty<string>() : new[] { threadId.Value.ToString() }).Concat(new[] { inbox.ToString(), sent.ToString(), pattern }).ToArray(),
             "date DESC LIMIT " + limit))
         {
             smsMatches = cursor is null ? new List<SmsMessage>() : ReadSmsRows(cursor);
@@ -96,7 +132,8 @@ public class SmsService : ISmsService
                     Timestamp = mms.Date,
                     IsOutgoing = mms.IsOutgoing,
                     Status = mms.IsOutgoing ? SmsMessageStatus.Sent : SmsMessageStatus.Delivered,
-                    Attachments = attachments
+                    Attachments = attachments,
+                    IsMms = true
                 };
             });
 
@@ -156,7 +193,8 @@ public class SmsService : ISmsService
                 Timestamp = mms.Date,
                 IsOutgoing = mms.IsOutgoing,
                 Status = mms.IsOutgoing ? SmsMessageStatus.Sent : SmsMessageStatus.Delivered,
-                Attachments = attachments
+                Attachments = attachments,
+                IsMms = true
             };
         });
 

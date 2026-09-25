@@ -31,6 +31,19 @@ public static class MauiProgram
 		builder.Services.AddSingleton<ILocationService, LocationService>();
 		builder.Services.AddSingleton<IAttachmentPickerService, AttachmentPickerService>();
 		builder.Services.AddSingleton<IVoiceRecorderService, VoiceRecorderService>();
+		builder.Services.AddSingleton<ForwardRequestStore>();
+		builder.Services.AddSingleton<IMediaThumbnailService, MediaThumbnailService>();
+		builder.Services.AddSingleton(new LinkPreviewService(new HttpClient()));
+		var pairedBrowserStore = new ForgeLinkSms.Core.Web.PairedBrowserStore(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
+		pairedBrowserStore.InitializeAsync().GetAwaiter().GetResult();
+		builder.Services.AddSingleton<ForgeLinkSms.Core.Web.IPairedBrowserStore>(pairedBrowserStore);
+		builder.Services.AddSingleton(sp => new ForgeLinkSms.Core.Web.PairingService(sp.GetRequiredService<ForgeLinkSms.Core.Web.IPairedBrowserStore>()));
+		builder.Services.AddSingleton<ForgeLinkSms.Core.Web.WebEventHub>();
+		builder.Services.AddSingleton<ForgeLinkSms.Core.Web.IStaticFiles, AppPackageStaticFiles>();
+		builder.Services.AddSingleton<ForgeLinkSms.Core.Web.IConversationSource>(sp => new ForgeLinkSms.Core.Web.ConversationSource(() => sp.GetRequiredService<ConversationsViewModel>()));
+		builder.Services.AddSingleton<ForgeLinkSms.Core.Web.WebApi>();
+		builder.Services.AddSingleton<ForgeLinkSms.Core.Web.IComputerAccessController, ComputerAccessController>();
+		builder.Services.AddTransient<ComputerAccessViewModel>();
 		builder.Services.AddSingleton<IAudioPlaybackService, AudioPlaybackService>();
 		builder.Services.AddSingleton<IAttachmentSaveService, AttachmentSaveService>();
 		builder.Services.AddSingleton<IThreadDeletionService, ThreadDeletionService>();
@@ -61,6 +74,14 @@ public static class MauiProgram
 		archiveRepository.InitializeAsync().GetAwaiter().GetResult();
 		builder.Services.AddSingleton<IArchiveRepository>(archiveRepository);
 		builder.Services.AddTransient<ArchivedViewModel>();
+
+		var muteRepository = new MuteRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
+		muteRepository.InitializeAsync().GetAwaiter().GetResult();
+		builder.Services.AddSingleton<IMuteRepository>(muteRepository);
+
+		var draftRepository = new DraftRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
+		draftRepository.InitializeAsync().GetAwaiter().GetResult();
+		builder.Services.AddSingleton<IDraftRepository>(draftRepository);
 
 		var quickReplyRepository = new QuickReplyRepository(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
 		quickReplyRepository.InitializeAsync().GetAwaiter().GetResult();

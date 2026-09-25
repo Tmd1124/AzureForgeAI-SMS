@@ -14,6 +14,30 @@ public class AttachmentSaveService : IAttachmentSaveService
     public Task<bool> SaveToDeviceAsync(MessageAttachment attachment) =>
         Task.Run(() => SaveCore(attachment));
 
+    public Task<PickedAttachment?> CopyForSendingAsync(MessageAttachment attachment) => Task.Run<PickedAttachment?>(() =>
+    {
+        try
+        {
+            var directory = Path.Combine(FileSystem.AppDataDirectory, "attachments");
+            Directory.CreateDirectory(directory);
+            var localPath = Path.Combine(directory, $"{Guid.NewGuid():N}-{attachment.FileName}");
+            using (var input = AndroidApp.Context.ContentResolver!.OpenInputStream(AndroidUri.Parse($"content://mms/part/{attachment.PartId}")!))
+            {
+                if (input is null)
+                {
+                    return null;
+                }
+                using var output = File.Create(localPath);
+                input.CopyTo(output);
+            }
+            return new PickedAttachment { FileName = attachment.FileName, LocalPath = localPath, Kind = attachment.Kind };
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    });
+
     private static bool SaveCore(MessageAttachment attachment)
     {
         var context = AndroidApp.Context;

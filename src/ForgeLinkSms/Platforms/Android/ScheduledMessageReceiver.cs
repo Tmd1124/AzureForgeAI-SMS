@@ -31,7 +31,14 @@ public class ScheduledMessageReceiver : BroadcastReceiver
                 var message = await repository.GetAsync(id);
                 if (message is not null)
                 {
-                    await smsService.SendAsync(message.Address, message.Body);
+                    if (message.IsGroup)
+                    {
+                        await smsService.SendGroupAsync(message.ThreadId, message.Recipients, message.Body, null);
+                    }
+                    else
+                    {
+                        await smsService.SendAsync(message.Address, message.Body);
+                    }
                     await repository.RemoveAsync(id);
                 }
             }

@@ -66,7 +66,7 @@
     @if (_isSearchOpen)
     {
         <div style="display:flex;align-items:center;gap:8px;background:var(--card-color);padding:12px;margin-bottom:8px;border-radius:8px;">
-            <input @ref="_searchInput" placeholder="Search contacts or numbers" @bind="ViewModel.SearchText" @bind:event="oninput" style="flex:1;min-width:0;" />
+            <input @ref="_searchInput" placeholder="Search contacts or numbers" @bind="ViewModel.SearchText" @bind:event="oninput" @bind:after="SearchMessagesSoon" style="flex:1;min-width:0;" />
             <button @onclick="CloseSearch" style="border:none;background:transparent;font-size:1.2em;">✕</button>
         </div>
     }
@@ -126,6 +126,7 @@
         {
             ConversationLane.Screener => "Nothing waiting in the Screener.",
             ConversationLane.Updates => "No updates.",
+            _ when !string.IsNullOrWhiteSpace(ViewModel.SearchText) => "No conversations match.",
             _ => "No conversations yet."
         })</p>
     }
@@ -182,6 +183,10 @@
                     {
                         <span> ❤️</span>
                     }
+                    @if (thread.IsMuted)
+                    {
+                        <span title="Muted"> 🔕</span>
+                    }
                     @foreach (var filterId in thread.FilterIds)
                     {
                         var filter = ViewModel.Filters.FirstOrDefault(f => f.Id == filterId);
@@ -194,7 +199,14 @@
                     {
                         <span style="color:#06b6d4;"> ● @thread.UnreadCount</span>
                     }
-                    <div style="color:#94a3b8;font-size:0.85em;">@thread.PreviewText</div>
+                    @if (!string.IsNullOrWhiteSpace(thread.DraftText))
+                    {
+                        <div style="color:#94a3b8;font-size:0.85em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><span style="color:#ef4444;font-weight:600;">Draft:</span> @thread.DraftText</div>
+                    }
+                    else
+                    {
+                        <div style="color:#94a3b8;font-size:0.85em;">@thread.PreviewText</div>
+                    }
                 </div>
                 @if (_selectedThreadIds.Count == 0 && ViewModel.Lane != ConversationLane.Conversations && string.IsNullOrWhiteSpace(ViewModel.SearchText))
                 {
@@ -215,6 +227,23 @@
                         📞
                     </button>
                 }
+            </div>
+        }
+    }
+
+    @if (_isSearchOpen && ViewModel.SearchText.Trim().Length >= 2 && ViewModel.MessageResults.Count > 0)
+    {
+        <div style="font-weight:600;color:#94a3b8;font-size:0.85em;margin:16px 4px 4px;text-transform:uppercase;letter-spacing:0.05em;">Messages</div>
+        @foreach (var result in ViewModel.MessageResults)
+        {
+            var (before, match, after) = Snippet(result.Body, ViewModel.SearchText.Trim());
+            <div @key="@($"msg-result-{result.Id}-{result.Timestamp.Ticks}")" @onclick="() => OpenMessageResult(result)"
+                 style="padding:10px;border-bottom:1px solid #eee;cursor:pointer;">
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <strong style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@ViewModel.ConversationNameFor(result)</strong>
+                    <span style="color:#94a3b8;font-size:0.8em;flex-shrink:0;">@FormatResultDate(result.Timestamp)</span>
+                </div>
+                <div style="color:#94a3b8;font-size:0.9em;">@(result.IsOutgoing ? "You: " : "")@before<mark style="background:#facc15;color:#111;border-radius:3px;padding:0 1px;">@match</mark>@after</div>
             </div>
         }
     }
@@ -241,8 +270,29 @@
             <div @onclick="FavoriteSelectedThread" style="padding:12px;">@(_actionSheetIsFavorite ? "💔 Unfavorite" : "❤️ Favorite")</div>
             <div @onclick="MarkReadSelectedThread" style="padding:12px;display:flex;align-items:center;gap:8px;">@(_actionSheetIsUnread ? EyeOpenIcon : EyeSlashIcon) <span>@(_actionSheetIsUnread ? "Mark as Read" : "Mark as Unread")</span></div>
             <div @onclick="OpenSnoozeSheet" style="padding:12px;">💤 Snooze</div>
+            @if (_actionSheetIsMuted)
+            {
+                <div @onclick="UnmuteSelectedThread" style="padding:12px;">🔔 Unmute</div>
+            }
+            else
+            {
+                <div @onclick="OpenMuteSheet" style="padding:12px;">🔕 Mute</div>
+            }
             <div @onclick="TrashSelectedThread" style="padding:12px;">🗑 Trash</div>
             <div @onclick="BlockSelectedThread" style="padding:12px;">🚫 Block</div>
+        </div>
+    </div>
+}
+
+@if (_muteThreadId is not null)
+{
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;z-index:20;" @onclick="() => _muteThreadId = null">
+        <div style="background:var(--card-color);width:100%;padding:12px;border-radius:16px 16px 0 0;" @onclick:stopPropagation="true">
+            <div style="padding:4px 12px 8px;font-weight:600;">Mute notifications for…</div>
+            @foreach (var preset in ForgeLinkSms.Core.Utils.MutePresets.For(DateTimeOffset.UtcNow))
+            {
+                <div @onclick="() => MuteFor(preset)" style="padding:12px;cursor:pointer;">@preset.Label</div>
+            }
         </div>
     </div>
 }
@@ -292,6 +342,8 @@
     private string _actionSheetAddress = string.Empty;
     private bool _actionSheetIsFavorite;
     private bool _actionSheetIsUnread;
+    private bool _actionSheetIsMuted;
+    private long? _muteThreadId;
     private CancellationTokenSource? _longPressCts;
     private bool _longPressTriggered;
     private long? _activePointerDownThreadId;
@@ -312,6 +364,7 @@
     private long? _snoozeThreadId;
     private readonly HashSet<UpdateCategory> _expandedUpdateGroups = new();
     private bool _restoreRowAnchor;
+    private CancellationTokenSource? _messageSearchCts;
     private DateTime? _customSnoozeTime;
     private readonly CancellationTokenSource _codeExpiryCts = new();
 
@@ -605,6 +658,63 @@
 
     private void CloseActionSheet() => _actionSheetThreadId = null;
 
+    private void SearchMessagesSoon()
+    {
+        _messageSearchCts?.Cancel();
+        _messageSearchCts = new CancellationTokenSource();
+        var token = _messageSearchCts.Token;
+        var query = ViewModel.SearchText;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(250, token);
+                await InvokeAsync(async () =>
+                {
+                    await ViewModel.SearchMessagesCommand.ExecuteAsync(query);
+                    StateHasChanged();
+                });
+            }
+            catch (TaskCanceledException)
+            {
+            }
+        });
+    }
+
+    private void OpenMessageResult(ForgeLinkSms.Core.Models.SmsMessage result)
+    {
+        var thread = ViewModel.Threads.FirstOrDefault(t => t.Id == result.ThreadId);
+        var address = thread?.Address ?? result.Address;
+        Nav.NavigateTo($"/conversations/thread?id={result.ThreadId}&address={Uri.EscapeDataString(address)}&jumpId={result.Id}&jumpTicks={result.Timestamp.UtcTicks}");
+    }
+
+    // Up to ~30 characters before the match and ~50 after, so the match is visible in one line.
+    private static (string Before, string Match, string After) Snippet(string body, string query)
+    {
+        var index = body.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+        if (index < 0)
+        {
+            return (body.Length > 80 ? body[..80] + "…" : body, string.Empty, string.Empty);
+        }
+        var start = Math.Max(0, index - 30);
+        var afterStart = index + query.Length;
+        var afterEnd = Math.Min(body.Length, afterStart + 50);
+        return (
+            (start > 0 ? "…" : string.Empty) + body[start..index],
+            body.Substring(index, query.Length),
+            body[afterStart..afterEnd] + (afterEnd < body.Length ? "…" : string.Empty));
+    }
+
+    private static string FormatResultDate(DateTimeOffset timestamp)
+    {
+        var local = timestamp.LocalDateTime;
+        if (local.Date == DateTime.Today)
+        {
+            return local.ToString("h:mm tt");
+        }
+        return local.Year == DateTime.Today.Year ? local.ToString("MMM d") : local.ToString("MMM d, yyyy");
+    }
+
     private void SelectFromPond(SmsThread thread) => _selectedThreadIds.Add(thread.Id);
 
     private IEnumerable<(ConversationLane Lane, string Label, int Count)> LaneTabs()
@@ -680,6 +790,33 @@
     {
         await ViewModel.BlockThreadCommand.ExecuteAsync(address);
         ShowUndoToast("Blocked");
+    }
+
+    private void OpenMuteSheet()
+    {
+        _muteThreadId = _actionSheetThreadId;
+        CloseActionSheet();
+    }
+
+    private async Task MuteFor(ForgeLinkSms.Core.Utils.MutePreset preset)
+    {
+        if (_muteThreadId is long id)
+        {
+            await ViewModel.MuteThreadCommand.ExecuteAsync((id, preset.UntilUtc));
+            ShowUndoToast(preset.UntilUtc is null ? "Muted" : $"Muted for {preset.Label}");
+        }
+        _muteThreadId = null;
+        ClearSelection();
+    }
+
+    private async Task UnmuteSelectedThread()
+    {
+        if (_actionSheetThreadId is long id)
+        {
+            await ViewModel.UnmuteThreadCommand.ExecuteAsync(id);
+        }
+        CloseActionSheet();
+        ClearSelection();
     }
 
     private void OpenSnoozeSheet()
@@ -893,5 +1030,6 @@
         _actionSheetAddress = thread.Address;
         _actionSheetIsFavorite = thread.IsFavorite;
         _actionSheetIsUnread = thread.UnreadCount > 0;
+        _actionSheetIsMuted = thread.IsMuted;
     }
 }

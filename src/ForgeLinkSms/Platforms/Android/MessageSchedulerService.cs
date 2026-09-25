@@ -29,6 +29,20 @@ public class MessageSchedulerService : IMessageSchedulerService
         return id;
     }
 
+    public async Task<int> ScheduleGroupAsync(long threadId, IReadOnlyList<string> addresses, string body, DateTimeOffset sendAtUtc)
+    {
+        var id = await _repository.AddAsync(new ScheduledMessage
+        {
+            Address = addresses.FirstOrDefault() ?? string.Empty,
+            Body = body,
+            SendAtUtc = sendAtUtc,
+            ThreadId = threadId,
+            GroupAddresses = string.Join(",", addresses)
+        });
+        Arm(id, sendAtUtc);
+        return id;
+    }
+
     public async Task CancelAsync(int scheduledMessageId)
     {
         Disarm(scheduledMessageId);
