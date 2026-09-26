@@ -57,9 +57,9 @@ ForgeLink SMS works as your default SMS app. Standard carrier messaging rates ap
 **Feature graphic**: `images/ForgeLink Feature Graphic 1024x500.png`
 **Phone screenshots**: 2–8 required (see "Screenshots" below).
 **Category**: Communication
-**Contact email**: `CONTACT_EMAIL`
+**Contact email**: `Tmd1124@outlook.com`
 **Privacy policy URL**: where you host `docs/play-store/privacy-policy.html`
-(e.g. `https://YOUR-DOMAIN/forgelink/privacy`). Replace `CONTACT_EMAIL` in the file first.
+(e.g. `https://YOUR-DOMAIN/forgelink/privacy`).
 
 ## Screenshots
 
