@@ -10,3 +10,4 @@ obj/
 [Aa]ab/
 *.androidproj.user
 docs/superpowers/plans/*.output
+.playwright-mcp/
