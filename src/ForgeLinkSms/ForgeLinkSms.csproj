@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
 
     <PropertyGroup>
-        <TargetFrameworks>net9.0-android</TargetFrameworks>
+        <TargetFrameworks>net10.0-android</TargetFrameworks>
 
         <!-- Note for MacCatalyst:
             The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
@@ -22,7 +22,7 @@
         <ApplicationTitle>ForgeLink SMS</ApplicationTitle>
 
         <!-- App Identifier -->
-        <ApplicationId>com.companyname.forgelinksms</ApplicationId>
+        <ApplicationId>com.forgelink.sms</ApplicationId>
 
         <!-- Versions -->
         <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
@@ -37,6 +37,20 @@
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
         <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
+    </PropertyGroup>
+
+    <!-- Google Play upload signing. The key lives outside the repo; the build falls back to the
+         debug key on machines that don't have it. -->
+    <PropertyGroup Condition="'$(Configuration)' == 'Release' And Exists('$(USERPROFILE)\ForgeLink-Keys\forgelink-upload.jks')">
+        <AndroidKeyStore>true</AndroidKeyStore>
+        <AndroidSigningKeyStore>$(USERPROFILE)\ForgeLink-Keys\forgelink-upload.jks</AndroidSigningKeyStore>
+        <AndroidSigningKeyAlias>forgelink-upload</AndroidSigningKeyAlias>
+        <AndroidSigningStorePass>file:$(USERPROFILE)\ForgeLink-Keys\upload-key-password.txt</AndroidSigningStorePass>
+        <AndroidSigningKeyPass>file:$(USERPROFILE)\ForgeLink-Keys\upload-key-password.txt</AndroidSigningKeyPass>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <AndroidPackageFormat>aab</AndroidPackageFormat>
     </PropertyGroup>
 
     <ItemGroup>
@@ -60,7 +74,7 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
         <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
     </ItemGroup>
 
     <ItemGroup>

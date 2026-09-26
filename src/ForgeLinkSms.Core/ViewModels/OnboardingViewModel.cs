@@ -36,6 +36,11 @@ public partial class OnboardingViewModel : ObservableObject
     [RelayCommand]
     private async Task RequestPermissions()
     {
+        // Google Play only allows asking for SMS permissions once the app is the default SMS app.
+        if (!RoleGranted)
+        {
+            return;
+        }
         PermissionsGranted = await _permissionService.RequestAllAsync();
         OnPropertyChanged(nameof(CanContinue));
     }

@@ -13,11 +13,6 @@ using Android.Runtime;
 [assembly: UsesPermission(Android.Manifest.Permission.AccessCoarseLocation)]
 [assembly: UsesPermission(Android.Manifest.Permission.ReceiveBootCompleted)]
 [assembly: UsesPermission(Android.Manifest.Permission.RecordAudio)]
-[assembly: UsesPermission(Android.Manifest.Permission.ForegroundService)]
-[assembly: UsesPermission("android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE")]
-[assembly: UsesPermission(Android.Manifest.Permission.ChangeNetworkState)]
-[assembly: UsesPermission(Android.Manifest.Permission.AccessWifiState)]
-[assembly: UsesPermission(Android.Manifest.Permission.WakeLock)]
 
 namespace ForgeLinkSms;
 

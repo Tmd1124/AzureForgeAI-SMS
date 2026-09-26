@@ -7,7 +7,7 @@
              through this provider instead (see MmsSender.cs). -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.companyname.forgelinksms.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data

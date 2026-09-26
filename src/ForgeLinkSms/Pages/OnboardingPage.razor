@@ -9,7 +9,7 @@
         1. Make this my default SMS app @(ViewModel.RoleGranted ? "✓" : "")
     </button>
 
-    <button @onclick="() => ViewModel.RequestPermissionsCommand.ExecuteAsync(null)">
+    <button disabled="@(!ViewModel.RoleGranted)" @onclick="() => ViewModel.RequestPermissionsCommand.ExecuteAsync(null)">
         2. Grant permissions @(ViewModel.PermissionsGranted ? "✓" : "")
     </button>
 

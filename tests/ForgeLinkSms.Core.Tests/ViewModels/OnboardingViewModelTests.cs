@@ -21,6 +21,23 @@ public class OnboardingViewModelTests
     public async Task RequestPermissionsCommand_sets_PermissionsGranted_on_success()
     {
         var role = new Mock<IDefaultAppRoleService>();
+        role.Setup(r => r.IsDefaultSmsApp()).Returns(true);
+        var permissions = new Mock<IPermissionService>();
+        permissions.Setup(p => p.RequestAllAsync()).ReturnsAsync(true);
+        var nav = new Mock<INavigationService>();
+        var viewModel = new OnboardingViewModel(role.Object, permissions.Object, nav.Object);
+
+        await viewModel.RequestRoleCommand.ExecuteAsync(null);
+        await viewModel.RequestPermissionsCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.PermissionsGranted);
+    }
+
+    [Fact]
+    public async Task Permissions_are_not_requested_before_becoming_the_default_sms_app()
+    {
+        var role = new Mock<IDefaultAppRoleService>();
+        role.Setup(r => r.IsDefaultSmsApp()).Returns(false);
         var permissions = new Mock<IPermissionService>();
         permissions.Setup(p => p.RequestAllAsync()).ReturnsAsync(true);
         var nav = new Mock<INavigationService>();
@@ -28,7 +45,8 @@ public class OnboardingViewModelTests
 
         await viewModel.RequestPermissionsCommand.ExecuteAsync(null);
 
-        Assert.True(viewModel.PermissionsGranted);
+        permissions.Verify(p => p.RequestAllAsync(), Times.Never);
+        Assert.False(viewModel.PermissionsGranted);
     }
 
     [Fact]

@@ -34,16 +34,6 @@ public static class MauiProgram
 		builder.Services.AddSingleton<ForwardRequestStore>();
 		builder.Services.AddSingleton<IMediaThumbnailService, MediaThumbnailService>();
 		builder.Services.AddSingleton(new LinkPreviewService(new HttpClient()));
-		var pairedBrowserStore = new ForgeLinkSms.Core.Web.PairedBrowserStore(Path.Combine(FileSystem.AppDataDirectory, "ForgeLinkSms.db"));
-		pairedBrowserStore.InitializeAsync().GetAwaiter().GetResult();
-		builder.Services.AddSingleton<ForgeLinkSms.Core.Web.IPairedBrowserStore>(pairedBrowserStore);
-		builder.Services.AddSingleton(sp => new ForgeLinkSms.Core.Web.PairingService(sp.GetRequiredService<ForgeLinkSms.Core.Web.IPairedBrowserStore>()));
-		builder.Services.AddSingleton<ForgeLinkSms.Core.Web.WebEventHub>();
-		builder.Services.AddSingleton<ForgeLinkSms.Core.Web.IStaticFiles, AppPackageStaticFiles>();
-		builder.Services.AddSingleton<ForgeLinkSms.Core.Web.IConversationSource>(sp => new ForgeLinkSms.Core.Web.ConversationSource(() => sp.GetRequiredService<ConversationsViewModel>()));
-		builder.Services.AddSingleton<ForgeLinkSms.Core.Web.WebApi>();
-		builder.Services.AddSingleton<ForgeLinkSms.Core.Web.IComputerAccessController, ComputerAccessController>();
-		builder.Services.AddTransient<ComputerAccessViewModel>();
 		builder.Services.AddSingleton<IAudioPlaybackService, AudioPlaybackService>();
 		builder.Services.AddSingleton<IAttachmentSaveService, AttachmentSaveService>();
 		builder.Services.AddSingleton<IThreadDeletionService, ThreadDeletionService>();

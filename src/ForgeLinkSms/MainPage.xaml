@@ -4,6 +4,7 @@
              xmlns:local="clr-namespace:ForgeLinkSms"
              xmlns:components="clr-namespace:ForgeLinkSms.Components"
              x:Class="ForgeLinkSms.MainPage"
+             SafeAreaEdges="Container"
              BackgroundColor="Black">
 
     <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html" BackgroundColor="Black">
